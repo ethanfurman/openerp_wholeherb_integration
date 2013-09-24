@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<openerp>
+    <data>
+        <record id="view_partners_form_xml_id" model="ir.ui.view">
+                <field name="name">view.res.partner.form.xml_id</field>
+                <field name="model">res.partner</field>
+                <field name="inherit_id" ref="base.view_partner_form"/>
+                <field eval="18" name="priority"/>
+                <field name="arch" type="xml">
+                    <field name="website" position="after">
+                        <field name="xml_id" attrs="{'readonly':True}"/>
+                    </field>
+                    <field name="comment" position="before">
+                        <group attrs="{'invisible': ['|',('is_company','=',False), ('supplier','=',False)]}">
+                            <group string="Vendor Info" colspan="1">
+                                <field name="vn_tele"/>
+                                <field name="vn_fax"/>
+                                <field name="vn_telex"/>
+                                <!-- <group string="Organic certification"> -->
+                                    <separator/>
+                                    <separator/>
+                                    <field name="vn_org_cert"/>
+                                    <field name="vn_org_cert_file"/>
+                                    <field name="vn_org_exp"/>
+                                <!-- </group> -->
+                                    <separator/>
+                                    <separator/>
+                                    <field name="sp_non_gmo"/>
+                                    <field name="sp_gmo_exp"/>
+                                <!-- </group> -->
+                                <!-- <group string="Kosher Certification" colspan="1"> -->
+                                    <separator/>
+                                    <separator/>
+                                    <field name="sp_kosher"/>
+                                    <field name="sp_kosher_exp"/>
+                            </group>
+                        </group>
+                    </field>
+                </field>
+        </record>
+
+    <!-- Update the built-in res_partner forms to not show customers assigned to somebody else -->
+
+        <record id="action_partner_form" model="ir.actions.act_window">
+            <field name="name">Partners</field>
+            <field name="res_model">res.partner</field>
+            <field name="domain">['|', ('user_id','=',uid), ('user_id','=',False)]</field>
+        </record>
+
+        <record id="action_partner_customer_form" model="ir.actions.act_window">
+            <field name="name">Customers</field>
+            <field name="res_model">res.partner</field>
+            <field name="domain">['|', ('user_id','=',uid), ('user_id','=',False)]</field>
+        </record>
+
+        <record id="action_partner_supplier_form" model="ir.actions.act_window">
+            <field name="name">Suppliers</field>
+            <field name="res_model">res.partner</field>
+            <field name="domain">['|', ('user_id','=',uid), ('user_id','=',False)]</field>
+        </record>
+
+        <record id="action_partner_employee_form" model="ir.actions.act_window">
+            <field name="name">Employees</field>
+            <field name="res_model">res.partner</field>
+            <field name="domain">['|', ('user_id','=',uid), ('user_id','=',False)]</field>
+        </record>
+
+        <record id="action_partner_other_form" model="ir.actions.act_window">
+            <field name="name">Other Partners</field>
+            <field name="res_model">res.partner</field>
+            <field name="domain">['|', ('user_id','=',uid), ('user_id','=',False)]</field>
+        </record>
+
+    </data>
+
+    <data noupdate="1">
+        <record model="ir.cron" id="res_partner_fis_update">
+            <field name="name">FIS Supplier/Vendor Update</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="numbercall">-1</field>
+            <field name="doall" eval="False"/>
+            <field name="model" eval="'res.partner'"/>
+            <field name="function" eval="'fis_updates'"/>
+            <field name="args" eval="'()'"/>
+            <field name="nextcall" eval="'2013-04-09 08:00:00'"/>
+            <field name="priority">100</field>
+        </record>
+    </data>
+
+</openerp>
