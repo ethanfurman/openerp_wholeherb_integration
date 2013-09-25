@@ -120,7 +120,7 @@ class product_category(osv.Model):
 
     def fis_updates(self, cr, uid, *args):
         _logger.info("product.category.fis_updates starting...")
-        settings = check_company_settings(self, cr, uid, ('product_integration', 'Product Module', CONFIG_ERROR))
+        settings = check_company_settings(self, cr, uid, ('product_category_integration', 'Product Module', CONFIG_ERROR))
         module  = settings['product_category_integration']
         category_ids = self.search(cr, uid, [('module','=',module)])
         category_recs = self.browse(cr, uid, category_ids)
@@ -172,9 +172,15 @@ class product_product(osv.Model):
             current = values[rec.id] = {}
             try:
                 imd_rec = imd.get_object_from_model_resid(cr, uid, model, rec.id, context=context)
-                fis_rec = nvty[rec['xml_id']]
-            except (ValueError, KeyError):
-                return super(product_product, self)._product_available(cr, uid, ids, field_names, arg, context)
+                fis_recs = nvty.get_subset(rec.xml_id)
+                if not fis_recs:
+                    raise ValueError('no matching records for %s' % rec.xml_id)
+                fis_rec = fis_recs[0][1]
+            except (ValueError, ):
+                current['qty_available'] = 0
+                current['incoming_qty'] = 0
+                current['outgoing_qty'] = 0
+                current['virtual_available'] = qoh + inc - out
             else:
                 current['qty_available'] = qoh = fis_rec[P.on_hand]
                 current['incoming_qty'] = inc = fis_rec[P.committed]
@@ -207,7 +213,7 @@ class product_product(osv.Model):
         'sold_by': fields.char('Sold by', size=50),
         'latin': fields.char('Latin name', size=40),
         'avail': fields.char('Available?', size=24),
-        'spcl_ship_instr': fields.text('Special Shipping Instructions')
+        'spcl_ship_instr': fields.text('Special Shipping Instructions'),
         'fis_location': fields.char('Location', size=6),
         'qty_available': fields.function(_product_available, multi='qty_available',
             type='float', digits=(16,3), string='Quantity On Hand',
@@ -287,10 +293,10 @@ class product_product(osv.Model):
         processed = set()
         nvty = fisData('NVTY', subset='10%s', filter=warehouses)
         for inv_rec in nvty:
+            values = self._get_fis_values(inv_rec)
             key = values['xml_id']
             if key in processed:
                 continue
-            values = self._get_fis_values(inv_rec)
             try:
                 values['categ_id'] = cat_codes[values['categ_id']]
             except KeyError:
@@ -300,13 +306,13 @@ class product_product(osv.Model):
                 prod_rec = synced_prods[key]
                 if not values['latin']:
                     values['latin'] = prod_rec.latin or values['latin']
-                prod_items.write(cr, uid, prod_rec.id, values, context=context)
+                prod_items.write(cr, uid, prod_rec.id, values)
             elif key in unsynced_prods:
                 prod_rec = unsynced_prods[key]
-                prod_items.write(cr, uid, prod_rec.id, values, context=context)
+                prod_items.write(cr, uid, prod_rec.id, values)
             else:
-                id = prod_items.create(cr, uid, values, context=context)
-                prod_rec = self.browse(cr, uid, [id], context=context)[0]
+                id = prod_items.create(cr, uid, values)
+                prod_rec = self.browse(cr, uid, [id])[0]
                 synced_prods[key] = prod_rec
             if values['latin'] and values['sold_by']:
                 processed.add(key)
@@ -317,7 +323,6 @@ class product_product(osv.Model):
     def _get_fis_values(self, fis_rec):
         values = {}
         values['xml_id'] = values['default_code'] = fis_rec[P.code]
-        values['name'] = ''
         latin = NameCase(fis_rec[P.latin])
         if latin == 'N/A' or lose_digits(latin) == '':
             latin = ''

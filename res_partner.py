@@ -151,7 +151,7 @@ class res_partner(osv.Model):
             result['xml_id'] = key = 'v_' + ven_rec[V.code]
             result['name'] = BsnsCase(ven_rec[V.name])
             if not result['name']:
-                _logger.critical("Vendor %s has name -- skipping" % (key, ))
+                _logger.critical("Vendor %s has no name -- skipping" % (key, ))
                 continue
             addr1, addr2, addr3 = Sift(ven_rec[V.addr1], ven_rec[V.addr2], ven_rec[V.addr3])
             addr2, city, state, postal, country = cszk(addr2, addr3)
@@ -209,7 +209,7 @@ class res_partner(osv.Model):
             result['xml_id'] = key = 's_' + sup_rec[S.code]
             result['name'] = BsnsCase(sup_rec[S.name])
             if not result['name']:
-                _logger.critical("Vendor %s has name -- skipping" % (key, ))
+                _logger.critical("Vendor %s has no name -- skipping" % (key, ))
                 continue
             addr1, addr2, addr3 = Sift(sup_rec[S.addr1], sup_rec[S.addr2], sup_rec[S.addr3])
             addr2, city, state, postal, country = cszk(addr2, addr3)
@@ -254,7 +254,7 @@ class res_partner(osv.Model):
             result['xml_id'] = key = 'c_' + cus_rec[C.code]
             result['name'] = BsnsCase(cus_rec[C.name])
             if not result['name']:
-                _logger.critical("Vendor %s has name -- skipping" % (key, ))
+                _logger.critical("Vendor %s has no name -- skipping" % (key, ))
                 continue
             addr1, addr2, addr3 = Sift(cus_rec[C.addr1], cus_rec[C.addr2], cus_rec[C.addr3])
             addr2, city, state, postal, country = cszk(addr2, addr3)
