@@ -11,28 +11,29 @@
                         <field name="xml_id" attrs="{'readonly':True}"/>
                     </field>
                     <field name="comment" position="before">
-                        <group attrs="{'invisible': ['|',('is_company','=',False), ('supplier','=',False)]}">
-                            <group string="Vendor Info" colspan="1">
+                        <group colspan="4" attrs="{'invisible': ['|',('is_company','=',False), ('supplier','=',False)]}">
+                            <group string="Vendor Info" colspan="2">
                                 <field name="vn_tele"/>
                                 <field name="vn_fax"/>
                                 <field name="vn_telex"/>
-                                <!-- <group string="Organic certification"> -->
-                                    <separator/>
-                                    <separator/>
-                                    <field name="vn_org_cert"/>
-                                    <field name="vn_org_cert_file"/>
-                                    <field name="vn_org_exp"/>
-                                <!-- </group> -->
-                                    <separator/>
-                                    <separator/>
-                                    <field name="sp_non_gmo"/>
-                                    <field name="sp_gmo_exp"/>
-                                <!-- </group> -->
-                                <!-- <group string="Kosher Certification" colspan="1"> -->
-                                    <separator/>
-                                    <separator/>
-                                    <field name="sp_kosher"/>
-                                    <field name="sp_kosher_exp"/>
+                                <separator/>
+                                <separator/>
+                                <field name="vn_org_cert"/>
+                                <field name="vn_org_cert_file"/>
+                                <field name="vn_org_exp"/>
+                            </group>
+                            <group string="Supplier Info" colspan="2">
+                                <field name="sp_tele"/>
+                                <field name="sp_fax"/>
+                                <field name="sp_telex"/>
+                                <separator/>
+                                <separator/>
+                                <field name="sp_non_gmo"/>
+                                <field name="sp_gmo_exp"/>
+                                <separator/>
+                                <separator/>
+                                <field name="sp_kosher"/>
+                                <field name="sp_kosher_exp"/>
                             </group>
                         </group>
                     </field>
@@ -54,7 +55,7 @@
         </record>
 
         <record id="action_partner_supplier_form" model="ir.actions.act_window">
-            <field name="name">Suppliers</field>
+            <field name="name">Suppliers/Vendors</field>
             <field name="res_model">res.partner</field>
             <field name="domain">['|', ('user_id','=',uid), ('user_id','=',False)]</field>
         </record>

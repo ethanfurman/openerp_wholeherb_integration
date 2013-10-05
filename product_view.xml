@@ -7,24 +7,47 @@
                 <field name="name">view.product.product.form.xml_id</field>
                 <field name="model">product.product</field>
                 <field name="inherit_id" ref="product.product_normal_form_view"/>
-                <field eval="7" name="priority"/>
+                <field name="priority" eval="7"/>
                 <field name="arch" type="xml">
                     <xpath expr="//div[@name='buttons']" position="inside">
                         <button name="button_fis_refresh" string="FIS Refresh" type="object"/>
                     </xpath>
 
-                        <page string="Information" position="after">
-                            <page string="Shipping Instructions">
-                                <field name="spcl_ship_instr" nolabel="1" placeholder="Special shipping instructions here..."/>
-                            </page>
+                    <xpath expr="//div[@name='options']" position="inside">
+                        <field name="product_is_blend"/>
+                        <label for="product_is_blend"/>
+                    </xpath>
+
+                    <page string="Information" position="after">
+                        <page string="Shipping Instructions">
+                            <field name="spcl_ship_instr" nolabel="1" placeholder="Special shipping instructions here..."/>
                         </page>
-                        <field name="list_price" position="after">
-                            <field name="sold_by"/>
-                        </field>
-                        <field name="default_code" position="replace">
-                            <field name="latin"/>
-                            <field name="xml_id"/>
-                        </field>
+                    </page>
+
+                    <!--
+                    <page string="Sales" position="after">
+                        <page string="Ingredients">
+                            <field name="ingredients_ids" nolabel="1">
+                                <form>
+                                    <field name="blend_id"/>
+                                    <field name="percentinblend"/>
+                                </form>
+                                <tree>
+                                    <field name="blend_id"/>
+                                    <field name="percentinblend"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </page>
+                    -->
+
+                    <field name="list_price" position="after">
+                        <field name="sold_by"/>
+                    </field>
+                    <field name="default_code" position="replace">
+                        <field name="latin"/>
+                        <field name="xml_id"/>
+                    </field>
                 </field>
         </record>
 
@@ -42,22 +65,6 @@
             <field name="domain">['|',('product_tmpl_id.product_manager','=',uid),('product_tmpl_id.product_manager','=',False)]</field>
         </record>
 
-        <!--
-
-            <field name="view_type">form</field>
-            <field name="view_mode">tree,form,kanban</field>
-            <field name="view_id" ref="product_product_tree_view"/>
-            <field name="search_view_id" ref="product_search_form_view"/>
-
-            <field name="help" type="html">
-              <p class="oe_view_nocontent_create">
-                Click to define a new product.
-              </p><p>
-                You must define a product for everything you buy or sell,
-                whether it's a physical product, a consumable or service.
-              </p>
-            </field>
-        -->
         <record id="product_category_list_view_xml_id" model="ir.ui.view">
             <field name="name">product.category.list.xml_id</field>
             <field name="model">product.category</field>
@@ -83,20 +90,29 @@
         </record>
 
 
-        <!-- Add product available at entries -->
-        <!--
-        <record model="ir.ui.view" id="product_available_at_form">
-            <field name="name">Product Locations</field>
-            <field name="model">product.available_at</field>
+        <record id="fis_wholeherb_blend_category_form" model="ir.ui.view">
+            <field name="name">Product Blend Categories</field>
+            <field name="model">fis_wholeherb.blend_category</field>
             <field name="arch" type="xml">
-                <form string="Locations">
-                    <field name="xml_id" attrs="{'readonly':True}"/>
-                    <separator colspan="2"/>
-                    <field name="name" colspan="4"/>
+                <form string="Blend Category">
+                    <field name="name"/>
                     <notebook colspan="4">
-                        <page string="Products at this location">
-                            <field name="product_ids" nolabel="1">
+                        <page string="General Info">
+                        </page>
+                        <page string="Blends">
+                            <field name="blends_ids" nolabel="1">
+                                <form>
+                                    <field name="code"/>
+                                    <field name="name"/>
+                                    <field name="packaging"/>
+                                    <field name="special_instructions"/>
+                                    <field name="amount"/>
+                                    <field name="uom"/>
+                                    <field name="batchsize"/>
+                                    <field name="numberbatches"/>
+                                </form>
                                 <tree>
+                                    <field name="code"/>
                                     <field name="name"/>
                                 </tree>
                             </field>
@@ -107,48 +123,98 @@
             </field>
         </record>
 
-
-        <record model="ir.ui.view" id="product_available_at_tree">
-            <field name="name">Product Locations</field>
-            <field name="model">product.available_at</field>
-            <field name="type">tree</field>
+        <record id="fis_wholeherb_blend_category_tree" model="ir.ui.view">
+            <field name="name">product_blend_category</field>
+            <field name="model">fis_wholeherb.blend_category</field>
             <field name="arch" type="xml">
-                <tree string="Locations">
+                <tree string="categories">
                     <field name="name"/>
-                    <field name="xml_id" attrs="{'readonly':True}"/>
                 </tree>
             </field>
         </record>
 
-
-        <record model="ir.actions.act_window" id="product_available_at_action">
-            <field name="name">Product Locations</field>
-            <field name="res_model">product.available_at</field>
+        <record id="action_fis_wholeherb_blend_category" model="ir.actions.act_window">
+            <field name="name">Product Blend Categories</field>
+            <field name="res_model">fis_wholeherb.blend_category</field>
             <field name="view_type">form</field>
-            <field name="view_id" ref="product_available_at_tree"/>
+            <field name="view_id" ref="fis_wholeherb_blend_category_tree"/>
             <field name="view_mode">tree,form</field>
         </record>
 
-        <menuitem name="Locations" id="product.available_at" parent="product.prod_config_main" action="product_available_at_action" groups="base.group_user"/>
-        -->
+        <menuitem
+            name="Blend Categories"
+            id="product_blend_categories"
+            parent="product.prod_config_main"
+            action="action_fis_wholeherb_blend_category"
+            groups="base.group_user"
+            />
+
+        <record id="fis_wholeherb_blend_form" model="ir.ui.view">
+            <field name="name">fis_wholeherb_blend</field>
+            <field name="model">fis_wholeherb.blend</field>
+            <field name="arch" type="xml">
+                <form string="Blends">
+                    <field name="code" colspan="4"/>
+                    <field name="name" colspan="4"/>
+                    <field name="category_name" colspan="4"/>
+                    <notebook colspan="4">
+                        <page string="General Info">
+                            <field name="packaging"/>
+                            <field name="special_instructions"/>
+                            <field name="amount"/>
+                            <field name="uom"/>
+                            <field name="batchsize"/>
+                            <field name="numberbatches"/>
+                        </page>
+                        <page string="Ingredients">
+                            <field name="ingredients_ids" nolabel="1">
+                                <form>
+                                    <field name="product_id"/>
+                                    <field name="percentinblend"/>
+                                </form>
+                                <tree>
+                                    <field name="product_id"/>
+                                    <field name="percentinblend"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Notes (TBI)"/>
+                    </notebook>
+                </form>
+            </field>
+        </record>
+
+
+        <record id="fis_wholeherb_blend_tree" model="ir.ui.view">
+            <field name="name">fis_wholeherb_blend_tree</field>
+            <field name="model">fis_wholeherb.blend</field>
+            <field name="arch" type="xml">
+                <tree string="blends">
+                    <field name="code"/>
+                    <field name="name"/>
+                    <field name="category_name"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="action_fis_wholeherb_blend" model="ir.actions.act_window">
+            <field name="name">Product Blends</field>
+            <field name="res_model">fis_wholeherb.blend</field>
+            <field name="view_type">form</field>
+            <field name="view_id" ref="fis_wholeherb_blend_tree"/>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <menuitem
+            name="Blends"
+            id="fis_wholeherb_blend"
+            parent="base.menu_product"
+            action="action_fis_wholeherb_blend"
+            />
 
     </data>
 
     <data noupdate="1">
-        <!--
-        <record model="ir.cron" id="product_location_update">
-            <field name="name">Product Locations Update</field>
-            <field name="interval_number">1</field>
-            <field name="interval_type">days</field>
-            <field name="numbercall">-1</field>
-            <field name="doall" eval="False"/>
-            <field name="model" eval="'product.available_at'"/>
-            <field name="function" eval="'fis_updates'"/>
-            <field name="args" eval="'()'"/>
-            <field name="nextcall" eval="'2013-04-09 08:00:00'"/>
-            <field name="priority">100</field>
-        </record>
-        -->
 
         <record model="ir.cron" id="product_category_update">
             <field name="name">Product Categories Update</field>

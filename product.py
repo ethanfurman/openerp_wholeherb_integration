@@ -1,7 +1,7 @@
 from collections import defaultdict
 from fnx import xid, check_company_settings
 from fnx.BBxXlate.fisData import fisData
-from fnx.utils import NameCase, translator
+from fnx import NameCase, translator
 from openerp.addons.product.product import sanitize_ean13
 from osv import osv, fields
 from urllib import urlopen
@@ -95,11 +95,11 @@ class product_category(osv.Model):
     _inherit = 'product.category'
 
     _columns = {
+        'name': fields.char('Sales Category', size=64, required=True, translate=True, select=True),
         'xml_id': fields.function(
             xid.get_xml_ids,
             arg=('product_category_integration','FIS Product Category', CONFIG_ERROR),
             fnct_inv=xid.update_xml_id,
-            fnct_inv_arg=('product_category_integration','FIS Product Category', CONFIG_ERROR),
             string="FIS ID",
             type='char',
             method=False,
@@ -109,6 +109,7 @@ class product_category(osv.Model):
         'module': fields.function(
             xid.get_xml_ids,
             arg=('product_category_integration','FIS Product Category', CONFIG_ERROR),
+            fnct_inv=xid.update_xml_id,
             string="FIS Module",
             type='char',
             method=False,
@@ -131,6 +132,7 @@ class product_category(osv.Model):
             result['xml_id'] = key = category_rec[CNVZc.code]
             name = category_rec[CNVZc.desc].title()
             result['name'] = name
+            result['module'] = module
             if key in category_codes:
                 result['parent_id'] = category_codes[key]['parent_id']['id']
                 self.write(cr, uid, category_codes[key]['id'], result)
@@ -177,9 +179,9 @@ class product_product(osv.Model):
                     raise ValueError('no matching records for %s' % rec.xml_id)
                 fis_rec = fis_recs[0][1]
             except (ValueError, ):
-                current['qty_available'] = 0
-                current['incoming_qty'] = 0
-                current['outgoing_qty'] = 0
+                current['qty_available'] = qoh = 0
+                current['incoming_qty'] = inc = 0
+                current['outgoing_qty'] = out = 0
                 current['virtual_available'] = qoh + inc - out
             else:
                 current['qty_available'] = qoh = fis_rec[P.on_hand]
@@ -193,7 +195,6 @@ class product_product(osv.Model):
             xid.get_xml_ids,
             arg=('product_integration','Product Module',CONFIG_ERROR),
             fnct_inv=xid.update_xml_id,
-            fnct_inv_arg=('product_integration','Product Module',CONFIG_ERROR),
             string="FIS ID",
             type='char',
             method=False,
@@ -203,6 +204,7 @@ class product_product(osv.Model):
         'module': fields.function(
             xid.get_xml_ids,
             arg=('product_integration','Product Module',CONFIG_ERROR),
+            fnct_inv=xid.update_xml_id,
             string="FIS Module",
             type='char',
             method=False,
@@ -231,6 +233,7 @@ class product_product(osv.Model):
             type='float', digits=(16,3), string='Outgoing',
             help="Quantity of products that are planned to leave according to FIS.",
             ),
+        'product_is_blend' : fields.boolean('Product is blend'),
         }
 
     def button_fis_refresh(self, cr, uid, ids, context=None):
@@ -257,6 +260,7 @@ class product_product(osv.Model):
             elif len(cat_ids) > 1:
                 raise ValueError("too many matches for category code %s" % values['categ_id'])
             values['categ_id'] = prod_cat.browse(cr, uid, cat_ids)[0]['id']
+            values['module'] = product_module
             self.write(cr, uid, rec['id'], values, context=context)
         return True
 
@@ -302,6 +306,7 @@ class product_product(osv.Model):
             except KeyError:
                 _logger.warning("Unable to add/update product %s because of missing category %r" % (key, values['categ_id']))
                 continue
+            values['module'] = product_module
             if key in synced_prods:
                 prod_rec = synced_prods[key]
                 if not values['latin']:
@@ -311,6 +316,7 @@ class product_product(osv.Model):
                 prod_rec = unsynced_prods[key]
                 prod_items.write(cr, uid, prod_rec.id, values)
             else:
+                values['name'] = '[%s]' % key
                 id = prod_items.create(cr, uid, values)
                 prod_rec = self.browse(cr, uid, [id])[0]
                 synced_prods[key] = prod_rec
@@ -337,3 +343,57 @@ class product_product(osv.Model):
         values['sold_by'] = sold_by
         return values
 product_product()
+
+class product_blend_category(osv.Model):
+    _name = 'fis_wholeherb.blend_category'
+    _description = 'table data for blend categories'
+    _columns = {
+        'name' : fields.char('Blend category name', size=62),
+        'blends_ids' : fields.one2many(
+            'fis_wholeherb.blend',
+            'category_name',
+            'Blends',
+            ),
+        }
+product_blend_category()
+
+class product_blend(osv.Model):
+    _name = 'fis_wholeherb.blend'
+    _description = 'table data for product blends'
+    _columns = {
+        'code' : fields.char('Code', size=8),
+        'name' : fields.char('Name', size=212),
+        'packaging' : fields.char('Packaging', size=112),
+        'special_instructions' : fields.char('Special Instructions', size=267),
+        'category_name' : fields.many2one(
+            'fis_wholeherb.blend_category',
+            'Category ID',
+            ),
+        'amount' : fields.float('Amount'),
+        'uom' : fields.char('UOM', size=62),
+        'batchsize' : fields.float('Batch Size'),
+        'numberbatches' : fields.integer('Number Batches'),
+        'ingredients_ids' : fields.one2many(
+            'fis_wholeherb.blend_ingredient',
+            'blend_id',
+            'Ingredients',
+            ),
+        }
+product_blend()
+
+class product_blend_ingredient(osv.Model):
+    _name = 'fis_wholeherb.blend_ingredient'
+    _description = 'table data for product.blend_ingredient'
+    _columns = {
+        'blend_id' : fields.many2one(
+            'fis_wholeherb.blend',
+            'Blend',
+            ),
+        'product_id' : fields.many2one(
+            'product.product',
+            'Product',
+            ),
+        'percentinblend' : fields.float('% in Blend'),
+        }
+product_blend_ingredient()
+
