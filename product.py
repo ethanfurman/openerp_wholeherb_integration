@@ -98,8 +98,9 @@ class product_category(osv.Model):
         'name': fields.char('Sales Category', size=64, required=True, translate=True, select=True),
         'xml_id': fields.function(
             xid.get_xml_ids,
-            arg=('product_category_integration','FIS Product Category', CONFIG_ERROR),
+            arg=('cnvzc', ),
             fnct_inv=xid.update_xml_id,
+            fnct_inv_arg=('cnvzc', ),
             string="FIS ID",
             type='char',
             method=False,
@@ -108,8 +109,7 @@ class product_category(osv.Model):
             ),
         'module': fields.function(
             xid.get_xml_ids,
-            arg=('product_category_integration','FIS Product Category', CONFIG_ERROR),
-            fnct_inv=xid.update_xml_id,
+            arg=('cnvzc', ),
             string="FIS Module",
             type='char',
             method=False,
@@ -122,7 +122,7 @@ class product_category(osv.Model):
     def fis_updates(self, cr, uid, *args):
         _logger.info("product.category.fis_updates starting...")
         settings = check_company_settings(self, cr, uid, ('product_category_integration', 'Product Module', CONFIG_ERROR))
-        module  = settings['product_category_integration']
+        module  = 'cnvzc'
         category_ids = self.search(cr, uid, [('module','=',module)])
         category_recs = self.browse(cr, uid, category_ids)
         category_codes = dict([(r.xml_id, dict(name=r.name, id=r.id, parent_id=r.parent_id)) for r in category_recs])
@@ -161,11 +161,10 @@ class product_product(osv.Model):
     _inherit = 'product.product'
 
     def _product_available(self, cr, uid, ids, field_names=None, arg=False, context=None):
-        settings = check_company_settings(self, cr, uid, ('product_integration', 'Product Module', CONFIG_ERROR))
         if context is None:
             context = {}
         model = self._name
-        module = settings['product_integration']
+        module = 'nvty'
         imd = self.pool.get('ir.model.data')
         nvty = fisData('NVTY', subset='10%s', filter=warehouses)
         records = self.browse(cr, uid, ids, context=context)
@@ -193,8 +192,9 @@ class product_product(osv.Model):
     _columns = {
         'xml_id': fields.function(
             xid.get_xml_ids,
-            arg=('product_integration','Product Module',CONFIG_ERROR),
+            arg=('nvty', ),
             fnct_inv=xid.update_xml_id,
+            fnct_inv_arg=('nvty', ),
             string="FIS ID",
             type='char',
             method=False,
@@ -203,8 +203,7 @@ class product_product(osv.Model):
             ),
         'module': fields.function(
             xid.get_xml_ids,
-            arg=('product_integration','Product Module',CONFIG_ERROR),
-            fnct_inv=xid.update_xml_id,
+            arg=('nvty', ),
             string="FIS Module",
             type='char',
             method=False,
@@ -237,12 +236,8 @@ class product_product(osv.Model):
         }
 
     def button_fis_refresh(self, cr, uid, ids, context=None):
-        settings = check_company_settings(self, cr, uid, 
-            ('product_integration', 'Product Module', CONFIG_ERROR),
-            ('product_category_integration', 'Product Category', CONFIG_ERROR),
-            )
-        product_module = settings['product_integration']
-        category_module = settings['product_category_integration']
+        product_module = 'nvty'
+        category_module = 'cnvzc'
         prod_cat = self.pool.get('product.category')
         prod_template = self.pool.get('product.template')
 
@@ -270,12 +265,8 @@ class product_product(osv.Model):
         adds new products to table
         """
         _logger.info("product.product.fis_updates starting...")
-        settings = check_company_settings(self, cr, uid, 
-            ('product_integration', 'Product Module', CONFIG_ERROR),
-            ('product_category_integration', 'Product Category', CONFIG_ERROR),
-            )
-        product_module = settings['product_integration']
-        category_module = settings['product_category_integration']
+        product_module = 'nvty'
+        category_module = 'cnvzc'
         prod_cat = self.pool.get('product.category')
         prod_items = self
         # create a mapping of id -> res_id for categories
@@ -329,6 +320,7 @@ class product_product(osv.Model):
     def _get_fis_values(self, fis_rec):
         values = {}
         values['xml_id'] = values['default_code'] = fis_rec[P.code]
+        values['module'] = 'nvty'
         latin = NameCase(fis_rec[P.latin])
         if latin == 'N/A' or lose_digits(latin) == '':
             latin = ''

@@ -59,11 +59,9 @@ class res_partner(osv.Model):
     _columns = {
         'xml_id': fields.function(
             xid.get_xml_ids,
-            arg=(
-                ('supplier_integration', 'Supplier/Vendor Module', CONFIG_ERROR),
-                ('customer_integration', 'Customer Module', CONFIG_ERROR)
-                ),
+            arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
             fnct_inv=xid.update_xml_id,
+            fnct_inv_arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
             string="FIS ID",
             type='char',
             method=False,
@@ -72,11 +70,9 @@ class res_partner(osv.Model):
             ),
         'module': fields.function(
             xid.get_xml_ids,
-            arg=(
-                ('supplier_integration', 'Supplier/Vendor Module', CONFIG_ERROR),
-                ('customer_integration', 'Customer Module', CONFIG_ERROR)
-                ),
+            arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
             fnct_inv=xid.update_xml_id,
+            fnct_inv_arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
             string="FIS Module",
             type='char',
             method=False,
@@ -132,10 +128,6 @@ class res_partner(osv.Model):
 
     def fis_updates(self, cr, uid, *args):
         _logger.info("res_partner.fis_updates starting...")
-        settings = check_company_settings(self, cr, uid,
-                ('supplier_integration', 'Supplier/Vendor Module', CONFIG_ERROR),
-                ('customer_integration', 'Customer Module', CONFIG_ERROR),
-                )
         state_table = self.pool.get('res.country.state')
         state_recs = state_table.browse(cr, uid, state_table.search(cr, uid, [(1,'=',1)]))
         state_recs = dict([(r.name, (r.id, r.code, r.country_id.id)) for r in state_recs])
@@ -147,8 +139,10 @@ class res_partner(osv.Model):
 
         seen_addresses = {}
 
-        vendor_recs = self.browse(cr, uid, self.search(cr, uid, [('module','=',settings['supplier_integration'])]))
-        vendor_codes = dict([(r['xml_id'], r['id']) for r in vendor_recs])
+        vendor_recs = self.browse(cr, uid, self.search(cr, uid, [('module','in',['vnms','vcon'])]))
+        vendor_codes = dict([((r.xml_id, r.module), r.id) for r in vendor_recs])
+        print vendor_codes.items()[:20]
+        print vendor_codes['010008']
         vnms = fisData('VNMS', keymatch='10%s')
         for ven_rec in vnms:
             result = {}
@@ -156,8 +150,9 @@ class res_partner(osv.Model):
             result['supplier'] = True
             result['customer'] = False
             result['use_parent_address'] = False
-            result['xml_id'] = key = 'v_' + ven_rec[V.code]
-            result['module'] = settings['supplier_integration']
+            result['xml_id'] = ven_rec[V.code]
+            result['module'] = 'vnms'
+            key = result['xml_id'], result['module']
             result['name'] = BsnsCase(ven_rec[V.name])
             if not result['name']:
                 _logger.critical("Vendor %s has no name -- skipping" % (key, ))
@@ -187,6 +182,7 @@ class res_partner(osv.Model):
             result['vn_tele'] = fix_phone(ven_rec[V.phone])
             result['vn_fax'] = fix_phone(ven_rec[V.fax])
             result['vn_telex'] = fix_phone(ven_rec[V.telex])
+            print key
             if key in vendor_codes:
                 id = vendor_codes[key]
                 self.write(cr, uid, id, result)
@@ -197,13 +193,13 @@ class res_partner(osv.Model):
             if contact:
                 result = {}
                 result['name'] = NameCase(contact)
+                result['module'] = 'vcon'
                 result['is_company'] = False
                 result['customer'] = False
                 result['supplier'] = True
                 result['use_parent_address'] = True
                 result['parent_id'] = id
-                result['xml_id'] = key = 'vc_' + key[2:]
-                result['module'] = settings['supplier_integration']
+                result['xml_id'] = key
                 if key in vendor_codes:
                     id = vendor_codes[key]
                     self.write(cr, uid, id, result)
@@ -212,7 +208,7 @@ class res_partner(osv.Model):
 
         _logger.info('vendors done...')
 
-        supplier_recs = self.browse(cr, uid, self.search(cr, uid, [('module','=',settings['supplier_integration'])]))
+        supplier_recs = self.browse(cr, uid, self.search(cr, uid, [('module','in',['posm','pcon'])]))
         supplier_codes = dict([(r['xml_id'], r['id']) for r in supplier_recs])
         posm = fisData('POSM', keymatch='10%s')
         for sup_rec in posm:
@@ -221,8 +217,8 @@ class res_partner(osv.Model):
             result['supplier'] = True
             result['customer'] = False
             result['use_parent_address'] = False
-            result['xml_id'] = key = 's_' + sup_rec[S.code]
-            result['module'] = settings['supplier_integration']
+            result['xml_id'] = key = sup_rec[S.code]
+            result['module'] = 'posm'
             result['name'] = BsnsCase(sup_rec[S.name])
             if not result['name']:
                 _logger.critical("Supplier %s has no name -- skipping" % (key, ))
@@ -273,7 +269,7 @@ class res_partner(osv.Model):
 
         _logger.info('suppliers done...')
 
-        customer_recs = self.browse(cr, uid, self.search(cr, uid, [('module','=',settings['customer_integration'])]))
+        customer_recs = self.browse(cr, uid, self.search(cr, uid, [('module','=','csms')]))
         customer_codes = dict([(r['xml_id'], r['id']) for r in customer_recs])
         csms = fisData('CSMS', keymatch='10%s ')
         for cus_rec in csms:
@@ -282,8 +278,8 @@ class res_partner(osv.Model):
             result['supplier'] = False
             result['customer'] = True
             result['use_parent_address'] = False
-            result['xml_id'] = key = 'c_' + cus_rec[C.code]
-            result['module'] = settings['customer_integration']
+            result['xml_id'] = key = cus_rec[C.code]
+            result['module'] = 'csms'
             result['name'] = BsnsCase(cus_rec[C.name])
             if not result['name']:
                 _logger.critical("Customer %s has no name -- skipping" % (key, ))
