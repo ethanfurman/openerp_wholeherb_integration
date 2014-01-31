@@ -1,7 +1,7 @@
 from collections import defaultdict
-from fnx import xid, check_company_settings
+from fnx.xid import xmlid
 from fnx.BBxXlate.fisData import fisData
-from fnx import NameCase, translator
+from fnx import NameCase, translator, xid
 from openerp.addons.product.product import sanitize_ean13
 from osv import osv, fields
 from urllib import urlopen
@@ -89,13 +89,12 @@ product_avail = {
     'H' :   'on hold',
     }
 
-class product_category(osv.Model):
+class product_category(xmlid, osv.Model):
     "makes external_id visible and searchable"
     _name = 'product.category'
     _inherit = 'product.category'
 
     _columns = {
-        'name': fields.char('Sales Category', size=64, required=True, translate=True, select=True),
         'xml_id': fields.function(
             xid.get_xml_ids,
             arg=('cnvzc', ),
@@ -121,7 +120,6 @@ class product_category(osv.Model):
 
     def fis_updates(self, cr, uid, *args):
         _logger.info("product.category.fis_updates starting...")
-        settings = check_company_settings(self, cr, uid, ('product_category_integration', 'Product Module', CONFIG_ERROR))
         module  = 'cnvzc'
         category_ids = self.search(cr, uid, [('module','=',module)])
         category_recs = self.browse(cr, uid, category_ids)
@@ -155,7 +153,7 @@ class product_template(osv.Model):
 product_template()
 
 
-class product_product(osv.Model):
+class product_product(xmlid, osv.Model):
     'Adds Available column and sold_by columns'
     _name = 'product.product'
     _inherit = 'product.product'
