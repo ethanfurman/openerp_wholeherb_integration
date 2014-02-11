@@ -1,5 +1,8 @@
 syntax: glob
+.*.sw?
 *.pyc
-.*.swp
+*.pyo
+*.orig
+*.rej
 *~
 .*~
