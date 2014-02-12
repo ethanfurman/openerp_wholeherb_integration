@@ -335,12 +335,12 @@ class product_product(xmlid, osv.Model):
 product_product()
 
 class product_blend_category(osv.Model):
-    _name = 'fis_wholeherb.blend_category'
+    _name = 'wholeherb_integration.blend_category'
     _description = 'table data for blend categories'
     _columns = {
         'name' : fields.char('Blend category name', size=62),
         'blends_ids' : fields.one2many(
-            'fis_wholeherb.blend',
+            'wholeherb_integration.blend',
             'category_name',
             'Blends',
             ),
@@ -348,7 +348,7 @@ class product_blend_category(osv.Model):
 product_blend_category()
 
 class product_blend(osv.Model):
-    _name = 'fis_wholeherb.blend'
+    _name = 'wholeherb_integration.blend'
     _description = 'table data for product blends'
     _columns = {
         'code' : fields.char('Code', size=8),
@@ -356,7 +356,7 @@ class product_blend(osv.Model):
         'packaging' : fields.char('Packaging', size=112),
         'special_instructions' : fields.char('Special Instructions', size=267),
         'category_name' : fields.many2one(
-            'fis_wholeherb.blend_category',
+            'wholeherb_integration.blend_category',
             'Category ID',
             ),
         'amount' : fields.float('Amount'),
@@ -364,7 +364,7 @@ class product_blend(osv.Model):
         'batchsize' : fields.float('Batch Size'),
         'numberbatches' : fields.integer('Number Batches'),
         'ingredients_ids' : fields.one2many(
-            'fis_wholeherb.blend_ingredient',
+            'wholeherb_integration.blend_ingredient',
             'blend_id',
             'Ingredients',
             ),
@@ -372,11 +372,11 @@ class product_blend(osv.Model):
 product_blend()
 
 class product_blend_ingredient(osv.Model):
-    _name = 'fis_wholeherb.blend_ingredient'
+    _name = 'wholeherb_integration.blend_ingredient'
     _description = 'table data for product.blend_ingredient'
     _columns = {
         'blend_id' : fields.many2one(
-            'fis_wholeherb.blend',
+            'wholeherb_integration.blend',
             'Blend',
             ),
         'product_id' : fields.many2one(
@@ -386,4 +386,5 @@ class product_blend_ingredient(osv.Model):
         'percentinblend' : fields.float('% in Blend'),
         }
 product_blend_ingredient()
+
 

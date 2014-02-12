@@ -90,9 +90,9 @@
         </record>
 
 
-        <record id="fis_wholeherb_blend_category_form" model="ir.ui.view">
+        <record id="wholeherb_integration" model="ir.ui.view">
             <field name="name">Product Blend Categories</field>
-            <field name="model">fis_wholeherb.blend_category</field>
+            <field name="model">wholeherb_integration.blend_category</field>
             <field name="arch" type="xml">
                 <form string="Blend Category">
                     <field name="name"/>
@@ -123,9 +123,9 @@
             </field>
         </record>
 
-        <record id="fis_wholeherb_blend_category_tree" model="ir.ui.view">
+        <record id="wholeherb_integration" model="ir.ui.view">
             <field name="name">product_blend_category</field>
-            <field name="model">fis_wholeherb.blend_category</field>
+            <field name="model">wholeherb_integration.blend_category</field>
             <field name="arch" type="xml">
                 <tree string="categories">
                     <field name="name"/>
@@ -133,11 +133,11 @@
             </field>
         </record>
 
-        <record id="action_fis_wholeherb_blend_category" model="ir.actions.act_window">
+        <record id="action_wholeherb_integration" model="ir.actions.act_window">
             <field name="name">Product Blend Categories</field>
-            <field name="res_model">fis_wholeherb.blend_category</field>
+            <field name="res_model">wholeherb_integration.blend_category</field>
             <field name="view_type">form</field>
-            <field name="view_id" ref="fis_wholeherb_blend_category_tree"/>
+            <field name="view_id" ref="wholeherb_integration"/>
             <field name="view_mode">tree,form</field>
         </record>
 
@@ -145,13 +145,13 @@
             name="Blend Categories"
             id="product_blend_categories"
             parent="product.prod_config_main"
-            action="action_fis_wholeherb_blend_category"
+            action="action_wholeherb_integration"
             groups="base.group_user"
             />
 
-        <record id="fis_wholeherb_blend_form" model="ir.ui.view">
-            <field name="name">fis_wholeherb_blend</field>
-            <field name="model">fis_wholeherb.blend</field>
+        <record id="wholeherb_integration" model="ir.ui.view">
+            <field name="name">wholeherb_integration</field>
+            <field name="model">wholeherb_integration.blend</field>
             <field name="arch" type="xml">
                 <form string="Blends">
                     <field name="code" colspan="4"/>
@@ -185,9 +185,9 @@
         </record>
 
 
-        <record id="fis_wholeherb_blend_tree" model="ir.ui.view">
-            <field name="name">fis_wholeherb_blend_tree</field>
-            <field name="model">fis_wholeherb.blend</field>
+        <record id="wholeherb_integration" model="ir.ui.view">
+            <field name="name">wholeherb_integration</field>
+            <field name="model">wholeherb_integration.blend</field>
             <field name="arch" type="xml">
                 <tree string="blends">
                     <field name="code"/>
@@ -197,19 +197,19 @@
             </field>
         </record>
 
-        <record id="action_fis_wholeherb_blend" model="ir.actions.act_window">
+        <record id="action_wholeherb_integration" model="ir.actions.act_window">
             <field name="name">Product Blends</field>
-            <field name="res_model">fis_wholeherb.blend</field>
+            <field name="res_model">wholeherb_integration.blend</field>
             <field name="view_type">form</field>
-            <field name="view_id" ref="fis_wholeherb_blend_tree"/>
+            <field name="view_id" ref="wholeherb_integration"/>
             <field name="view_mode">tree,form</field>
         </record>
 
         <menuitem
             name="Blends"
-            id="fis_wholeherb_blend"
+            id="wholeherb_integration"
             parent="base.menu_product"
-            action="action_fis_wholeherb_blend"
+            action="action_wholeherb_integration"
             />
 
     </data>
