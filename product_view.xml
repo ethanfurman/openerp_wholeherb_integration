@@ -90,7 +90,7 @@
         </record>
 
 
-        <record id="wholeherb_integration" model="ir.ui.view">
+        <record id="wholeherb_integration_blend_category_form" model="ir.ui.view">
             <field name="name">Product Blend Categories</field>
             <field name="model">wholeherb_integration.blend_category</field>
             <field name="arch" type="xml">
@@ -123,7 +123,7 @@
             </field>
         </record>
 
-        <record id="wholeherb_integration" model="ir.ui.view">
+        <record id="wholeherb_integration_blend_category_tree" model="ir.ui.view">
             <field name="name">product_blend_category</field>
             <field name="model">wholeherb_integration.blend_category</field>
             <field name="arch" type="xml">
@@ -133,11 +133,11 @@
             </field>
         </record>
 
-        <record id="action_wholeherb_integration" model="ir.actions.act_window">
+        <record id="action_wholeherb_integration_blend_category" model="ir.actions.act_window">
             <field name="name">Product Blend Categories</field>
             <field name="res_model">wholeherb_integration.blend_category</field>
             <field name="view_type">form</field>
-            <field name="view_id" ref="wholeherb_integration"/>
+            <field name="view_id" ref="wholeherb_integration_blend_category_tree"/>
             <field name="view_mode">tree,form</field>
         </record>
 
@@ -145,12 +145,12 @@
             name="Blend Categories"
             id="product_blend_categories"
             parent="product.prod_config_main"
-            action="action_wholeherb_integration"
+            action="action_wholeherb_integration_blend_category"
             groups="base.group_user"
             />
 
-        <record id="wholeherb_integration" model="ir.ui.view">
-            <field name="name">wholeherb_integration</field>
+        <record id="wholeherb_integration_blend_form" model="ir.ui.view">
+            <field name="name">wholeherb_integration_blend</field>
             <field name="model">wholeherb_integration.blend</field>
             <field name="arch" type="xml">
                 <form string="Blends">
@@ -185,8 +185,8 @@
         </record>
 
 
-        <record id="wholeherb_integration" model="ir.ui.view">
-            <field name="name">wholeherb_integration</field>
+        <record id="wholeherb_integration_blend_tree" model="ir.ui.view">
+            <field name="name">wholeherb_integration_blend_tree</field>
             <field name="model">wholeherb_integration.blend</field>
             <field name="arch" type="xml">
                 <tree string="blends">
@@ -197,19 +197,19 @@
             </field>
         </record>
 
-        <record id="action_wholeherb_integration" model="ir.actions.act_window">
+        <record id="action_wholeherb_integration_blend" model="ir.actions.act_window">
             <field name="name">Product Blends</field>
             <field name="res_model">wholeherb_integration.blend</field>
             <field name="view_type">form</field>
-            <field name="view_id" ref="wholeherb_integration"/>
+            <field name="view_id" ref="wholeherb_integration_blend_tree"/>
             <field name="view_mode">tree,form</field>
         </record>
 
         <menuitem
             name="Blends"
-            id="wholeherb_integration"
+            id="wholeherb_integration_blend"
             parent="base.menu_product"
-            action="action_wholeherb_integration"
+            action="action_wholeherb_integration_blend"
             />
 
     </data>
