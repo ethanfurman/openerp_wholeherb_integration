@@ -231,6 +231,7 @@ class product_product(xmlid, osv.Model):
             help="Quantity of products that are planned to leave according to FIS.",
             ),
         'product_is_blend' : fields.boolean('Product is blend'),
+        'lot_ids': fields.one2many('wholeherb_integration.product_lot', 'product_id', 'Lots'),
         }
 
     def button_fis_refresh(self, cr, uid, ids, context=None):
@@ -387,4 +388,34 @@ class product_blend_ingredient(osv.Model):
         }
 product_blend_ingredient()
 
-
+class product_lot(osv.Model):
+    _name = 'wholeherb_integration.product_lot'
+    _description = 'product lot'
+    _columns = {
+        'name': fields.char('Lot #', size=10),
+        'uom_id': fields.many2one('product.uom', 'Unit of Measure'),
+        'amount_received': fields.integer('Amount received'),
+        'amount_remaining': fields.integer('Amount remaining'),
+        'date_received': fields.date('Date Received'),
+        'usda': fields.selection([('na','N/A'), ('refused','Refused'), ('held','On hold'), ('cleared','Cleared')], 'USDA'),
+        'fda': fields.selection([('na','N/A'), ('refused','Refused'), ('held','On hold'), ('cleared','Cleared')], 'FDA'),
+        'customs': fields.selection([('na','N/A'), ('refused','Refused'), ('held','On hold'), ('cleared','Cleared')], 'Customs'),
+        'source_lot_no': fields.char('Vendor lot #', size=32),
+        'prev_lot_no_id': fields.many2one(
+            'wholeherb_integration.product_lot',
+            'Previous Lot #',
+            ),
+        'product_id': fields.many2one(
+            'product.product',
+            'Product',
+            ),
+        'partner_id': fields.many2one(
+            'res.partner',
+            'Vendor',
+            ),
+        'cofo_id': fields.many2one(
+            'res.country',
+            'Country of Origin',
+            ),
+        }
+product_lot()

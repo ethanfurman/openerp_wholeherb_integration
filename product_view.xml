@@ -24,6 +24,19 @@
                         </page>
                     </page>
 
+                    <page string="Sales" position="after">
+                        <page string="Lots">
+                            <field name="lot_ids" nolabel="1">
+                                <tree>
+                                    <field name="name"/>
+                                    <field name="cofo_id"/>
+                                    <field name="amount_remaining"/>
+                                    <field name="uom_id"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </page>
+
                     <!--
                     <page string="Sales" position="after">
                         <page string="Ingredients">
@@ -210,6 +223,63 @@
             id="wholeherb_integration_blend"
             parent="base.menu_product"
             action="action_wholeherb_integration_blend"
+            />
+
+        <record id="wholeherb_integration_product_lot_form" model="ir.ui.view">
+            <field name="name">wholeherb_integration_product_lot</field>
+            <field name="model">wholeherb_integration.product_lot</field>
+            <field name="arch" type="xml">
+                <form string="Product Lots" version="7.0">
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="product_id"/>
+                            <field name="uom_id"/>
+                            <field name="date_received"/>
+                            <field name="amount_received"/>
+                            <field name="amount_remaining"/>
+                        </group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="source_lot_no"/>
+                            <field name="cofo_id"/>
+                            <field name="usda"/>
+                            <field name="fda"/>
+                            <field name="customs"/>
+                            <field name="prev_lot_no_id"/>
+                        </group>
+                    </group>
+                </form>
+            </field>
+        </record>
+
+
+        <record id="wholeherb_integration_product_lot_tree" model="ir.ui.view">
+            <field name="name">wholeherb_integration_product_lot_tree</field>
+            <field name="model">wholeherb_integration.product_lot</field>
+            <field name="arch" type="xml">
+                <tree string="product_lots">
+                    <field name="name"/>
+                    <field name="product_id"/>
+                    <field name="amount_remaining"/>
+                    <field name="cofo_id"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="action_wholeherb_integration_product_lot" model="ir.actions.act_window">
+            <field name="name">Product Lots</field>
+            <field name="res_model">wholeherb_integration.product_lot</field>
+            <field name="view_type">form</field>
+            <field name="view_id" ref="wholeherb_integration_product_lot_tree"/>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <menuitem
+            name="Lots"
+            id="wholeherb_integration_product_lot"
+            parent="base.menu_product"
+            action="action_wholeherb_integration_product_lot"
             />
 
     </data>
