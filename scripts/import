@@ -1,0 +1,154 @@
+#!/usr/bin/env python2.7
+
+from math import ceil
+from scription.api import *
+from VSS.enum import Enum
+from VSS.openerp import get_records
+from VSS.time_machine import PropertyDict
+from VSS.utils import dbf, Table, text_to_date, ProgressBar, IntEnum
+import openerplib
+
+execfile('/etc/openerp/credentials')
+
+def connect(host=HOST, database=DB, login=USER, password=PW):
+    OE = PropertyDict()
+    OE.conn = openerplib.get_connection(hostname=host, database=database, login=login, password=password)
+    return OE
+
+def find_country(pool, target):
+    if not target:
+        return False
+    if target.lower() in ('us', 'usa', 'usoa'):
+        target = 'United States'
+    elif target.lower() == 'africa':
+        target = 'South Africa'
+    elif target.lower() == 'netherland':
+        target = 'Netherlands'
+    if target.lower() in pool:
+        return pool[target.lower()].id
+    matches = set()
+    for name, rec in pool.items():
+        if name.startswith(target):
+            matches.add(rec)
+        elif rec.code == target:
+            matches.add(rec)
+        elif target.lower() in name.lower():
+            matches.add(rec)
+    if len(matches) > 1:
+        raise ValueError('Target: %r  Matches: %s' % (target, ', '.join([m.name for m in matches])))
+    elif len(matches) == 1:
+        return matches.pop().id
+    else:
+        return False
+
+def find_partner(pool, target):
+    pass
+
+def fix_name(*names):
+    result = []
+    for name in names:
+        result.append(name.upper())
+    return ''.join(result)
+
+def measurement(user_measurement):
+    "remove trailing 's', return first and last characters"
+    um = user_measurement.lower().rstrip('s')
+    um = um[::(len(um)-1)]
+    if um == 'pc':
+        um = 'ea'
+    elif um == 'mt':
+        um = 'lb'
+    return um
+
+def regulatory(value):
+    "allowed values: n/a, cleared, rejected"
+    value = value.lower().replace('.','').replace(';','').replace(' ','')
+    if value in ('n/a', 'n/', 'na/', '/na'):
+        value = 'na'
+    elif value in ('hold', ):
+        value = 'held'
+    elif value in ('clearecd', ):
+        value = 'cleared'
+    if value not in ('', 'na', 'cleared', 'held', 'rejected'):
+        raise ValueError('unknown regulatory value: %r' % value)
+    return (False, value)[bool(value)]
+
+@Command(
+    )
+def lots(file_name):
+    """Imports a file into product.lots
+
+    example file name: Purchasing_Database_Table1.dbf
+
+    """
+    class Field(IntEnum):
+        qty_recd = 4
+        uom = 5
+        lot = 6
+        lot_ltr = 7
+        supplier_name = 10
+        item_code = 11
+        date = 24
+        usda = 25
+        fda = 26
+        customs = 27
+        c_of_o = 31
+    print 'connecting to OE...'
+    OE = connect()
+    lots_model = OE.conn.get_model('wholeherb_integration.product_lot')
+    print 'getting Unit of Measure records...'
+    oe_uom = PropertyDict((r.name, r) for r in get_records(OE, 'product.uom'))
+    print 'getting Partner records (this will take a bit)...'
+    oe_posm = PropertyDict((r.xml_id, r) for r in get_records(
+        OE,
+        model='res.partner',
+        domain=[('module','=','posm')],
+        fields=['id','name','xml_id','module'],
+        ))
+    print 'getting Product records (this will take even longer)...'
+    oe_products = PropertyDict((r.xml_id, r) for r in get_records(
+        OE,
+        model='product.product',
+        fields=['id', 'xml_id', 'name'],
+        ))
+    print 'getting Country records...'
+    oe_country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
+    lots = Table(file_name)
+    print 'processing %s...' % file_name
+    pb = ProgressBar(len(lots))
+    for rec in dbf.Templates(lots, start=1):
+        pb.tick()
+        for fld in Field:
+            rec[fld] = rec[fld].strip('"\'')
+        if not rec[Field.lot]:
+            continue
+        values = PropertyDict()
+        values.name = fix_name(rec[Field.lot], rec[Field.lot_ltr])
+        uom = measurement(rec[Field.uom])
+        if uom:
+            try:
+                values.uom_id = oe_uom[uom].id
+            except Exception, exc:
+                print values.name, exc.message
+        try:
+            values.amount_received = int(ceil(float(rec[Field.qty_recd])))
+        except ValueError:
+            values.amount_received = False
+        values.amount_remaining = values.amount_received
+        try:
+            date = text_to_date(rec[Field.date], format='mdy') or False
+        except ValueError:
+            date = False
+        if date:
+            values.date_received = str(date)
+        values.usda = regulatory(rec[Field.usda])
+        values.fda = regulatory(rec[Field.fda])
+        values.customs = regulatory(rec[Field.customs])
+        product = rec[Field.item_code]
+        if product in oe_products:
+            values.product_id = oe_products[product].id
+        values.cofo_id = find_country(oe_country, rec[Field.c_of_o])
+        lots_model.create(dict(values))
+
+if __name__ == '__main__':
+    Run()
