@@ -417,5 +417,9 @@ class product_lot(osv.Model):
             'res.country',
             'Country of Origin',
             ),
+        'preship_id': fields.many2one(
+            'wholeherb_integration.product_lot',
+            'Pre-Ship Lot #',
+            ),
         }
 product_lot()

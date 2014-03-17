@@ -231,23 +231,31 @@
             <field name="model">wholeherb_integration.product_lot</field>
             <field name="arch" type="xml">
                 <form string="Product Lots" version="7.0">
+                    <div>
+                        <h3>
+                            <label for="name" string="Lot"/>
+                            <field name="name" nolabel="1" class="oe_inline"/>
+                            <separator/>
+                            <label for="product_id" string="Item"/>
+                            <field name="product_id" nolabel="1" class="oe_inline"/>
+                        </h3>
+                    </div>
                     <group>
-                        <group>
-                            <field name="name"/>
-                            <field name="product_id"/>
-                            <field name="uom_id"/>
+                        <group string="Item Info">
+                            <field name="cofo_id"/>
                             <field name="date_received"/>
+                            <field name="uom_id"/>
                             <field name="amount_received"/>
                             <field name="amount_remaining"/>
+                            <field name="prev_lot_no_id"/>
                         </group>
-                        <group>
+                        <group string="Vendor Info">
                             <field name="partner_id"/>
                             <field name="source_lot_no"/>
-                            <field name="cofo_id"/>
+                            <field name="preship_id"/>
                             <field name="usda"/>
                             <field name="fda"/>
                             <field name="customs"/>
-                            <field name="prev_lot_no_id"/>
                         </group>
                     </group>
                 </form>
