@@ -51,7 +51,7 @@ class S(FISenum):
     telex = 'Gn$(31,15)'
 
 
-class res_partner(osv.Model):
+class res_partner(xid.xmlid, osv.Model):
     "Inherits partner and makes the external_id visible and modifiable"
     _name = 'res.partner'
     _inherit = 'res.partner'
@@ -60,8 +60,6 @@ class res_partner(osv.Model):
         'xml_id': fields.function(
             xid.get_xml_ids,
             arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
-            fnct_inv=xid.update_xml_id,
-            fnct_inv_arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
             string="FIS ID",
             type='char',
             method=False,
@@ -71,8 +69,6 @@ class res_partner(osv.Model):
         'module': fields.function(
             xid.get_xml_ids,
             arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
-            fnct_inv=xid.update_xml_id,
-            fnct_inv_arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
             string="FIS Module",
             type='char',
             method=False,
@@ -141,8 +137,6 @@ class res_partner(osv.Model):
 
         vendor_recs = self.browse(cr, uid, self.search(cr, uid, [('module','in',['vnms','vcon'])]))
         vendor_codes = dict([((r.xml_id, r.module), r.id) for r in vendor_recs])
-        print vendor_codes.items()[:20]
-        print vendor_codes['010008']
         vnms = fisData('VNMS', keymatch='10%s')
         for ven_rec in vnms:
             result = {}
@@ -182,7 +176,6 @@ class res_partner(osv.Model):
             result['vn_tele'] = fix_phone(ven_rec[V.phone])
             result['vn_fax'] = fix_phone(ven_rec[V.fax])
             result['vn_telex'] = fix_phone(ven_rec[V.telex])
-            print key
             if key in vendor_codes:
                 id = vendor_codes[key]
                 self.write(cr, uid, id, result)
@@ -238,11 +231,7 @@ class res_partner(osv.Model):
             result['city'] = city
             result['zip'] = postal
             if state:
-                try:
-                    result['state_id'] = state_recs[state][0]
-                except KeyError:
-                    print key, state
-                    raise
+                result['state_id'] = state_recs[state][0]
                 result['country_id'] = state_recs[state][2]
             elif country:
                 country_id = country_recs_name.get(country, None)
