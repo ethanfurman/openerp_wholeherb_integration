@@ -28,10 +28,10 @@
                         <page string="Lots">
                             <field name="lot_ids" nolabel="1">
                                 <tree>
-                                    <field name="name"/>
-                                    <field name="cofo_id"/>
-                                    <field name="amount_remaining"/>
-                                    <field name="uom_id"/>
+                                    <field name="lot_no"/>
+                                    <field name="cofo_ids" widget="many2many"/>
+                                    <field name="qty_remain"/>
+                                    <field name="qty_recd_uom_id"/>
                                 </tree>
                             </field>
                         </page>
@@ -233,8 +233,8 @@
                 <form string="Product Lots" version="7.0">
                     <div>
                         <h3>
-                            <label for="name" string="Lot"/>
-                            <field name="name" nolabel="1" class="oe_inline"/>
+                            <label for="lot_no" string="Lot"/>
+                            <field name="lot_no" nolabel="1" class="oe_inline"/>
                             <separator/>
                             <label for="product_id" string="Item"/>
                             <field name="product_id" nolabel="1" class="oe_inline"/>
@@ -242,12 +242,12 @@
                     </div>
                     <group>
                         <group string="Item Info">
-                            <field name="cofo_id"/>
                             <field name="date_received"/>
-                            <field name="uom_id"/>
-                            <field name="amount_received"/>
-                            <field name="amount_remaining"/>
+                            <field name="qty_recd_uom_id"/>
+                            <field name="qty_recd"/>
+                            <field name="qty_remain"/>
                             <field name="prev_lot_no_id"/>
+                            <field name="cofo_ids"/>
                         </group>
                         <group string="Vendor Info">
                             <field name="partner_id"/>
@@ -268,10 +268,9 @@
             <field name="model">wholeherb_integration.product_lot</field>
             <field name="arch" type="xml">
                 <tree string="product_lots">
-                    <field name="name"/>
+                    <field name="lot_no"/>
                     <field name="product_id"/>
-                    <field name="amount_remaining"/>
-                    <field name="cofo_id"/>
+                    <field name="qty_remain"/>
                 </tree>
             </field>
         </record>

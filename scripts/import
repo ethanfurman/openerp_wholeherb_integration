@@ -1,11 +1,12 @@
 #!/usr/bin/env python2.7
 
+from itertools import groupby
 from math import ceil
 from scription.api import *
 from VSS.enum import Enum
 from VSS.openerp import get_records
 from VSS.time_machine import PropertyDict
-from VSS.utils import dbf, Table, text_to_date, ProgressBar, IntEnum
+from VSS.utils import dbf, Table, text_to_date, ProgressBar, IntEnum, contains_any
 import openerplib
 
 execfile('/etc/openerp/credentials')
@@ -44,20 +45,37 @@ def find_country(pool, target):
 def find_partner(pool, target):
     pass
 
-def fix_name(*names):
+def Float(value):
+    try:
+        return float(value)
+    except ValueError:
+        return False
+
+def get_item_id(model, item_code):
+    res = get_records(OE, 'product.product', fields=['id'], domain=[('xml_id','=',item_code)], max_qty=1)
+    if not res:
+        raise ValueError('Item %s not found' % item_code)
+    return res[0].id
+
+def fix_names(*names):
     result = []
     for name in names:
         result.append(name.upper())
-    return ''.join(result)
+    if len(names) == 1:
+        return result[0]
+    return result
 
 def measurement(user_measurement):
     "remove trailing 's', return first and last characters"
     um = user_measurement.lower().rstrip('s')
-    um = um[::(len(um)-1)]
+    if len(um) > 1:
+        um = um[::(len(um)-1)]
     if um == 'pc':
         um = 'ea'
     elif um == 'mt':
         um = 'lb'
+    elif um in ('lg', 'jg'):
+        um = 'kg'
     return um
 
 def regulatory(value):
@@ -75,27 +93,34 @@ def regulatory(value):
 
 @Command(
     )
-def lots(file_name):
-    """Imports a file into product.lots
+def purchasing_lots(file_name):
+    """Imports Purchasing nto product.lots and wholeherb_integration.product_lot
 
     example file name: Purchasing_Database_Table1.dbf
 
     """
-    class Field(IntEnum):
-        qty_recd = 4
-        uom = 5
-        lot = 6
-        lot_ltr = 7
-        supplier_name = 10
-        item_code = 11
-        date = 24
-        usda = 25
-        fda = 26
-        customs = 27
-        c_of_o = 31
+    Field = IntEnum('Purchasing_Field', (
+            'match_preship', 'risk_factor', 'pack', 'qty_recd', 'qty_recd_uom', 'lot', 'lot_ltr', 'proj_fob_cost',
+            'proj_clearance', 'supplier_name', 'item_code', 'desc', 'acct_no_cost', 'cost', 'on_order', 'on_order_uom',
+            'acct_fob_cost', 'qty_avail', 'status', 'etd_0son', 'terms', 'po_no', 'vessel', 'date', 'usda', 'fda',
+            'customs', 'c_of_a', 'preship_lot', 'preship_status', 'c_of_o', 's_comment', 'pr_comment', 'i_f', 'cus',
+            'misc', 'date_recd', 'supplier_no',
+            ))
+    as_is = (
+            'risk_factor', 'proj_fob_cost', 'proj_clearance',  'on_order', 'status', 'etd_0son',
+            'terms', 'c_of_a', 's_comment', 'pr_comment', 'i_f', 'cus', 'misc',
+            )
+    floats = (
+            'pack', 'acct_no_cost', 'cost', 'acct_fob_cost',
+            )
+    if len(Field) != 38:
+        raise ValueError('Field should have 29 members, but actually has %d members' % len(Field))
+    if len(as_is) != 13:
+        raise ValueError('as_is should have 23 members, but actually has %d members' % len(as_is))
     print 'connecting to OE...'
     OE = connect()
     lots_model = OE.conn.get_model('wholeherb_integration.product_lot')
+    po_model = OE.conn.get_model('wholeherb_integration.purchase_order')
     print 'getting Unit of Measure records...'
     oe_uom = PropertyDict((r.name, r) for r in get_records(OE, 'product.uom'))
     print 'getting Partner records (this will take a bit)...'
@@ -113,6 +138,138 @@ def lots(file_name):
         ))
     print 'getting Country records...'
     oe_country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
+    print 'getting purchases...'
+    oe_purchases = PropertyDict((r.purchase_order.lower(), r) for r in get_records(OE, 'wholeherb_integration.purchase_order'))
+    #for po_num, po in oe_purchases.items():
+    #    print po.lot_ids
+    #    po.lot_ids = [l.id for l in po.lot_ids]
+    oe_purchases_by_id = dict((p.id, p) for p in oe_purchases.values())
+    print 'getting lots...'
+    oe_lots = PropertyDict((l.lot_no.lower(), l) for l in get_records(OE, 'wholeherb_integration.product_lot'))
+    oe_lots_by_id = dict((l.id, l) for l in oe_lots.values())
+    table = Table(file_name)
+    with table:
+        def index(rec):
+            if isinstance(rec, dbf.Record) and dbf.recno(rec) == 0:
+                return dbf.DoNotIndex
+            return rec[Field.po_no], rec[Field.item_code]
+        order = table.create_index(index)
+        print 'processing %s...' % file_name
+        pb = ProgressBar(len(order))
+        for po, products in groupby(dbf.Templates(order), index):
+            lot_ids = set()
+            for lot in products:
+                pb.tick()
+                for fld in Field:
+                    lot[fld] = lot[fld].strip('"\'')
+                if not lot[Field.lot]:
+                    continue
+                values = PropertyDict()
+                values.lot_no = ''.join(fix_names(lot[Field.lot], lot[Field.lot_ltr]))
+                product = lot[Field.item_code]
+                if product not in oe_products:
+                    continue
+                values.product_id = oe_products[product].id
+                values.match_preship = lot[Field.match_preship].lower() == 'yes'
+                for field in floats:
+                    values[field] = Float(lot[Field[field]])
+                for field, offset in (
+                        ('on_order_uom_id', Field.on_order_uom),
+                        ('qty_recd_uom_id', Field.qty_recd_uom),
+                        ):
+                    uom = measurement(lot[offset])
+                    if uom:
+                        try:
+                            values[field] = oe_uom[uom].id
+                        except Exception, exc:
+                            print values.lot_no, exc.message
+                try:
+                    values.qty_recd = int(ceil(float(lot[Field.qty_recd])))
+                except ValueError:
+                    values.qty_recd = False
+                values.qty_remain = 0 or values.qty_recd
+                for field, offset in (
+                        ('expected_date', Field.date),
+                        ('recd_date', Field.date_recd),
+                        ):
+                    try:
+                        date = text_to_date(lot[offset], format='mdy') or False
+                    except ValueError:
+                        date = False
+                    if date:
+                        values[field] = unicode(date)
+                qty_avail = lot[Field.qty_avail].lower()
+                if qty_avail in ('all', 'some', 'none'):
+                    values.qty_avail = qty_avail
+                values.usda = regulatory(lot[Field.usda])
+                values.fda = regulatory(lot[Field.fda])
+                values.customs = regulatory(lot[Field.customs])
+                if lot[Field.preship_lot] in oe_lots:
+                    preship = oe_lots[lot[Field.preship_lot]]
+                    values.preship_id = preship.id
+                    if not preship.status and lot[Field.preship_status]:
+                        lots_model.write([preship.id], {'status':unicode(lot[Field.preship_status])})
+                cofo_id = find_country(oe_country, lot[Field.c_of_o])
+                if cofo_id:
+                    values.cofo_ids = [(6, 0, [cofo_id])]
+                for offset in as_is:
+                    field = lot[Field[offset]]
+                    if field:
+                        values[offset] = unicode(field)
+                if values.lot_no in oe_lots:
+                    lot_id = oe_lots[values.lot_no].id
+                    lots_model.write([lot_id], dict(values))
+                else:
+                    lot_id = lots_model.create(dict(values))
+                values = get_records(OE, 'wholeherb_integration.product_lot', domain=[('id','=',lot_id)], max_qty=1)[0]
+                lot_ids.add(lot_id)
+                oe_lots[values.lot_no] = values
+                oe_lots_by_id[lot_id] = values
+            po_number = lot[Field.po_no]
+            vessel = lot[Field.vessel]
+            # this will have to wait :(
+            # supplier = 
+            po_key = po_number.lower()
+            values = PropertyDict(purchase_order=unicode(po_number), vessel=unicode(vessel))
+            if po_key in oe_purchases:
+                purchase_order = oe_purchases[po_key]
+                po_id = purchase_order.id
+                lot_ids |= set(purchase_order.lot_ids)
+                values.lot_ids = [(6, 0, list(lot_ids))]
+                po_model.write([po_id], dict(values))
+            else:
+                values.lot_ids = [(6, 0, list(lot_ids))]
+                po_id = po_model.create(dict(values))
+            values = get_records(OE, 'wholeherb_integration.purchase_order', domain=[('id','=',po_id)], max_qty=1)[0]
+            oe_purchases[po_key] = values
+            oe_purchases_by_id[po_id] = values
+
+@Command(
+    )
+def sample_lots(file_name):
+    """Imports a file into product.lots
+
+    example file name: Purchasing_Database_Table1.dbf
+
+    """
+    class Field(IntEnum):
+        item_desc = 2
+        lot = 3
+    print 'connecting to OE...'
+    OE = connect()
+    lots_model = OE.conn.get_model('wholeherb_integration.product_lot')
+    print 'getting Product records (this will a bit)...'
+    oe_products = PropertyDict()
+    for item in get_records(
+            OE,
+            model='product.product',
+            fields=['id', 'xml_id', 'name', 'default_code'],
+            ):
+        key = item.xml_id or item.default_code
+        if not key:
+            print item
+            continue
+        oe_products[key] = item
     lots = Table(file_name)
     print 'processing %s...' % file_name
     pb = ProgressBar(len(lots))
@@ -120,34 +277,24 @@ def lots(file_name):
         pb.tick()
         for fld in Field:
             rec[fld] = rec[fld].strip('"\'')
-        if not rec[Field.lot]:
+        lot_no = rec[Field.lot]
+        if ( not lot_no
+          or not lot_no.startswith(('0', '1', '3', 'P', 'A', 'C', 'F', 'G', 'L', 'M', 'R'))
+          or not 4 < len(lot_no) < 9
+          or contains_any(lot_no, '/', ' ', '(', ')')):
+            continue
+        try:
+            item_code, desc = rec[Field.item_desc].split(' ', 1)
+        except ValueError:
+            continue
+        if not (item_code[:3].isalpha() and item_code[3:].isdigit() and len(item_code) == 8):
             continue
         values = PropertyDict()
-        values.name = fix_name(rec[Field.lot], rec[Field.lot_ltr])
-        uom = measurement(rec[Field.uom])
-        if uom:
-            try:
-                values.uom_id = oe_uom[uom].id
-            except Exception, exc:
-                print values.name, exc.message
         try:
-            values.amount_received = int(ceil(float(rec[Field.qty_recd])))
-        except ValueError:
-            values.amount_received = False
-        values.amount_remaining = values.amount_received
-        try:
-            date = text_to_date(rec[Field.date], format='mdy') or False
-        except ValueError:
-            date = False
-        if date:
-            values.date_received = str(date)
-        values.usda = regulatory(rec[Field.usda])
-        values.fda = regulatory(rec[Field.fda])
-        values.customs = regulatory(rec[Field.customs])
-        product = rec[Field.item_code]
-        if product in oe_products:
-            values.product_id = oe_products[product].id
-        values.cofo_id = find_country(oe_country, rec[Field.c_of_o])
+            values.product_id = oe_products[item_code].id
+        except KeyError:
+            continue
+        values.lot_no = unicode(lot_no)
         lots_model.create(dict(values))
 
 if __name__ == '__main__':

@@ -191,8 +191,6 @@ class product_product(xmlid, osv.Model):
         'xml_id': fields.function(
             xid.get_xml_ids,
             arg=('nvty', ),
-            fnct_inv=xid.update_xml_id,
-            fnct_inv_arg=('nvty', ),
             string="FIS ID",
             type='char',
             method=False,
@@ -235,18 +233,27 @@ class product_product(xmlid, osv.Model):
         }
 
     def button_fis_refresh(self, cr, uid, ids, context=None):
+        if isinstance(ids, (int, long)):
+            ids = [ids]
         product_module = 'nvty'
         category_module = 'cnvzc'
         prod_cat = self.pool.get('product.category')
         prod_template = self.pool.get('product.template')
-
         nvty = fisData('NVTY', subset='10%s', filter=warehouses)
-        records = self.browse(cr, uid, ids, context=context)
-        for rec in records:
-            fis_rec_list = nvty.get_subset(rec['xml_id'])
-            if not fis_rec_list:
+        for id in ids:
+            current = self.browse(cr, uid, ids[0], context=context)
+            key = current.xml_id or current.default_code
+            if not key:
+                if len(ids) == 1:
+                    raise osv.except_osv('Warning', 'Item does not have an FIS identifier.')
                 continue
-            fis_rec = fis_rec_list[0]   # use first record in subset
+            matches = nvty.get_subset(key)
+            if not matches:
+                if len(ids) == 1:
+                    raise osv.except_osv('Warning', 'Item does not exist in the FIS system.')
+                continue
+            # matches is a list of (key, record) tuples
+            fis_rec = matches[0][1]
             values = self._get_fis_values(fis_rec)
             cat_ids = prod_cat.search(cr, uid, [('xml_id','=',values['categ_id'])])
             if not cat_ids:
@@ -255,7 +262,8 @@ class product_product(xmlid, osv.Model):
                 raise ValueError("too many matches for category code %s" % values['categ_id'])
             values['categ_id'] = prod_cat.browse(cr, uid, cat_ids)[0]['id']
             values['module'] = product_module
-            self.write(cr, uid, rec['id'], values, context=context)
+            print values
+            self.write(cr, uid, [id], values, context=context)
         return True
 
     def fis_updates(self, cr, uid, *args):
@@ -391,16 +399,14 @@ product_blend_ingredient()
 class product_lot(osv.Model):
     _name = 'wholeherb_integration.product_lot'
     _description = 'product lot'
+    _rec_name = 'lot_no'
+
     _columns = {
-        'name': fields.char('Lot #', size=10),
-        'uom_id': fields.many2one('product.uom', 'Unit of Measure'),
-        'amount_received': fields.integer('Amount received'),
-        'amount_remaining': fields.integer('Amount remaining'),
-        'date_received': fields.date('Date Received'),
-        'usda': fields.selection([('na','N/A'), ('refused','Refused'), ('held','On hold'), ('cleared','Cleared')], 'USDA'),
-        'fda': fields.selection([('na','N/A'), ('refused','Refused'), ('held','On hold'), ('cleared','Cleared')], 'FDA'),
-        'customs': fields.selection([('na','N/A'), ('refused','Refused'), ('held','On hold'), ('cleared','Cleared')], 'Customs'),
-        'source_lot_no': fields.char('Vendor lot #', size=32),
+        'lot_no': fields.char('Lot #', size=10, required=True),
+        'qty_recd': fields.integer('Amount received'),
+        'qty_recd_uom_id': fields.many2one('product.uom', 'Received UoM'),
+        'qty_remain': fields.integer('Amount remaining'),
+        'date_received': fields.date('Date Received/Created'),
         'prev_lot_no_id': fields.many2one(
             'wholeherb_integration.product_lot',
             'Previous Lot #',
@@ -408,18 +414,22 @@ class product_lot(osv.Model):
         'product_id': fields.many2one(
             'product.product',
             'Product',
+            required=True
             ),
         'partner_id': fields.many2one(
             'res.partner',
             'Vendor',
             ),
-        'cofo_id': fields.many2one(
+        'cofo_ids': fields.many2many(
             'res.country',
+            'lot_country_rel',
+            'cid',
+            'lid',
             'Country of Origin',
             ),
-        'preship_id': fields.many2one(
-            'wholeherb_integration.product_lot',
-            'Pre-Ship Lot #',
-            ),
         }
+
+    _sql_constraint = [
+        ('lot_unique', 'unique(lot_no)', 'Lot # already exists in the system'),
+        ]
 product_lot()
