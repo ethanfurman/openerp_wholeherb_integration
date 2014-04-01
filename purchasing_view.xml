@@ -6,6 +6,7 @@
             name="Purchasing"
             id="wholeherb_integration_purchasing"
             parent="base.menu_base_partner"
+            groups="base.group_sale_salesman"
             />
 
         <record id="purchasing_lot_tree_view" model="ir.ui.view">
@@ -116,7 +117,7 @@
         </record>
 
         <record id="purchase_order_normal_action" model="ir.actions.act_window">
-            <field name="name">Purchasing</field>
+            <field name="name">Purchase Orders</field>
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">wholeherb_integration.purchase_order</field>
             <field name="view_type">form</field>
@@ -125,11 +126,28 @@
         </record>
 
         <menuitem
-            name="Purchasing"
+            name="Purchases"
             id="purchasing_views"
             parent="wholeherb_integration_purchasing"
             action="purchase_order_normal_action"
-            groups="base.group_user"
+            groups="base.group_sale_salesman"
+            />
+
+        <record id="purchase_lot_normal_action" model="ir.actions.act_window">
+            <field name="name">Purchased Lots</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">wholeherb_integration.product_lot</field>
+            <field name="view_type">form</field>
+            <field name="view_id" ref="purchasing_lot_tree_view"/>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <menuitem
+            name="Lots"
+            id="purchasing_lot_views"
+            parent="wholeherb_integration_purchasing"
+            action="purchase_lot_normal_action"
+            groups="base.group_sale_salesman"
             />
 
     </data>
