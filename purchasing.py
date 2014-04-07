@@ -7,6 +7,7 @@ from osv import osv, fields
 from urllib import urlopen
 import enum
 import logging
+import operator as op
 import time
 
 class purchasing_lot(osv.Model):
@@ -33,17 +34,52 @@ class purchasing_lot(osv.Model):
                 values[id] = preship[field_name] or ''
         return values
 
+    def _get_calc_values(self, cr, uid, ids, field_names, args, context=None):
+        if isinstance(ids, (int, long)):
+            ids = [ids]
+        res = {}
+        calc_fields = {
+            'proj_fob_cost': ('cost', 'proj_clearance'),
+            'act_fob_cost': ('act_cost', 'i_f', 'cus', 'misc'),
+            }
+        for id in ids:
+            res[id] = {}
+            record = self.browse(cr, uid, id, context=context)
+            for field in field_names:
+                if field not in calc_fields:
+                    raise osv.except_osv('Programming Error', 'Field %r unknown' % field)
+                add_em_up = calc_fields[field]
+                values = [record[f] for f in add_em_up]
+                total = sum(values)
+                res[id][field] = total
+        return res
+
     _columns = {
         'match_preship': fields.boolean('Match preship'),
         'risk_factor': fields.char('Risk Factor', size=32),
         'pack': fields.float('Pack'),
-        'proj_fob_cost': fields.char('Proj FOB Cost', size=12),
-        'proj_clearance': fields.char('Proj clearance', size=12),
-        'acct_no_cost': fields.float('act Cost'),
+        'proj_fob_cost': fields.function(
+            _get_calc_values,
+            method=True,
+            string='Proj FOB Cost',
+            type='float',
+            multi='calced',
+            ),
         'cost': fields.float('Cost'),
+        'proj_clearance': fields.float('Proj clearance'),
+        'act_fob_cost': fields.function(
+            _get_calc_values,
+            method=True,
+            string='act FOB Cost',
+            type='float',
+            multi='calced',
+            ),
+        'act_cost': fields.float('Act Cost'),
+        'i_f': fields.float('I/F'),
+        'cus': fields.float('Cus'),
+        'misc': fields.float('Misc'),
         'on_order': fields.integer('On Order'),
         'on_order_uom_id': fields.many2one('product.uom', 'On Order UoM'),
-        'acct_fob_cost': fields.float('Act FOB Cost'),
         'qty_avail': fields.selection([('all','All'), ('some','Some'), ('none','None')], 'Qty Avail'),
         'status': fields.char('Status', size=32),
         'etd_0son': fields.date('ETD 0SON'),
@@ -64,10 +100,6 @@ class purchasing_lot(osv.Model):
         'source_lot_no': fields.char('Vendor lot #', size=32),
         's_comment': fields.text('Comments (S)'),
         'pr_comment': fields.text('Comments (P/R)'),
-        'i_f': fields.char('I/F', size=7),
-        'cus': fields.char('Cus', size=7),
-        'misc': fields.char('Misc', size=7),
-        'recd_date': fields.date('Date Received'),
         }
 purchasing_lot()
 
