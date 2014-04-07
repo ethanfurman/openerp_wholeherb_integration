@@ -107,15 +107,14 @@ def purchasing_lots(file_name):
             'misc', 'date_recd', 'supplier_no',
             ))
     as_is = (
-            'risk_factor', 'proj_fob_cost', 'proj_clearance',  'on_order', 'status', 'etd_0son',
-            'terms', 'c_of_a', 's_comment', 'pr_comment', 'i_f', 'cus', 'misc',
+            'risk_factor',  'on_order', 'status', 'etd_0son', 'terms', 'c_of_a', 's_comment', 'pr_comment',
             )
     floats = (
-            'pack', 'acct_no_cost', 'cost', 'acct_fob_cost',
+            'pack', 'cost', 'proj_clearance', 'act_fob_cost', 'act_cost', 'i_f', 'cus', 'misc',
             )
     if len(Field) != 38:
         raise ValueError('Field should have 29 members, but actually has %d members' % len(Field))
-    if len(as_is) != 13:
+    if len(as_is) != 8:
         raise ValueError('as_is should have 23 members, but actually has %d members' % len(as_is))
     print 'connecting to OE...'
     OE = connect()
