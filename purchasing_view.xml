@@ -29,7 +29,7 @@
             <field name="arch" type="xml">
                 <form string="Purchased Lot" version="7.0">
                     <group>
-                        <group>
+                        <group string="General">
                             <field name="lot_no"/>
                             <field name="product_id"/>
                             <field name="status"/>
@@ -39,7 +39,7 @@
                             <field name="match_preship"/>
                             <field name="source_lot_no"/>
                         </group>
-                        <group>
+                        <group string="Quantities">
                             <field name="on_order" class="oe_inline"/>
                             <field name="on_order_uom_id" class="oe_inline"/>
                             <field name="date_received"/>
@@ -47,7 +47,8 @@
                             <field name="qty_recd_uom_id" class="oe_line"/>
                             <field name="qty_avail"/>
                         </group>
-                        <group>
+                        <group string="Schedule">
+                            <field name="terms"/>
                             <field name="risk_factor"/>
                             <field name="pack"/>
                             <field name="etd_0son"/>
@@ -57,16 +58,16 @@
                             <field name="customs"/>
                             <field name="expected_date"/>
                         </group>
-                        <group>
-                            <field name="terms"/>
-                            <field name="proj_fob_cost"/>
-                            <field name="proj_clearance"/>
-                            <field name="acct_fob_cost"/>
-                            <field name="acct_no_cost"/>
+                        <group string="Costs">
                             <field name="cost"/>
+                            <field name="proj_clearance"/>
+                            <field name="proj_fob_cost"/>
+                            <separator colspan="2"/>
+                            <field name="act_cost"/>
                             <field name="i_f"/>
                             <field name="cus"/>
                             <field name="misc"/>
+                            <field name="act_fob_cost"/>
                         </group>
                     </group>
                     <notebook>
