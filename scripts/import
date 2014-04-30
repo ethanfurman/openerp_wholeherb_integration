@@ -298,7 +298,7 @@ def sample_lots(file_name):
         oe_products[key] = item
     lots = Table(file_name)
     print 'processing %s...' % file_name
-    pb = ProgressBar(len(lots))
+    pb = ProgressBar(len(lots)-1)
     for rec in dbf.Templates(lots, start=1):
         pb.tick()
         for fld in Field:
@@ -337,8 +337,6 @@ def sample_memo_lots(file_name):
     sample_model = OE.conn.get_model('wholeherb_integration.sample_memo')
     print 'getting Sample Memo Lot records...'
     oe_sample = PropertyDict((r.order_num, r) for r in get_records(sample_model))
-    for k, v in oe_sample.items():
-        print repr(k)
     print 'getting Product records (this will take a bit)...'
     oe_products = PropertyDict()
     for item in get_records(
@@ -361,7 +359,7 @@ def sample_memo_lots(file_name):
             return rec[Field.order_id], lot_no
         order = table.create_index(index)
         print 'processing %s...' % file_name
-        pb = ProgressBar(len(table))
+        pb = ProgressBar(len(order))
         for order_num, lots in groupby(dbf.Templates(order), index):
             lot_ids = set()
             for rec in lots:
@@ -395,6 +393,107 @@ def sample_memo_lots(file_name):
                     lot_ids.add(id)
                 values.lot_ids = [(6, 0, list(lot_ids))]
                 sample_model.write([order_rec.id], dict(values))
+
+@Command(
+        )
+def sample_memo_orders(file_name):
+    """
+    Import a file into wholeherb_integration.sample_memo
+
+    exmaple file name: Sample_memo_db_Sample_Memo.dbf
+    """
+    class Field(IntEnum):
+        order_id = 0
+        employee_name = 2
+        order_date = 3
+        customer_id = 5
+        ship_name = 6
+        ship_address = 7
+        ship_city = 8
+        ship_state = 9
+        ship_zip = 10
+        ship_country = 11
+        ship_contact = 12
+        ship_phone = 13
+        ship_date = 14
+        shipping_method = 16
+        comments1 = 17
+        comments2 = 18
+        comments3 = 19
+    print 'connecting to OE...'
+    OE = connect()
+    lots_model = OE.conn.get_model('wholeherb_integration.product_lot')
+    print 'getting Sample Memo Lot records...'
+    sample_model = OE.conn.get_model('wholeherb_integration.sample_memo')
+    oe_sample = PropertyDict((r.order_num, r) for r in get_records(sample_model))
+    print 'getting Shipping Methods...'
+    shipping_model = OE.conn.get_model('wholeherb_integration.shipping_method')
+    oe_shipping = PropertyDict((r.name, r) for r in get_records(shipping_model))
+    print 'getting sales reps...'
+    partner_model = OE.conn.get_model('res.partner')
+    oe_sales_reps = PropertyDict((r.name, r) for r in get_records(
+            partner_model,
+            domain=[('customer','=',False),('supplier','=',False)],
+            fields=['id', 'name'],
+            ))
+    print 'getting customers and vendors...'
+    oe_customer = PropertyDict()
+    oe_suppliers = PropertyDict(default=list)
+    for rec in get_records(
+            partner_model,
+            domain=[('xml_id','!=','')],
+            fields=['id', 'xml_id', 'module', 'name'],
+            ):
+        if rec.module == 'csms':
+            oe_customer[rec.xml_id] = rec
+        else:
+            entry = oe_suppliers[rec.xml_id]
+            entry.append(rec)
+            entry.sort()
+    table = Table(file_name)
+    with table:
+        def index(rec):
+            if isinstance(rec, dbf.Record) and dbf.recno(rec) == 0:
+                return dbf.DoNotIndex
+            if not rec[Field.order_id]:
+                return dbf.DoNotIndex
+            return rec[Field.order_id]
+        order = table.create_index(index)
+        print 'processing %s...' % file_name
+        pb = ProgressBar(len(order))
+        for rec in dbf.Templates(order):
+            pb.tick()
+            for fld in Field:
+                rec[fld] = rec[fld].strip('"\'\n\t ')
+            values = PropertyDict()
+            sales_person = rec[Field.employee_name]
+            if sales_person in oe_sales_reps:
+                values.employee_id = oe_sales_reps[sales_person].id
+            values.order_date = unicode(rec[Field.order_date]) or False
+            customer_xmlid = rec[Field.customer_id]
+            if customer_xmlid in oe_customer:
+                values.customer_id = oe_customer[customer_xmlid].id
+            ship_date = unicode(rec[Field.ship_date].split(' ', 1)[0])
+            if ship_date:
+                values.ship_date = ship_date
+            comment = u'%-11s%-30s%-62s' % (rec[Field.comments1], rec[Field.comments2], rec[Field.comments3])
+            comment = comment.strip('"').replace('\\n', '\n').strip()
+            values.comments = comment
+            order_num = rec[Field.order_id]
+            if order_num not in oe_sample:
+                values.order_num = unicode(order_num)
+                order_id = sample_model.create(dict(values))
+                order_rec = get_records(
+                        sample_model,
+                        ids=order_id,
+                        fields=['employee_id', 'order_date', 'customer_id', 'ship_date', 'comments'],
+                        )
+                oe_sample[order_num] = order_rec
+            else:
+                order_rec = oe_sample[order_num]
+                sample_model.write(order_rec.id, dict(values))
+    print 'done.'
+
 
 if __name__ == '__main__':
     Run()

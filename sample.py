@@ -17,7 +17,7 @@ class sample_memo(osv.Model):
 
     _columns = {
         'order_num': fields.char('Order #', size=10, required=True),
-        'employee_id': fields.many2one('res.partner', 'Employee'),
+        'employee_id': fields.many2one('res.partner', 'Sales Rep'),
         'order_date': fields.datetime('Date of order'),
         'promise_date': fields.datetime('Promised date'),
         'customer_id': fields.many2one('res.partner', 'Customer'),
@@ -31,6 +31,7 @@ class sample_memo(osv.Model):
             'sid',
             'Lots',
             ),
+        'comments': fields.text('Comments')
         }
 
     _sql_constraints = [
