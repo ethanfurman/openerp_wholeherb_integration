@@ -250,7 +250,7 @@
                             <field name="cofo_ids"/>
                         </group>
                         <group string="Vendor Info">
-                            <field name="partner_id"/>
+                            <field name="supplier_id"/>
                             <field name="source_lot_no"/>
                             <field name="preship_id"/>
                             <field name="usda"/>
@@ -261,7 +261,6 @@
                 </form>
             </field>
         </record>
-
 
         <record id="wholeherb_integration_product_lot_tree" model="ir.ui.view">
             <field name="name">wholeherb_integration_product_lot_tree</field>
@@ -279,8 +278,21 @@
             <field name="name">Product Lots</field>
             <field name="res_model">wholeherb_integration.product_lot</field>
             <field name="view_type">form</field>
-            <field name="view_id" ref="wholeherb_integration_product_lot_tree"/>
             <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="action_wholeherb_integration_product_lot_tree" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">tree</field>
+            <field name="view_id" ref="wholeherb_integration_product_lot_tree"/>
+            <field name="act_window_id" ref="action_wholeherb_integration_product_lot"/>
+        </record>
+
+        <record id="action_wholeherb_integration_product_lot_form" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="wholeherb_integration_product_lot_form"/>
+            <field name="act_window_id" ref="action_wholeherb_integration_product_lot"/>
         </record>
 
         <menuitem

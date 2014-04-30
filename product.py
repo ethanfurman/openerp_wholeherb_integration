@@ -416,9 +416,9 @@ class product_lot(osv.Model):
             'Product',
             required=True
             ),
-        'partner_id': fields.many2one(
+        'supplier_id': fields.many2one(
             'res.partner',
-            'Vendor',
+            'Supplier',
             ),
         'cofo_ids': fields.many2many(
             'res.country',
@@ -429,7 +429,7 @@ class product_lot(osv.Model):
             ),
         }
 
-    _sql_constraint = [
+    _sql_constraints = [
         ('lot_unique', 'unique(lot_no)', 'Lot # already exists in the system'),
         ]
 product_lot()

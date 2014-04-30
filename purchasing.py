@@ -121,7 +121,8 @@ class purchasing(osv.Model):
             ),
         }
 
-    _sql_constraint = [
+    _sql_constraints = [
         ('po_unique', 'unique(purchase_order)', 'Purchase Order already exists in the system'),
         ]
+
 purchasing()
