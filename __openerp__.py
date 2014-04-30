@@ -22,6 +22,7 @@
             'res_partner_view.xml',
             'product_view.xml',
             'purchasing_view.xml',
+            'sample_view.xml',
             'security/ir.model.access.csv',
         ],
     'test': [],

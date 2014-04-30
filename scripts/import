@@ -45,6 +45,14 @@ def find_country(pool, target):
 def find_partner(pool, target):
     pass
 
+def fix_names(*names):
+    result = []
+    for name in names:
+        result.append(name.upper())
+    if len(names) == 1:
+        return result[0]
+    return result
+
 def Float(value):
     try:
         return float(value)
@@ -57,13 +65,23 @@ def get_item_id(model, item_code):
         raise ValueError('Item %s not found' % item_code)
     return res[0].id
 
-def fix_names(*names):
-    result = []
-    for name in names:
-        result.append(name.upper())
-    if len(names) == 1:
-        return result[0]
-    return result
+def get_lot_no(text):
+    text = text.strip(' \t\'"\n').upper()
+    if ( not text
+      or not text.startswith(('0', '1', '3', 'P', 'A', 'C', 'F', 'G', 'L', 'M', 'R'))
+      or not 4 < len(text) < 9
+      or contains_any(text, '/', ' ', '(', ')')):
+        return ''
+    return text
+
+def get_item_desc(text):
+    try:
+        item_code, desc = text.strip(' \t\'"\n').split(' ', 1)
+    except ValueError:
+        return '', ''
+    if not (item_code[:3].isalpha() and item_code[3:].isdigit() and len(item_code) == 8):
+        return '', ''
+    return item_code, desc
 
 def measurement(user_measurement):
     "remove trailing 's', return first and last characters"
@@ -94,15 +112,15 @@ def regulatory(value):
 @Command(
     )
 def purchasing_lots(file_name):
-    """Imports Purchasing nto product.lots and wholeherb_integration.product_lot
+    """Imports Purchasing into product.lots and wholeherb_integration.product_lot
 
     example file name: Purchasing_Database_Table1.dbf
 
     """
     Field = IntEnum('Purchasing_Field', (
             'match_preship', 'risk_factor', 'pack', 'qty_recd', 'qty_recd_uom', 'lot', 'lot_ltr', 'proj_fob_cost',
-            'proj_clearance', 'supplier_name', 'item_code', 'desc', 'acct_no_cost', 'cost', 'on_order', 'on_order_uom',
-            'acct_fob_cost', 'qty_avail', 'status', 'etd_0son', 'terms', 'po_no', 'vessel', 'date', 'usda', 'fda',
+            'proj_clearance', 'supplier_name', 'item_code', 'desc', 'act_cost', 'cost', 'on_order', 'on_order_uom',
+            'act_fob_cost', 'qty_avail', 'status', 'etd_0son', 'terms', 'po_no', 'vessel', 'date', 'usda', 'fda',
             'customs', 'c_of_a', 'preship_lot', 'preship_status', 'c_of_o', 's_comment', 'pr_comment', 'i_f', 'cus',
             'misc', 'date_recd', 'supplier_no',
             ))
@@ -123,10 +141,10 @@ def purchasing_lots(file_name):
     print 'getting Unit of Measure records...'
     oe_uom = PropertyDict((r.name, r) for r in get_records(OE, 'product.uom'))
     print 'getting Partner records (this will take a bit)...'
-    oe_posm = PropertyDict((r.xml_id, r) for r in get_records(
+    oe_suppliers = PropertyDict(('%s-%s' % (r.module, r.xml_id), r) for r in get_records(
         OE,
         model='res.partner',
-        domain=[('module','=','posm')],
+        domain=[('module','in',['posm','vnms'])],
         fields=['id','name','xml_id','module'],
         ))
     print 'getting Product records (this will take even longer)...'
@@ -181,7 +199,7 @@ def purchasing_lots(file_name):
                         try:
                             values[field] = oe_uom[uom].id
                         except Exception, exc:
-                            print values.lot_no, exc.message
+                            print 'Lot %s: %s' % (values.lot_no, exc.message)
                 try:
                     values.qty_recd = int(ceil(float(lot[Field.qty_recd])))
                 except ValueError:
@@ -215,6 +233,15 @@ def purchasing_lots(file_name):
                     field = lot[Field[offset]]
                     if field:
                         values[offset] = unicode(field)
+                supplier = lot[Field.supplier_no].zfill(6)
+                for module in ('posm', 'vnms'):
+                    try:
+                        supplier_id = values.supplier_id = oe_suppliers['%s-%s' % (module, supplier)].id
+                        break
+                    except LookupError:
+                        pass
+                else:
+                    supplier_id = False
                 if values.lot_no in oe_lots:
                     lot_id = oe_lots[values.lot_no].id
                     lots_model.write([lot_id], dict(values))
@@ -229,7 +256,7 @@ def purchasing_lots(file_name):
             # this will have to wait :(
             # supplier = 
             po_key = po_number.lower()
-            values = PropertyDict(purchase_order=unicode(po_number), vessel=unicode(vessel))
+            values = PropertyDict(purchase_order=unicode(po_number), vessel=unicode(vessel), supplier_id=supplier_id)
             if po_key in oe_purchases:
                 purchase_order = oe_purchases[po_key]
                 po_id = purchase_order.id
@@ -276,17 +303,11 @@ def sample_lots(file_name):
         pb.tick()
         for fld in Field:
             rec[fld] = rec[fld].strip('"\'')
-        lot_no = rec[Field.lot]
-        if ( not lot_no
-          or not lot_no.startswith(('0', '1', '3', 'P', 'A', 'C', 'F', 'G', 'L', 'M', 'R'))
-          or not 4 < len(lot_no) < 9
-          or contains_any(lot_no, '/', ' ', '(', ')')):
+        lot_no = get_lot_no(rec[Field.lot])
+        if not lot_no:
             continue
-        try:
-            item_code, desc = rec[Field.item_desc].split(' ', 1)
-        except ValueError:
-            continue
-        if not (item_code[:3].isalpha() and item_code[3:].isdigit() and len(item_code) == 8):
+        item_code, desc = get_item_desc(rec[Field.item_desc])
+        if not item_code:
             continue
         values = PropertyDict()
         try:
@@ -295,6 +316,85 @@ def sample_lots(file_name):
             continue
         values.lot_no = unicode(lot_no)
         lots_model.create(dict(values))
+
+@Command(
+        )
+def sample_memo_lots(file_name):
+    """
+    Import a file into wholeherb_integration.sample_memo
+
+    example file name: Sample_memo_db_Sample_Samples_Requested.dbf
+    """
+    class Field(IntEnum):
+        order_id = 0
+        item_desc = 2
+        lot_no = 3
+    print 'connecting to OE...'
+    OE = connect()
+    lot_model = OE.conn.get_model('wholeherb_integration.product_lot')
+    print 'getting Product Lot records...'
+    oe_lots = PropertyDict((r.lot_no, r) for r in get_records(lot_model))
+    sample_model = OE.conn.get_model('wholeherb_integration.sample_memo')
+    print 'getting Sample Memo Lot records...'
+    oe_sample = PropertyDict((r.order_num, r) for r in get_records(sample_model))
+    for k, v in oe_sample.items():
+        print repr(k)
+    print 'getting Product records (this will take a bit)...'
+    oe_products = PropertyDict()
+    for item in get_records(
+            OE,
+            model='product.product',
+            fields=['id', 'xml_id', 'name', 'default_code'],
+            ):
+        key = item.xml_id or item.default_code
+        if not key:
+            continue
+        oe_products[key] = item
+    table = Table(file_name)
+    with table:
+        def index(rec):
+            if isinstance(rec, dbf.Record) and dbf.recno(rec) == 0:
+                return dbf.DoNotIndex
+            lot_no = get_lot_no(rec[Field.lot_no])
+            if not lot_no:
+                return dbf.DoNotIndex
+            return rec[Field.order_id], lot_no
+        order = table.create_index(index)
+        print 'processing %s...' % file_name
+        pb = ProgressBar(len(table))
+        for order_num, lots in groupby(dbf.Templates(order), index):
+            lot_ids = set()
+            for rec in lots:
+                pb.tick()
+                for fld in Field:
+                    rec[fld] = rec[fld].strip('"\'')
+                lot_no = get_lot_no(rec[Field.lot_no])
+                item_code, desc = get_item_desc(rec[Field.item_desc])
+                # check for existing lot
+                if lot_no in oe_lots:
+                    lot_id = oe_lots[lot_no].id
+                else:
+                    if not item_code or item_code not in oe_products:
+                        # no lot number, no item code -- skip record
+                        continue
+                    product_id = oe_products[item_code].id
+                    lot_id = lot_model.create(dict(lot_no=lot_no, product_id=product_id))
+                    lot_rec = get_records(lot_model, ids=lot_id, fields=['lot_no', 'product_id'])
+                    oe_lots[lot_id] = lot_rec
+                lot_ids.add(lot_id)
+            values = PropertyDict()
+            values.order_num = order_num = unicode(rec[Field.order_id])
+            values.lot_ids = [(6, 0, list(lot_ids))]
+            if order_num not in oe_sample:
+                order_id = sample_model.create(dict(values))
+                order_rec = get_records(sample_model, ids=order_id, fields=['id','lot_ids','order_num'])
+                oe_sample[order_num] = order_rec
+            else:
+                order_rec = oe_sample[order_num]
+                for id in order_rec.lot_ids:
+                    lot_ids.add(id)
+                values.lot_ids = [(6, 0, list(lot_ids))]
+                sample_model.write([order_rec.id], dict(values))
 
 if __name__ == '__main__':
     Run()
