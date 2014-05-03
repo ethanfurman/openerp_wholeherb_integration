@@ -3,20 +3,23 @@
 from itertools import groupby
 from math import ceil
 from scription.api import *
+from VSS.address import PostalCode, NameCase, BsnsCase, AddrCase, normalize_address_line, cszk
+from VSS.address import us_ca_state_abbr, us_ca_state_name, ca_province_abbr, ca_province_name
 from VSS.enum import Enum
 from VSS.openerp import get_records
 from VSS.time_machine import PropertyDict
-from VSS.utils import dbf, Table, text_to_date, ProgressBar, IntEnum, contains_any
+from VSS.utils import dbf, Table, text_to_date, ProgressBar, IntEnum, contains_any, fix_phone
 import openerplib
 
 execfile('/etc/openerp/credentials')
 
 def connect(host=HOST, database=DB, login=USER, password=PW):
+    global OE
     OE = PropertyDict()
     OE.conn = openerplib.get_connection(hostname=host, database=database, login=login, password=password)
     return OE
 
-def find_country(pool, target):
+def find_country(target):
     if not target:
         return False
     if target.lower() in ('us', 'usa', 'usoa'):
@@ -25,10 +28,10 @@ def find_country(pool, target):
         target = 'South Africa'
     elif target.lower() == 'netherland':
         target = 'Netherlands'
-    if target.lower() in pool:
-        return pool[target.lower()].id
+    if target.lower() in OE.country:
+        return OE.country[target.lower()].id
     matches = set()
-    for name, rec in pool.items():
+    for name, rec in OE.country.items():
         if name.startswith(target):
             matches.add(rec)
         elif rec.code == target:
@@ -45,6 +48,25 @@ def find_country(pool, target):
 def find_partner(pool, target):
     pass
 
+def find_state(state):
+    if state in us_ca_state_abbr:
+        state = us_ca_state_abbr[state]
+    records = get_records(
+            OE,
+            'res.country.state',
+            domain=[('name','=',NameCase(state))],
+            fields=['id','name','code','country_id'],
+            )
+    if len(records) > 1:
+        print 'state %s found as' % state
+        for rec in records:
+            print '   %s -> %s' % (rec.country_id.name, rec.name)
+        return False, False
+    if records:
+        return records[0].id, records[0].country_id[0]
+    return False, False
+
+
 def fix_names(*names):
     result = []
     for name in names:
@@ -58,6 +80,53 @@ def Float(value):
         return float(value)
     except ValueError:
         return False
+
+def customer_contact(customer, name, address, city, state, postal, country, contact, phone):
+    current_contacts = OE.partner_data[customer.xml_id].child_ids
+    values = PropertyDict()
+    if contact:
+        values.name = NameCase(contact)
+    else:
+        values.name = BsnsCase(name)
+    values.street, values.street2 = address1, address2 = AddrCase(normalize_address_line(address))
+    if country == 'USA':
+        country = ''
+    _, city, state, postal, country = cszk('%s, %s' % (city, state), '%s  %s' % (postal, country))
+    state_id, country_id = False, False
+    if state:
+        state_id, country_id = find_state(state)
+    if not country_id:
+        country_id = find_country(country)
+    values.city, values.state_id, values.zip, values.country_id = city, state_id, postal.code, country_id
+    values.phone = fix_phone(unicode(phone))
+    values.parent_id = customer.id
+    contact_id = False
+    if current_contacts:
+        contacts = get_records(
+                OE.partner,
+                ids=current_contacts,
+                fields='id name street street2 city state_id zip country_id phone'.split(),
+                )
+        for c in contacts:
+            for f in 'name street street2 city state_id zip country_id phone'.split():
+                failure = False
+                cf = c[f]
+                vf = values[f]
+                if f[-3:] == '_id' and cf:
+                    cf = cf[0]
+                if cf and cf != vf:
+                    break
+            else:
+                contact_id = c.id
+            if contact_id:
+                break
+    if not contact_id:
+        values.type = 'delivery'
+        values.use_parent_address = False
+        contact_id = OE.partner.create(dict(values))
+        current_contacts.append(contact_id)
+    return contact_id
+
 
 def get_item_id(model, item_code):
     res = get_records(OE, 'product.product', fields=['id'], domain=[('xml_id','=',item_code)], max_qty=1)
@@ -154,6 +223,7 @@ def purchasing_lots(file_name):
         fields=['id', 'xml_id', 'name'],
         ))
     print 'getting Country records...'
+    global oe_country
     oe_country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
     print 'getting purchases...'
     oe_purchases = PropertyDict((r.purchase_order.lower(), r) for r in get_records(OE, 'wholeherb_integration.purchase_order'))
@@ -422,27 +492,27 @@ def sample_memo_orders(file_name):
         comments3 = 19
     print 'connecting to OE...'
     OE = connect()
-    lots_model = OE.conn.get_model('wholeherb_integration.product_lot')
+    OE.country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
     print 'getting Sample Memo Lot records...'
-    sample_model = OE.conn.get_model('wholeherb_integration.sample_memo')
-    oe_sample = PropertyDict((r.order_num, r) for r in get_records(sample_model))
+    sample_model = OE.sample = OE.conn.get_model('wholeherb_integration.sample_memo')
+    oe_sample = OE.sample_data = PropertyDict((r.order_num, r) for r in get_records(sample_model))
     print 'getting Shipping Methods...'
-    shipping_model = OE.conn.get_model('wholeherb_integration.shipping_method')
-    oe_shipping = PropertyDict((r.name, r) for r in get_records(shipping_model))
+    shipping_model = OE.shipping= OE.conn.get_model('wholeherb_integration.shipping_method')
+    oe_shipping = OE.shipping_data = PropertyDict((r.name, r.id) for r in get_records(shipping_model))
     print 'getting sales reps...'
-    partner_model = OE.conn.get_model('res.partner')
+    partner_model = OE.partner = OE.conn.get_model('res.partner')
     oe_sales_reps = PropertyDict((r.name, r) for r in get_records(
             partner_model,
             domain=[('customer','=',False),('supplier','=',False)],
             fields=['id', 'name'],
             ))
     print 'getting customers and vendors...'
-    oe_customer = PropertyDict()
+    oe_customer = OE.partner_data = PropertyDict()
     oe_suppliers = PropertyDict(default=list)
     for rec in get_records(
             partner_model,
             domain=[('xml_id','!=','')],
-            fields=['id', 'xml_id', 'module', 'name'],
+            fields=['id', 'xml_id', 'module', 'name', 'child_ids'],
             ):
         if rec.module == 'csms':
             oe_customer[rec.xml_id] = rec
@@ -472,10 +542,19 @@ def sample_memo_orders(file_name):
             values.order_date = unicode(rec[Field.order_date]) or False
             customer_xmlid = rec[Field.customer_id]
             if customer_xmlid in oe_customer:
-                values.customer_id = oe_customer[customer_xmlid].id
+                customer = oe_customer[customer_xmlid]
+                values.customer_id = customer.id
+                contact_id = customer_contact(customer, *rec[Field.ship_name:Field.ship_date])
+                if contact_id:
+                    values.customer_contact_id = contact_id
             ship_date = unicode(rec[Field.ship_date].split(' ', 1)[0])
             if ship_date:
                 values.ship_date = ship_date
+            shipping_method = unicode(rec[Field.shipping_method])
+            if shipping_method and shipping_method not in oe_shipping:
+                sm_id = shipping_model.create(dict(name=shipping_method))
+                oe_shipping[shipping_method] = sm_id
+            values.shipping_id = oe_shipping[shipping_method]
             comment = u'%-11s%-30s%-62s' % (rec[Field.comments1], rec[Field.comments2], rec[Field.comments3])
             comment = comment.strip('"').replace('\\n', '\n').strip()
             values.comments = comment
