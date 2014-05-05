@@ -544,17 +544,18 @@ def sample_memo_orders(file_name):
             if customer_xmlid in oe_customer:
                 customer = oe_customer[customer_xmlid]
                 values.customer_id = customer.id
-                contact_id = customer_contact(customer, *rec[Field.ship_name:Field.ship_date])
+                contact_id = customer_contact(customer, *(unicode(f) for f in rec[Field.ship_name:Field.ship_date]))
                 if contact_id:
                     values.customer_contact_id = contact_id
             ship_date = unicode(rec[Field.ship_date].split(' ', 1)[0])
             if ship_date:
                 values.ship_date = ship_date
             shipping_method = unicode(rec[Field.shipping_method])
-            if shipping_method and shipping_method not in oe_shipping:
-                sm_id = shipping_model.create(dict(name=shipping_method))
-                oe_shipping[shipping_method] = sm_id
-            values.shipping_id = oe_shipping[shipping_method]
+            if shipping_method:
+                if shipping_method not in oe_shipping:
+                    sm_id = shipping_model.create(dict(name=shipping_method))
+                    oe_shipping[shipping_method] = sm_id
+                values.shipping_id = oe_shipping[shipping_method]
             comment = u'%-11s%-30s%-62s' % (rec[Field.comments1], rec[Field.comments2], rec[Field.comments3])
             comment = comment.strip('"').replace('\\n', '\n').strip()
             values.comments = comment
