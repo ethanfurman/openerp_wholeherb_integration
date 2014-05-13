@@ -539,18 +539,18 @@ def sample_memo_orders(file_name):
             sales_person = rec[Field.employee_name]
             if sales_person in oe_sales_reps:
                 values.employee_id = oe_sales_reps[sales_person].id
-            values.order_date = unicode(rec[Field.order_date]) or False
+            values.order_date = (rec[Field.order_date]) or False
             customer_xmlid = rec[Field.customer_id]
             if customer_xmlid in oe_customer:
                 customer = oe_customer[customer_xmlid]
                 values.customer_id = customer.id
-                contact_id = customer_contact(customer, *(unicode(f) for f in rec[Field.ship_name:Field.ship_date]))
+                contact_id = customer_contact(customer, *rec[Field.ship_name:Field.ship_date])
                 if contact_id:
                     values.customer_contact_id = contact_id
-            ship_date = unicode(rec[Field.ship_date].split(' ', 1)[0])
+            ship_date = rec[Field.ship_date].split(' ', 1)[0]
             if ship_date:
                 values.ship_date = ship_date
-            shipping_method = unicode(rec[Field.shipping_method])
+            shipping_method = rec[Field.shipping_method]
             if shipping_method:
                 if shipping_method not in oe_shipping:
                     sm_id = shipping_model.create(dict(name=shipping_method))
@@ -561,7 +561,7 @@ def sample_memo_orders(file_name):
             values.comments = comment
             order_num = rec[Field.order_id]
             if order_num not in oe_sample:
-                values.order_num = unicode(order_num)
+                values.order_num = order_num
                 order_id = sample_model.create(dict(values))
                 order_rec = get_records(
                         sample_model,
