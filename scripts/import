@@ -223,8 +223,7 @@ def purchasing_lots(file_name):
         fields=['id', 'xml_id', 'name'],
         ))
     print 'getting Country records...'
-    global oe_country
-    oe_country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
+    OE.country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
     print 'getting purchases...'
     oe_purchases = PropertyDict((r.purchase_order.lower(), r) for r in get_records(OE, 'wholeherb_integration.purchase_order'))
     #for po_num, po in oe_purchases.items():
@@ -296,7 +295,7 @@ def purchasing_lots(file_name):
                     values.preship_id = preship.id
                     if not preship.status and lot[Field.preship_status]:
                         lots_model.write([preship.id], {'status':unicode(lot[Field.preship_status])})
-                cofo_id = find_country(oe_country, lot[Field.c_of_o])
+                cofo_id = find_country(lot[Field.c_of_o])
                 if cofo_id:
                     values.cofo_ids = [(6, 0, [cofo_id])]
                 for offset in as_is:
@@ -353,6 +352,7 @@ def sample_lots(file_name):
         lot = 3
     print 'connecting to OE...'
     OE = connect()
+    OE.country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
     lots_model = OE.conn.get_model('wholeherb_integration.product_lot')
     print 'getting Product records (this will a bit)...'
     oe_products = PropertyDict()
@@ -401,6 +401,7 @@ def sample_memo_lots(file_name):
         lot_no = 3
     print 'connecting to OE...'
     OE = connect()
+    OE.country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
     lot_model = OE.conn.get_model('wholeherb_integration.product_lot')
     print 'getting Product Lot records...'
     oe_lots = PropertyDict((r.lot_no, r) for r in get_records(lot_model))
