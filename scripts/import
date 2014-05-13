@@ -175,7 +175,8 @@ def regulatory(value):
     elif value in ('clearecd', ):
         value = 'cleared'
     if value not in ('', 'na', 'cleared', 'held', 'rejected'):
-        raise ValueError('unknown regulatory value: %r' % value)
+        value = None
+        #raise ValueError('unknown regulatory value: %r' % value)
     return (False, value)[bool(value)]
 
 @Command(
