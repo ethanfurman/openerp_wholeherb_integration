@@ -140,7 +140,6 @@ class product_category(xmlid, osv.Model):
                 category_codes[key] = dict(name=result['name'], id=new_id, parent_id=result['parent_id'])
         _logger.info(self._name +  " done!")
         return True
-product_category()
 
 
 class product_template(osv.Model):
@@ -150,7 +149,6 @@ class product_template(osv.Model):
     _columns = {
         'warranty': fields.integer("Shelf Life (days)"),
         }
-product_template()
 
 
 class product_product(xmlid, osv.Model):
@@ -341,7 +339,6 @@ class product_product(xmlid, osv.Model):
         sold_by = fis_rec[P.sold_by].strip()
         values['sold_by'] = sold_by
         return values
-product_product()
 
 class product_blend_category(osv.Model):
     _name = 'wholeherb_integration.blend_category'
@@ -354,7 +351,6 @@ class product_blend_category(osv.Model):
             'Blends',
             ),
         }
-product_blend_category()
 
 class product_blend(osv.Model):
     _name = 'wholeherb_integration.blend'
@@ -378,7 +374,6 @@ class product_blend(osv.Model):
             'Ingredients',
             ),
         }
-product_blend()
 
 class product_blend_ingredient(osv.Model):
     _name = 'wholeherb_integration.blend_ingredient'
@@ -394,15 +389,33 @@ class product_blend_ingredient(osv.Model):
             ),
         'percentinblend' : fields.float('% in Blend'),
         }
-product_blend_ingredient()
 
 class product_lot(osv.Model):
     _name = 'wholeherb_integration.product_lot'
     _description = 'product lot'
     _rec_name = 'lot_no'
 
+
+    def _check_unique_lot_num(self, cr, uid, ids, context=None):
+        "make sure we don't have duplicate valid lot numbers"
+        if isinstance(ids, (int, long)):
+            ids = [ids]
+        valid_ids = set()
+        for record in self.browse(cr, uid, self.search(cr, uid, [(1,'=',1)], context=context), context=context):
+            if record.lot_no_valid:
+                if record.lot_no in valid_ids:
+                    return False
+                valid_ids.add(record.lot_no)
+        return True
+
+    def _validate_lot_no(self, lot_no):
+        "return True if lot_no is a good lot number"
+        if isinstance(lot_no, basestring) and len(lot_no) > 3:
+            return True
+        return False
+
     _columns = {
-        'lot_no': fields.char('Lot #', size=10, required=True),
+        'lot_no': fields.char('Lot #', size=10),
         'qty_recd': fields.integer('Amount received'),
         'qty_recd_uom_id': fields.many2one('product.uom', 'Received UoM'),
         'qty_remain': fields.integer('Amount remaining'),
@@ -427,9 +440,15 @@ class product_lot(osv.Model):
             'lid',
             'Country of Origin',
             ),
+        'lot_no_valid': fields.boolean('Unique lot number'),
         }
 
-    _sql_constraints = [
-        ('lot_unique', 'unique(lot_no)', 'Lot # already exists in the system'),
-        ]
-product_lot()
+    def create(self, cr, uid, values, context=None):
+        if 'lot_no' in values:
+            values['lot_no_valid'] = self._validate_lot_no(values['lot_no'])
+        return super(product_lot, self).create(cr, uid, values, context=context)
+
+    def write(self, cr, uid, ids, values, context=None):
+        if 'lot_no' in values:
+            values['lot_no_valid'] = self._validate_lot_no(values['lot_no'])
+        return super(product_lot, self).write(cr, uid, ids, values, context=context)
