@@ -98,7 +98,7 @@ def customer_contact(customer, name, address, city, state, postal, country, cont
     if not country_id:
         country_id = find_country(country)
     values.city, values.state_id, values.zip, values.country_id = city, state_id, postal.code, country_id
-    values.phone = fix_phone(unicode(phone))
+    values.phone = fix_phone(phone)
     values.parent_id = customer.id
     contact_id = False
     if current_contacts:
@@ -225,13 +225,13 @@ def purchasing_lots(file_name):
     print 'getting Country records...'
     OE.country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
     print 'getting purchases...'
-    oe_purchases = PropertyDict((r.purchase_order.lower(), r) for r in get_records(OE, 'wholeherb_integration.purchase_order'))
+    oe_purchases = dict((r.purchase_order, r) for r in get_records(OE, 'wholeherb_integration.purchase_order'))
     #for po_num, po in oe_purchases.items():
     #    print po.lot_ids
     #    po.lot_ids = [l.id for l in po.lot_ids]
     oe_purchases_by_id = dict((p.id, p) for p in oe_purchases.values())
     print 'getting lots...'
-    oe_lots = PropertyDict((l.lot_no.lower(), l) for l in get_records(OE, 'wholeherb_integration.product_lot'))
+    oe_lots = PropertyDict((l.lot_no.lower(), l) for l in get_records(lots_model, domain=[('lot_no_valid','=',True)]))
     oe_lots_by_id = dict((l.id, l) for l in oe_lots.values())
     table = Table(file_name)
     with table:
@@ -296,14 +296,14 @@ def purchasing_lots(file_name):
                     preship = oe_lots[lot[Field.preship_lot]]
                     values.preship_id = preship.id
                     if not preship.status and lot[Field.preship_status]:
-                        lots_model.write([preship.id], {'status':unicode(lot[Field.preship_status])})
+                        lots_model.write([preship.id], {'status':lot[Field.preship_status]})
                 cofo_id = find_country(lot[Field.c_of_o])
                 if cofo_id:
                     values.cofo_ids = [(6, 0, [cofo_id])]
                 for offset in as_is:
                     field = lot[Field[offset]]
                     if field:
-                        values[offset] = unicode(field)
+                        values[offset] = field
                 supplier = lot[Field.supplier_no].zfill(6)
                 for module in ('posm', 'vnms'):
                     try:
@@ -320,14 +320,17 @@ def purchasing_lots(file_name):
                     lot_id = lots_model.create(dict(values))
                 values = get_records(OE, 'wholeherb_integration.product_lot', domain=[('id','=',lot_id)], max_qty=1)[0]
                 lot_ids.add(lot_id)
-                oe_lots[values.lot_no] = values
-                oe_lots_by_id[lot_id] = values
+                if values.lot_no_valid:
+                    oe_lots[values.lot_no] = values
+                    oe_lots_by_id[lot_id] = values
+            print lot[Field.po_no]
+            print int(lot[Field.po_no])
             po_number = int(lot[Field.po_no])
             vessel = lot[Field.vessel]
             # this will have to wait :(
             # supplier = 
             po_key = po_number
-            values = PropertyDict(purchase_order=unicode(po_number), vessel=unicode(vessel), supplier_id=supplier_id)
+            values = PropertyDict(purchase_order=po_number, vessel=vessel, supplier_id=supplier_id)
             if po_key in oe_purchases:
                 purchase_order = oe_purchases[po_key]
                 po_id = purchase_order.id
@@ -386,7 +389,7 @@ def sample_lots(file_name):
             values.product_id = oe_products[item_code].id
         except KeyError:
             continue
-        values.lot_no = unicode(lot_no)
+        values.lot_no = lot_no
         lots_model.create(dict(values))
 
 @Command(
@@ -454,7 +457,7 @@ def sample_memo_lots(file_name):
                     oe_lots[lot_id] = lot_rec
                 lot_ids.add(lot_id)
             values = PropertyDict()
-            values.order_num = order_num = unicode(rec[Field.order_id])
+            values.order_num = order_num = rec[Field.order_id]
             values.lot_ids = [(6, 0, list(lot_ids))]
             if order_num not in oe_sample:
                 order_id = sample_model.create(dict(values))
