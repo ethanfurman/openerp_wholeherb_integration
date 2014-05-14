@@ -109,7 +109,7 @@ class purchasing(osv.Model):
     _rec_name = 'purchase_order'
 
     _columns = {
-        'purchase_order': fields.char('Purchase Order', size=12, required=True),
+        'purchase_order': fields.integer('Purchase Order', required=True),
         'supplier_id': fields.many2one('res.partner', 'Supplier'),
         'vessel': fields.char('Vessel', size=32),
         'lot_ids': fields.many2many(
