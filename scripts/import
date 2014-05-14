@@ -185,7 +185,6 @@ def purchasing_lots(file_name):
     """Imports Purchasing into product.lots and wholeherb_integration.product_lot
 
     example file name: Purchasing_Database_Table1.dbf
-
     """
     Field = IntEnum('Purchasing_Field', (
             'match_preship', 'risk_factor', 'pack', 'qty_recd', 'qty_recd_uom', 'lot', 'lot_ltr', 'proj_fob_cost',
@@ -249,12 +248,14 @@ def purchasing_lots(file_name):
                 pb.tick()
                 for fld in Field:
                     lot[fld] = lot[fld].strip('"\'')
-                if not lot[Field.lot]:
-                    continue
+                #if not lot[Field.lot]:
+                #    print 'skipping ', lot
+                #    continue
                 values = PropertyDict()
                 values.lot_no = ''.join(fix_names(lot[Field.lot], lot[Field.lot_ltr]))
-                product = lot[Field.item_code]
+                product = lot[Field.item_code].upper()
                 if product not in oe_products:
+                    print 'skipping lot # %s, product %s' % (values.lot_no, product)
                     continue
                 values.product_id = oe_products[product].id
                 values.match_preship = lot[Field.match_preship].lower() == 'yes'
@@ -321,11 +322,11 @@ def purchasing_lots(file_name):
                 lot_ids.add(lot_id)
                 oe_lots[values.lot_no] = values
                 oe_lots_by_id[lot_id] = values
-            po_number = lot[Field.po_no]
+            po_number = int(lot[Field.po_no])
             vessel = lot[Field.vessel]
             # this will have to wait :(
             # supplier = 
-            po_key = po_number.lower()
+            po_key = po_number
             values = PropertyDict(purchase_order=unicode(po_number), vessel=unicode(vessel), supplier_id=supplier_id)
             if po_key in oe_purchases:
                 purchase_order = oe_purchases[po_key]
