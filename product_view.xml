@@ -279,17 +279,18 @@
             <field name="res_model">wholeherb_integration.product_lot</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
+            <field name="domain" eval="[('lot_no_valid','=',True)]"/>
         </record>
 
         <record id="action_wholeherb_integration_product_lot_tree" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="10"/>
             <field name="view_mode">tree</field>
             <field name="view_id" ref="wholeherb_integration_product_lot_tree"/>
             <field name="act_window_id" ref="action_wholeherb_integration_product_lot"/>
         </record>
 
         <record id="action_wholeherb_integration_product_lot_form" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="20"/>
             <field name="view_mode">form</field>
             <field name="view_id" ref="wholeherb_integration_product_lot_form"/>
             <field name="act_window_id" ref="action_wholeherb_integration_product_lot"/>

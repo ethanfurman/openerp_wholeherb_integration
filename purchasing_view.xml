@@ -155,6 +155,7 @@
             <field name="view_type">form</field>
             <field name="view_id" ref="purchasing_lot_tree_view"/>
             <field name="view_mode">list,form</field>
+            <field name="domain" eval="[('lot_no_valid','=',True)]"/>
         </record>
 
         <menuitem
