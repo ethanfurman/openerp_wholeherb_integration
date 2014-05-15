@@ -1,7 +1,7 @@
 from collections import defaultdict
 from fnx.xid import xmlid
 from fnx.BBxXlate.fisData import fisData
-from fnx import NameCase, translator, xid
+from fnx import NameCase, translator, xid, contains_any
 from openerp.addons.product.product import sanitize_ean13
 from osv import osv, fields
 from urllib import urlopen
@@ -88,6 +88,7 @@ product_avail = {
     'D' :   'discontinued',
     'H' :   'on hold',
     }
+
 
 class product_category(xmlid, osv.Model):
     "makes external_id visible and searchable"
@@ -410,7 +411,13 @@ class product_lot(osv.Model):
 
     def _validate_lot_no(self, lot_no):
         "return True if lot_no is a good lot number"
-        if isinstance(lot_no, basestring) and len(lot_no) > 3:
+        if isinstance(lot_no, basestring):
+            text = lot_no.strip(' \t\'"\n').upper()
+            if ( not text
+              or not text.startswith(('0', '1', '3', 'P', 'A', 'C', 'F', 'G', 'L', 'M', 'R'))
+              or not 4 < len(text) < 9
+              or contains_any(text, '/', ' ', '(', ')')):
+                return False
             return True
         return False
 
