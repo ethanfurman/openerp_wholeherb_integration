@@ -439,9 +439,8 @@ def sample_memo_lots(file_name, nuke):
 
 @Command(
         file_name=('dbf file to import data fram', ),
-        nuke=('clear table before import', FLAG, ),
         )
-def sample_memo_orders(file_name, nuke):
+def sample_memo_orders(file_name):
     """
     Import a file into wholeherb_integration.sample_memo
 
@@ -470,9 +469,6 @@ def sample_memo_orders(file_name, nuke):
     OE.country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
     print 'getting Sample Memo Lot records...'
     sample_model = OE.sample = OE.conn.get_model('wholeherb_integration.sample_memo')
-    if nuke:
-        ids = [r.id for r in get_records(sample_model, domain=[(1,'=',1)], fields=['id'])]
-        sample_model.unlink(ids)
     oe_sample = OE.sample_data = PropertyDict((r.order_num, r) for r in get_records(sample_model))
     print 'getting Shipping Methods...'
     shipping_model = OE.shipping= OE.conn.get_model('wholeherb_integration.shipping_method')
