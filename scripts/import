@@ -248,7 +248,7 @@ def purchasing_lots(file_name, nuke):
                 po_no = 0
             else:
                 po_no = int(po_no)
-            return rec[Field.po_no], rec[Field.item_code]
+            return po_no, rec[Field.item_code]
         order = table.create_index(index)
         print 'processing %s...' % file_name
         pb = ProgressBar(len(order))
@@ -265,7 +265,7 @@ def purchasing_lots(file_name, nuke):
                     product_id = product_model.create(dict(name=product + ' ' + lot[Field.desc]))
                 else:
                     product_id = oe_products[product].id
-                values.product_id = oe_products[product].id
+                values.product_id = product_id
                 values.match_preship = lot[Field.match_preship].lower() == 'yes'
                 for field in floats:
                     values[field] = Float(lot[Field[field]])
