@@ -252,15 +252,13 @@ def purchasing_lots(file_name, nuke):
                 pb.tick()
                 for fld in Field:
                     lot[fld] = lot[fld].strip('"\'')
-                #if not lot[Field.lot]:
-                #    print 'skipping ', lot
-                #    continue
                 values = PropertyDict()
                 values.lot_no = ''.join(fix_names(lot[Field.lot], lot[Field.lot_ltr]))
-                product = lot[Field.item_code].upper()
+                product = lot[Field.item_code].upper().replace(' ', '')
                 if product not in oe_products:
-                    print 'skipping lot # %s, product %s' % (values.lot_no, product)
-                    continue
+                    product_id = product_model.create(dict(name=product + ' ' + lot[Field.desc]))
+                else:
+                    product_id = oe_products[product].id
                 values.product_id = oe_products[product].id
                 values.match_preship = lot[Field.match_preship].lower() == 'yes'
                 for field in floats:
