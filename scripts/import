@@ -145,7 +145,7 @@ def get_item_desc(text):
         return ic, ' '.join(pieces[2:])
     return '', ' '.join(pieces)
 
-def get_lot_no(text):
+def strip_field(text):
     text = text.strip(' \t\'"\n').upper()
     return text
 
@@ -243,7 +243,7 @@ def purchasing_lots(file_name, nuke):
         def index(rec):
             if isinstance(rec, dbf.Record) and dbf.recno(rec) == 0:
                 return dbf.DoNotIndex
-            po_no = rec[Field.po_no]
+            po_no = strip_field(rec[Field.po_no])
             if not po_no:
                 po_no = 0
             else:
@@ -403,8 +403,8 @@ def sample_memo_lots(file_name, nuke):
             for rec in lots:
                 pb.tick()
                 for fld in Field:
-                    rec[fld] = rec[fld].strip('"\'')
-                lot_no = get_lot_no(rec[Field.lot_no])
+                    rec[fld] = strip_field(rec[fld])
+                lot_no = strip_field(rec[Field.lot_no])
                 item_code, desc = get_item_desc(rec[Field.item_desc])
                 # check for existing lot
                 if lot_no in oe_lots:
@@ -512,7 +512,7 @@ def sample_memo_orders(file_name, nuke):
         for rec in dbf.Templates(order):
             pb.tick()
             for fld in Field:
-                rec[fld] = rec[fld].strip('"\'\n\t ')
+                rec[fld] = strip_field(rec[fld])
             values = PropertyDict()
             sales_person = rec[Field.employee_name]
             if sales_person in oe_sales_reps:
