@@ -206,6 +206,7 @@ def purchasing_lots(file_name, nuke):
     OE = connect()
     lots_model = OE.conn.get_model('wholeherb_integration.product_lot')
     po_model = OE.conn.get_model('wholeherb_integration.purchase_order')
+    product_model = OE.conn.get_model('product.product')
     if nuke:
         ids = [r.id for r in get_records(lots_model, domain=[(1,'=',1)], fields=['id'])]
         lots_model.unlink(ids)
@@ -242,6 +243,11 @@ def purchasing_lots(file_name, nuke):
         def index(rec):
             if isinstance(rec, dbf.Record) and dbf.recno(rec) == 0:
                 return dbf.DoNotIndex
+            po_no = rec[Field.po_no]
+            if not po_no:
+                po_no = 0
+            else:
+                po_no = int(po_no)
             return rec[Field.po_no], rec[Field.item_code]
         order = table.create_index(index)
         print 'processing %s...' % file_name
@@ -325,8 +331,6 @@ def purchasing_lots(file_name, nuke):
                 if values.lot_no_valid:
                     oe_lots[values.lot_no] = values
                     oe_lots_by_id[lot_id] = values
-            print lot[Field.po_no]
-            print int(lot[Field.po_no])
             po_number = int(lot[Field.po_no])
             vessel = lot[Field.vessel]
             # this will have to wait :(
