@@ -1,5 +1,6 @@
 #!/usr/bin/env python2.7
 
+from difflib import SequenceMatcher
 from itertools import groupby
 from math import ceil
 from scription.api import *
@@ -8,8 +9,9 @@ from VSS.address import us_ca_state_abbr, us_ca_state_name, ca_province_abbr, ca
 from VSS.enum import Enum
 from VSS.openerp import get_records
 from VSS.time_machine import PropertyDict
-from VSS.utils import dbf, Table, text_to_date, ProgressBar, IntEnum, contains_any, fix_phone
+from VSS.utils import dbf, Table, text_to_date, ProgressBar, IntEnum, contains_any, fix_phone, translator
 import openerplib
+import time
 
 execfile('/etc/openerp/credentials')
 
@@ -82,16 +84,21 @@ def Float(value):
         return False
 
 def customer_contact(customer, name, address, city, state, postal, country, contact, phone):
+    "return contact_id from OpenERP"
     current_contacts = OE.partner_data[customer.xml_id].child_ids
     values = PropertyDict()
     if contact:
         values.name = NameCase(contact)
     else:
         values.name = BsnsCase(name)
-    values.street, values.street2 = address1, address2 = AddrCase(normalize_address_line(address))
+    address1, address2 = normalize_address_line(address)
     if country == 'USA':
         country = ''
-    _, city, state, postal, country = cszk('%s, %s' % (city, state), '%s  %s' % (postal, country))
+    address3, city, state, postal, country = cszk('%s, %s' % (city, state), '%s  %s' % (postal, country))
+    address1, address2, address3 = AddrCase(Rise(address1, address2, address3))
+    if address3:
+        address2 = address2 + ', ' + address3
+    values.street, values.street2 = address1, address2
     state_id, country_id = False, False
     if state:
         state_id, country_id = find_state(state)
@@ -126,7 +133,6 @@ def customer_contact(customer, name, address, city, state, postal, country, cont
         contact_id = OE.partner.create(dict(values))
         current_contacts.append(contact_id)
     return contact_id
-
 
 def get_item_id(model, item_code):
     res = get_records(OE, 'product.product', fields=['id'], domain=[('xml_id','=',item_code)], max_qty=1)
@@ -175,6 +181,29 @@ def regulatory(value):
         value = None
         #raise ValueError('unknown regulatory value: %r' % value)
     return (False, value)[bool(value)]
+
+def sample_supplier(name, address, city, state, postal, country, phone, fax):
+    "return supplier values ready for OpenERP"
+    values = PropertyDict()
+    values.name = BsnsCase(name)
+    address1, address2 = normalize_address_line(address)
+    if country == 'USA':
+        country = ''
+    address3, city, state, postal, country = cszk('%s, %s' % (city, state), '%s  %s' % (postal, country))
+    address1, address2, address3 = AddrCase(Rise(address1, address2, address3))
+    if address3:
+        address2 = address2 + ', ' + address3
+    values.street, values.street2 = address1, address2
+    state_id, country_id = False, False
+    if state:
+        state_id, country_id = find_state(state)
+    if not country_id:
+        country_id = find_country(country)
+    values.city, values.state_id, values.zip, values.country_id = city, state_id, postal.code, country_id
+    values.phone = fix_phone(phone)
+    values.fax = fix_phone(fax)
+    return values
+
 
 @Command(
         file_name=('dbf file to import data fram', ),
@@ -350,6 +379,7 @@ def purchasing_lots(file_name, nuke):
             oe_purchases[po_key] = values
             oe_purchases_by_id[po_id] = values
 
+
 @Command(
         file_name=('dbf file to import data fram', ),
         nuke=('clear table before import', FLAG, ),
@@ -436,6 +466,7 @@ def sample_memo_lots(file_name, nuke):
                     lot_ids.add(id)
                 values.lot_ids = [(6, 0, list(lot_ids))]
                 sample_model.write([order_rec.id], dict(values))
+
 
 @Command(
         file_name=('dbf file to import data fram', ),
@@ -549,5 +580,156 @@ def sample_memo_orders(file_name):
     print 'done.'
 
 
+@Command(
+        sample_file=('dbf file to import preship sample data from', ),
+        supplier_file=('dbf file to import preship supplier data from', ),
+        nuke=('clear tables before import', FLAG, ),
+        )
+def preship_log(sample_file, supplier_file, nuke):
+    """
+    Import a file into wholeherb_integration.preship_sample and res_partner.
+
+    example file name: PreShip_Sample_Log_[Sample2 | Suppliers ]_stage1.dbf 
+    """
+    class Sample(IntEnum):
+        received_date = 0
+        lot_no = 1
+        desc = 2
+        supplier_id = 3
+        supplier_lot_no = 4
+        comments = 5
+        sales_rep = 6
+        customer = 7
+        approved = 8
+        rnd_use = 9
+    class Supplier(IntEnum):
+        id = 0
+        name = 1
+        addr = 2
+        city = 3
+        state = 4
+        postal = 5
+        country = 6
+        phone = 7
+        fax = 8
+    has_digits = translator(keep='0123456789')
+
+    print 'connecting to OE...'
+    OE = connect()
+    OE.country = PropertyDict((r.name.lower(), r) for r in get_records(OE, 'res.country'))
+    lot_model = OE.conn.get_model('wholeherb_integration.product_lot')
+    partner_model = OE.conn.get_model('res.partner')
+    print 'getting Product Lot records...'
+    oe_lots = PropertyDict((r.lot_no, r) for r in get_records(lot_model, domain=[('lot_no_valid','=',True)]))
+    preship_sample_model = OE.conn.get_model('wholeherb_integration.preship_sample')
+    if nuke:
+        ids = [r.id for r in get_records(preship_sample_model, domain=[(1,'=',1)], fields=['id'])]
+        sample_model.unlink(ids)
+        ids = [r.id for r in get_records(partner_model, domain=[('module','=','preship-supplier')], fields=['id'])]
+        partner_model.unlink(ids)
+    print 'getting PreShip Suppliers...'
+    oe_suppliers = OE.suppliers = dict((r.xml_id, r) for r in get_records(
+            partner_model,
+            domain=[('module','=','preship-supplier')],
+            fields=['id'],
+            ))
+    print 'getting PreShip Sample records...'
+    oe_preship= PropertyDict((r.order_num, r) for r in get_records(preship_sample_model))
+    print 'getting Product records (this will take a bit)...'
+    product_model = OE.conn.get_model('product.product')
+    oe_products = PropertyDict()
+    oe_products_mash = dict()
+    for item in get_records(
+            OE,
+            model='product.product',
+            fields=['id', 'xml_id', 'name', 'default_code'],
+            ):
+        key = item.xml_id or item.default_code
+        if not key:
+            continue
+        oe_products[key] = item
+        pieces = item.name.lower().replace(',',' ').replace('.',' ').split()
+        alpha = []
+        numeric = []
+        for pc in pieces:
+            if has_digits(pc):
+                numeric.append(pc)
+            else:
+                alpha.append(pc)
+        alpha.sort()
+        numeric.sort()
+        oe_products_mash[key] = (' '.join(alpha), ' '.join(numeric), item.name)
+    #with Table(supplier_file) as table:
+    #    def index(rec):
+    #        if isinstance(rec, dbf.Record) and dbf.recno(rec) == 0:
+    #            return dbf.DoNotIndex
+    #        return int(rec[Supplier.id])
+    #    order = table.create_index(index)
+    #    print 'processing %s...' % file_name
+    #    pb = ProgressBar(len(order))
+    #    for rec in dbf.Templates(order):
+    #        pb.tick()
+    #        for fld in Field:
+    #            rec[fld] = strip_field(rec[fld])
+    #        values = sample_supplier(*rec[1:])
+    #        xml_id = rec[Supplier.id]
+    #        if xml_id not in oe_suppliers:
+    #            values.xml_id = xml_id
+    #            id = partner_model.create(values)
+    #            oe_suppliers[xml_id] = id
+    #        else:
+    #            partner_model.write(oe_suppliers[xml_id], values)
+    with Table(sample_file) as table:
+        pass
+
+        seen = set()
+
+        print
+        print 'testing compare time on %d products' % len(oe_products)
+        print
+
+        start = time.time()
+        found = 0
+        for rec in table:
+            scores = []
+            for xml_id, jumble_name in oe_products_mash.items():
+                jumble_alpha, jumble_numeric, name = jumble_name
+                target_name = strip_field(rec[Sample.desc]).replace(',',' ').replace('.',' ').lower()
+                target_pieces = target_name.split()
+                target_alpha = []
+                target_numeric = []
+                for pc in target_pieces:
+                    if has_digits(pc):
+                        target_numeric.append(pc)
+                    else:
+                        target_alpha.append(pc)
+                target_alpha = ' '.join(sorted(target_alpha))
+                target_numeric = ' '.join(sorted(target_numeric))
+                if jumble_numeric == target_numeric and jumble_alpha == target_alpha:
+                    found += 1
+                    print 'exact match:  %r  %r' % (name, strip_field(rec[Sample.desc]))
+                    break
+                else:
+                    alpha_score = SequenceMatcher(a=jumble_alpha, b=target_alpha).ratio()
+                    numeric_score = SequenceMatcher(a=jumble_numeric, b=target_numeric).ratio()
+                    scores.append((numeric_score, alpha_score, name))
+            else:
+                if scores:
+                    scores.sort(reverse=True, key=lambda r: (r[0], r[1]))
+                    print repr(strip_field(rec[Sample.desc]))
+                    for s in scores[:3]:
+                        print "\t%0.3f  %0.3f   %r" % s
+                    print
+            print
+        print 'found', found
+        print 'time: ', time.time() - start
+
+        print
+        raise SystemExit
+
+
+
+
 if __name__ == '__main__':
     Run()
+
