@@ -101,7 +101,6 @@ class purchasing_lot(osv.Model):
         's_comment': fields.text('Comments (S)'),
         'pr_comment': fields.text('Comments (P/R)'),
         }
-purchasing_lot()
 
 class purchasing(osv.Model):
     'purchase order'
@@ -125,4 +124,22 @@ class purchasing(osv.Model):
         ('po_unique', 'unique(purchase_order)', 'Purchase Order already exists in the system'),
         ]
 
-purchasing()
+
+class preship_sample(osv.Model):
+    _name = 'wholeherb_integration.preship_sample'
+    _description = 'preship samples from suppliers'
+
+    _columns = {
+        'received_date': fields.date('Date Received'),
+        'lot_id': fields.many2one('wholeherb_integration.product_lot', 'Lot #'),
+        'product_id': fields.many2one('product.product', 'Product'),
+        'supplier_id': fields.many2one('res.partner', 'Supplier'),
+        'comments': fields.text('Comments'),
+        'salesrep_id': fields.many2one('res.partner', 'Sales Rep'),
+        'customer': fields.text('Customer'),
+        'approved': fields.boolean('Approved'),
+        'rnd_use': fields.boolean('R&D Use'),
+        'adb_desc': fields.text('Access DB Description'),
+        'adb_salesrep': fields.char('Access DB Sales Rep', size=32),
+        }
+

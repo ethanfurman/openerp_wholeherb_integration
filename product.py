@@ -434,7 +434,6 @@ class product_lot(osv.Model):
         'product_id': fields.many2one(
             'product.product',
             'Product',
-            required=True
             ),
         'supplier_id': fields.many2one(
             'res.partner',
@@ -459,3 +458,4 @@ class product_lot(osv.Model):
         if 'lot_no' in values:
             values['lot_no_valid'] = self._validate_lot_no(values['lot_no'])
         return super(product_lot, self).write(cr, uid, ids, values, context=context)
+

@@ -10,6 +10,7 @@
                     <field name="website" position="after">
                         <field name="xml_id" attrs="{'readonly':True}"/>
                         <field name="module" attrs="{'readonly':True}"/>
+                        <field name="adb_no" attrs="{'readonly':True, 'invisible':[('adb_no','=',False)]}"/>
                     </field>
                     <field name="comment" position="before">
                         <group colspan="4" attrs="{'invisible': ['|',('is_company','=',False), ('supplier','=',False)]}">

@@ -59,7 +59,7 @@ class res_partner(xid.xmlid, osv.Model):
     _columns = {
         'xml_id': fields.function(
             xid.get_xml_ids,
-            arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
+            arg=('posm', 'vnms', 'csms', 'vcon', 'pcon', 'preship_supplier'),
             string="FIS ID",
             type='char',
             method=False,
@@ -68,13 +68,14 @@ class res_partner(xid.xmlid, osv.Model):
             ),
         'module': fields.function(
             xid.get_xml_ids,
-            arg=('posm', 'vnms', 'csms', 'vcon', 'pcon'),
+            arg=('posm', 'vnms', 'csms', 'vcon', 'pcon', 'preship_supplier'),
             string="FIS Module",
             type='char',
             method=False,
             fnct_search=xid.search_xml_id,
             multi='external',
             ),
+        'adb_no': fields.integer('Access DB ID'),
         'sp_non_gmo': fields.boolean(
             'Non-GMO vendor?',
             ),

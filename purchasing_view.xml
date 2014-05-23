@@ -146,6 +146,7 @@
             parent="wholeherb_integration_purchasing"
             action="purchase_order_normal_action"
             groups="base.group_sale_salesman"
+            sequence="30"
             />
 
         <record id="purchase_lot_normal_action" model="ir.actions.act_window">
@@ -164,6 +165,72 @@
             parent="wholeherb_integration_purchasing"
             action="purchase_lot_normal_action"
             groups="base.group_sale_salesman"
+            sequence="10"
+            />
+
+        <record model="ir.ui.view" id="purchasing_preship_log_tree_view">
+            <field name="name">Pre-Ship View</field>
+            <field name="model">wholeherb_integration.preship_sample</field>
+            <field name="arch" type="xml">
+                <tree string="Pre-Ship Samples">
+                    <field name="customer"/>
+                    <field name="supplier_id"/>
+                    <field name="lot_id"/>
+                    <field name="approved"/>
+                </tree>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="purchasing_preship_log_form_view">
+            <field name="name">Pre-Ship View</field>
+            <field name="model">wholeherb_integration.preship_sample</field>
+            <field name="arch" type="xml">
+                <form string="Pre-Ship Samples" version="7.0">
+                    <group>
+                        <group>
+                            <field name="product_id"/>
+                            <field name="adb_desc" attrs="{'invisible':[('product_id','!=',False)]}"/>
+                            <field name="lot_id"/>
+                            <field name="received_date"/>
+                        </group>
+                        <group>
+                            <field name="salesrep_id"/>
+                            <field name="adb_salesrep" attrs="{'invisible':[('salesrep_id','!=',False)]}"/>
+                            <field name="customer"/>
+                            <field name="approved"/>
+                        </group>
+                        <group>
+                            <field name="supplier_id"/>
+                        </group>
+                        <group>
+                            <field name="rnd_use"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Comments">
+                            <field name="comments" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </form>
+            </field>
+        </record>
+
+        <record model="ir.actions.act_window" id="purchasing_preship_sample_normal_action">
+            <field name="name">Pre-Ship Samples</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">wholeherb_integration.preship_sample</field>
+            <field name="view_type">form</field>
+            <field name="view_id" ref="purchasing_preship_log_tree_view"/>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <menuitem
+            name="Pre-Ship Samples"
+            id="preship_views"
+            parent="wholeherb_integration_purchasing"
+            action="purchasing_preship_sample_normal_action"
+            groups="base.group_sale_salesman"
+            sequence="20"
             />
 
     </data>
