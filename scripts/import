@@ -160,7 +160,9 @@ def get_lot_id(lot_model, lots, lot_no, **values):
     kwds will added to any create call"""
     lot_no = fix_names(lot_no)
     if lot_no in lots:
-        return lots[lot_no].id
+        id = lots[lot_no].id
+        lot_model.write(id, values)
+        return id
     else:
         values['lot_no'] = lot_no
         return lot_model.create(values)
@@ -665,7 +667,7 @@ def preship_log(sample_file, supplier_file, nuke):
             for r in oe_suppliers.values()
             )
     print 'getting PreShip Sample records...'
-    oe_preship= PropertyDict((r.order_num, r) for r in get_records(preship_sample_model))
+    #oe_preship= PropertyDict((r.order_num, r) for r in get_records(preship_sample_model))
     print 'getting Product records (this will take a bit)...'
     product_model = OE.conn.get_model('product.product')
     oe_products = PropertyDict()
