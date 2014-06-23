@@ -106,6 +106,7 @@ class purchasing(osv.Model):
     'purchase order'
     _name = 'wholeherb_integration.purchase_order'
     _rec_name = 'purchase_order'
+    _order = 'purchase_order desc'
 
     _columns = {
         'purchase_order': fields.integer('Purchase Order', required=True),
@@ -128,10 +129,11 @@ class purchasing(osv.Model):
 class preship_sample(osv.Model):
     _name = 'wholeherb_integration.preship_sample'
     _description = 'preship samples from suppliers'
+    _order = 'lot_id desc'
 
     _columns = {
         'received_date': fields.date('Date Received'),
-        'lot_id': fields.many2one('wholeherb_integration.product_lot', 'Lot #'),
+        'lot_id': fields.many2one('wholeherb_integration.product_lot', 'Pre-Ship Lot #'),
         'product_id': fields.many2one('product.product', 'Product'),
         'supplier_id': fields.many2one('res.partner', 'Supplier'),
         'comments': fields.text('Comments'),

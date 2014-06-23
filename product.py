@@ -395,7 +395,7 @@ class product_lot(osv.Model):
     _name = 'wholeherb_integration.product_lot'
     _description = 'product lot'
     _rec_name = 'lot_no'
-
+    _order = 'lot_no desc'
 
     def _check_unique_lot_num(self, cr, uid, ids, context=None):
         "make sure we don't have duplicate valid lot numbers"

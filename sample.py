@@ -14,6 +14,7 @@ class sample_memo(osv.Model):
     'samples sent to (prospective) customers'
     _name = 'wholeherb_integration.sample_memo'
     _rec_name = 'order_num'
+    _order = 'order_num desc'
 
     _columns = {
         'order_num': fields.char('Order #', size=10, required=True),
