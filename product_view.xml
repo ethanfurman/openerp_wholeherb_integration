@@ -279,7 +279,7 @@
             <field name="res_model">wholeherb_integration.product_lot</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
-            <field name="domain" eval="[('lot_no_valid','=',True)]"/>
+            <field name="domain" eval="[('lot_no_valid','=',True),('preship_lot','=',False)]"/>
         </record>
 
         <record id="action_wholeherb_integration_product_lot_tree" model="ir.actions.act_window.view">

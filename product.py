@@ -447,6 +447,7 @@ class product_lot(osv.Model):
             'Country of Origin',
             ),
         'lot_no_valid': fields.boolean('Unique lot number'),
+        'preship_lot': fields.boolean('Pre-Ship lot?'),
         }
 
     def create(self, cr, uid, values, context=None):
