@@ -223,6 +223,32 @@ def strip_field(text):
 
 
 @Command(
+        )
+def nuke():
+    """
+    destroys all data in lots, preship, and sample
+    """
+    OE = connect()
+    lots_model = OE.conn.get_model('wholeherb_integration.product_lot')
+    po_model = OE.conn.get_model('wholeherb_integration.purchase_order')
+    ids = [r.id for r in get_records(lots_model, domain=[(1,'=',1)], fields=['id'])]
+    lots_model.unlink(ids)
+    ids = [r.id for r in get_records(po_model, domain=[(1,'=',1)], fields=['id'])]
+    po_model.unlink(ids)
+
+    sample_model = OE.conn.get_model('wholeherb_integration.sample_memo')
+    ids = [r.id for r in get_records(sample_model, domain=[(1,'=',1)], fields=['id'])]
+    sample_model.unlink(ids)
+
+    partner_model = OE.partner = OE.conn.get_model('res.partner')
+    preship_sample_model = OE.conn.get_model('wholeherb_integration.preship_sample')
+    ids = [r.id for r in get_records(preship_sample_model, domain=[(1,'=',1)], fields=['id'])]
+    preship_sample_model.unlink(ids)
+    ids = [r.id for r in get_records(partner_model, domain=[('module','=','preship_supplier')], fields=['id'])]
+    partner_model.unlink(ids)
+
+
+@Command(
         file_name=('dbf file to import data fram', ),
         nuke=('clear table before import', FLAG, ),
         )
