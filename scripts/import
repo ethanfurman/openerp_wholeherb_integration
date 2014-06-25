@@ -231,20 +231,30 @@ def nuke():
     OE = connect()
     lots_model = OE.conn.get_model('wholeherb_integration.product_lot')
     po_model = OE.conn.get_model('wholeherb_integration.purchase_order')
+    print "getting lot records ...",
     ids = [r.id for r in get_records(lots_model, domain=[(1,'=',1)], fields=['id'])]
+    print "removing %d records" % len(ids)
     lots_model.unlink(ids)
+    print "getting purchase records ...",
     ids = [r.id for r in get_records(po_model, domain=[(1,'=',1)], fields=['id'])]
+    print "removing %d records" % len(ids)
     po_model.unlink(ids)
 
     sample_model = OE.conn.get_model('wholeherb_integration.sample_memo')
+    print "getting sample memo records",
     ids = [r.id for r in get_records(sample_model, domain=[(1,'=',1)], fields=['id'])]
+    print "removing %d records" % len(ids)
     sample_model.unlink(ids)
 
     partner_model = OE.partner = OE.conn.get_model('res.partner')
     preship_sample_model = OE.conn.get_model('wholeherb_integration.preship_sample')
+    print "getting preship sample records ...",
     ids = [r.id for r in get_records(preship_sample_model, domain=[(1,'=',1)], fields=['id'])]
+    print "removing %d records" % len(ids)
     preship_sample_model.unlink(ids)
+    print "geting preship supplier records ...",
     ids = [r.id for r in get_records(partner_model, domain=[('module','=','preship_supplier')], fields=['id'])]
+    print "removing %d records" % len(ids)
     partner_model.unlink(ids)
 
 
