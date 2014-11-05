@@ -762,7 +762,7 @@ def preship_log(sample_file, supplier_file, nuke):
                     id = partner_model.create(dict(values))
                     oe_suppliers[xml_id] = id
                 else:
-                    partner_model.write(oe_suppliers[xml_id], {'adb_no':rec[Supplier.id]})
+                    partner_model.write(oe_suppliers[xml_id].id, {'adb_no':rec[Supplier.id]})
                 oe_suppliers_by_adb_id[rec[Supplier.id]] = xml_id
             print '\nmatched by address: ', matched_by_address
     if sample_file:
