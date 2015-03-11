@@ -473,10 +473,15 @@ class product_traffic(osv.Model):
         'sales_comment': fields.selection(
             (('low', 'getting low'), ('out', 'sold out')),
             'Sales Comment',
+            track_visibility='onchange',
             ),
-        'purchase_comment': fields.text('Purchase Comment'),
+        'purchase_comment': fields.text('Purchase Comment', track_visibility='onchange'),
         }
 
     _defaults = {
         'date': lambda *a: fields.date.today(),
         }
+
+    # def write(self, cr, uid, ids, values, context=None):
+    #     import pdb; pdb.set_trace()
+    #     return super(product_traffic, self).write(cr, uid, ids, values, context=context)

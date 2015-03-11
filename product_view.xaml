@@ -250,6 +250,7 @@
             @res_model: wholeherb_integration.product_traffic
             @view_type: form
             @view_mode: tree,form
+            @context: {'mail_track_initial': True}
 
         %menuitem @Traffic #wholeherb_integration_product_traffic parent='base.menu_product' action='action_wholeherb_integration_product_traffic' groups='base.group_user'
 
