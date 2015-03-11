@@ -219,6 +219,40 @@
 
         %menuitem @Lots #wholeherb_integration_product_lot parent='base.menu_product' action='action_wholeherb_integration_product_lot' groups='base.group_user'
 
+        %record #wholeherb_integration_product_traffic_tree model=view
+            @name: wholeherb_integration_product_traffic_tree
+            @model: wholeherb_integration.product_traffic
+            @arch type='xml'
+                %tree $Product_Traffic
+                    @date
+                    @product_id
+                    @sales_comment
+
+        %record #wholeherb_integration_product_traffic_form model=view
+            @name: wholeherb_integration_product_traffic_form
+            @model: wholeherb_integration.product_traffic
+            @arch type='xml'
+                %form $Product_Traffic version='7.0'
+                    %group
+                        %group
+                            @product_id
+                        %group
+                            @date
+                        %group
+                            @sales_comment
+                            @purchase_comment
+                    %div .oe_chatter
+                        @message_follower_ids widget='mail_followers'
+                        @message_ids widget='mail_thread'
+
+        %record #action_wholeherb_integration_product_traffic model=act_window
+            @name: Product Traffic
+            @res_model: wholeherb_integration.product_traffic
+            @view_type: form
+            @view_mode: tree,form
+
+        %menuitem @Traffic #wholeherb_integration_product_traffic parent='base.menu_product' action='action_wholeherb_integration_product_traffic' groups='base.group_user'
+
     %data noupdate='1'
 
         %record model='ir.cron' #product_category_update

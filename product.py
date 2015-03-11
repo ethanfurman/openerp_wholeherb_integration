@@ -459,3 +459,24 @@ class product_lot(osv.Model):
         if 'lot_no' in values:
             values['lot_no_valid'] = self._validate_lot_no(values['lot_no'])
         return super(product_lot, self).write(cr, uid, ids, values, context=context)
+
+class product_traffic(osv.Model):
+    _name = 'wholeherb_integration.product_traffic'
+    _description = 'running out of product'
+    _order = 'date desc'
+    _inherit = ['mail.thread']
+    _mirrors = {'product_id': ['description', 'categ_id']}
+
+    _columns = {
+        'date': fields.date('Date Created'),
+        'product_id': fields.many2one('product.product', 'Product', required=True),
+        'sales_comment': fields.selection(
+            (('low', 'getting low'), ('out', 'sold out')),
+            'Sales Comment',
+            ),
+        'purchase_comment': fields.text('Purchase Comment'),
+        }
+
+    _defaults = {
+        'date': lambda *a: fields.date.today(),
+        }
