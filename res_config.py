@@ -4,12 +4,8 @@ class fis_integration_config_settings(osv.osv_memory):
     _name = 'fis_integration.config.settings'
     _inherit = "res.config.settings"
     _columns = {
-            'company_id': fields.many2one('res.company', 'Company', required=True),
-            'product_integration': fields.related('company_id', 'product_integration', type='char', string='Product Module', size=64, help="Module name used for product external ids."),
-            'product_category_integration': fields.related('company_id', 'product_category_integration', type='char', string='Product Category', size=64, help="Module name used for product category external ids."),
-            'employee_integration': fields.related('company_id', 'employee_integration', type='char', string='Employee Module', size=64, help='Module name used for employee external ids.'),
-            'customer_integration': fields.related('company_id', 'customer_integration', type='char', string='Customer Module', size=64, help='Module name used for customer external ids.'),
-            'supplier_integration': fields.related('company_id', 'supplier_integration', type='char', string='Supplier/Vendor Module', size=64, help='Module name used for supplier/vendor external ids.'),
+        'company_id': fields.many2one('res.company', 'Company', required=True),
+        'traffic_followers': fields.related('company_id', 'traffic_followers_ids', type='many2many', string='Auto-Followers', relation='res.users'),
     }
 
     def create(self, cr, uid, values, context=None):
@@ -37,11 +33,7 @@ class fis_integration_config_settings(osv.osv_memory):
         if company_id:
             company = self.pool.get('res.company').browse(cr, uid, company_id, context=context)
             values = {
-                'product_integration': company.product_integration,
-                'product_category_integration': company.product_category_integration,
-                'customer_integration': company.customer_integration,
-                'supplier_integration': company.supplier_integration,
-                'employee_integration': company.employee_integration,
+                'traffic_followers': company.traffic_followers_ids,
             }
         return {'value': values}
     
