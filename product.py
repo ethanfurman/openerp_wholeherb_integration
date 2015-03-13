@@ -1,7 +1,7 @@
 from collections import defaultdict
 from fnx.xid import xmlid
 from fnx.BBxXlate.fisData import fisData
-from fnx import NameCase, translator, xid, contains_any
+from fnx import NameCase, translator, xid, contains_any, Date
 from openerp.addons.product.product import sanitize_ean13
 from openerp.tools import SUPERUSER_ID
 from osv.osv import except_osv as ERPError
@@ -479,6 +479,17 @@ class product_traffic(osv.Model):
             products.add(rec.product_id)
         return True
 
+    def _delete_stale_entries(self, cr, uid, arg=None, context=None):
+        'deletes entries that have been in the seen state for longer than 20 days'
+        today = Date.today()
+        cart = []
+        for rec in self.browse(cr, uid, context=context):
+            if today - Date(rec.purchase_comment_date) > 20:
+                cart.append(rec.id)
+        if cart:
+            self.unlink(cr, uid, cart, context=context)
+        return True
+
     _columns = {
         'date': fields.date('Date Created'),
         'product_id': fields.many2one('product.product', 'Product', required=True),
@@ -530,19 +541,24 @@ class product_traffic(osv.Model):
     def write(self, cr, uid, ids, values, context=None):
         if isinstance(ids, (int, long)):
             ids = [ids]
-        if 'purchase_comment' in values and ids:
+        if ('purchase_comment' in values or 'state' in values) and ids:
+            pc = values.get('purchase_commint')
+            s = values.get('state')
             for rec in self.browse(cr, uid, ids, context=context):
                 vals = values.copy()
-                if vals['purchase_comment']:
-                    vals['purchase_comment_available'] = 'yes'
+                if pc is not None:
+                    if pc:
+                        vals['purchase_comment_available'] = 'yes'
+                        vals['purchase_comment_date'] = fields.date.today()
+                        if rec.state == 'new':
+                            vals['state'] = 'seen'
+                    else:
+                        vals['purchase_comment_available'] = 'no'
+                        vals['purchase_comment_date'] = False
+                        if rec.state == 'seen':
+                            vals['state'] = 'new'
+                if s not in (None, 'new', 'seen'):
                     vals['purchase_comment_date'] = fields.date.today()
-                    if rec.state == 'new':
-                        vals['state'] = 'seen'
-                else:
-                    vals['purchase_comment_available'] = 'no'
-                    vals['purchase_comment_date'] = False
-                    if rec.state == 'seen':
-                        vals['state'] = 'new'
                 if not super(product_traffic, self).write(cr, uid, rec.id, vals, context=context):
                     return False
             return True
