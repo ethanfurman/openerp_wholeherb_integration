@@ -3,6 +3,8 @@ from fnx.xid import xmlid
 from fnx.BBxXlate.fisData import fisData
 from fnx import NameCase, translator, xid, contains_any
 from openerp.addons.product.product import sanitize_ean13
+from openerp.tools import SUPERUSER_ID
+from osv.osv import except_osv as ERPError
 from osv import osv, fields
 from urllib import urlopen
 import enum
@@ -467,21 +469,81 @@ class product_traffic(osv.Model):
     _inherit = ['mail.thread']
     _mirrors = {'product_id': ['description', 'categ_id']}
 
+    def _check_already_open(self, cr, uid, ids):
+        products = set()
+        for rec in self.browse(cr, SUPERUSER_ID, [None]):
+            if rec.state == 'done':
+                continue
+            if rec.product_id in products:
+                return False
+            products.add(rec.product_id)
+        return True
+
     _columns = {
         'date': fields.date('Date Created'),
         'product_id': fields.many2one('product.product', 'Product', required=True),
         'sales_comment': fields.selection(
             (('low', 'getting low'), ('out', 'sold out')),
             'Sales Comment',
-            track_visibility='onchange',
+            track_visibility='change_only',
             ),
-        'purchase_comment': fields.text('Purchase Comment', track_visibility='onchange'),
+        'purchase_comment': fields.text('Purchase Comment', track_visibility='change_only'),
+        'state': fields.selection(
+            (('new','New'), ('seen', 'Seen'), ('ordered','On Order'), ('done', 'Received')),
+            'Status',
+            ),
+        'purchase_comment_available': fields.selection(
+            (('no',''), ('yes','Yes')),
+            'Purchasing comment available?',
+            ),
+        'purchase_comment_date': fields.date('Purchasing updated'),
         }
 
     _defaults = {
         'date': lambda *a: fields.date.today(),
+        'state': lambda *a: 'new'
         }
 
-    # def write(self, cr, uid, ids, values, context=None):
-    #     import pdb; pdb.set_trace()
-    #     return super(product_traffic, self).write(cr, uid, ids, values, context=context)
+    _constraints = [
+        (lambda s, *a: s._check_already_open(*a), '\nOpen item already exists', ['product_id']),
+        ]
+
+    def create(self, cr, uid, values, context=None):
+        if context is None:
+            context = {}
+        ctx = context.copy()
+        ctx['mail_track_initial'] = True
+        if 'purchase_comment' in values:
+            values['purchase_comment_available'] = 'yes'
+            values['purchase_comment_date'] = fields.date.today()
+            values['state'] = 'seen'
+        new_id = super(product_traffic, self).create(cr, uid, values, context=ctx)
+        user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+        follower_ids = [u.id for u in user.company_id.traffic_followers_ids]
+        if follower_ids:
+            self.message_subscribe_users(cr, uid, [new_id], user_ids=follower_ids, context=context)
+        return new_id
+
+    def mark_as(self, cr, uid, ids, state, context=None):
+        return self.write(cr, uid, ids, {'state': state}, context=context)
+
+    def write(self, cr, uid, ids, values, context=None):
+        if isinstance(ids, (int, long)):
+            ids = [ids]
+        if 'purchase_comment' in values and ids:
+            for rec in self.browse(cr, uid, ids, context=context):
+                vals = values.copy()
+                if vals['purchase_comment']:
+                    vals['purchase_comment_available'] = 'yes'
+                    vals['purchase_comment_date'] = fields.date.today()
+                    if rec.state == 'new':
+                        vals['state'] = 'seen'
+                else:
+                    vals['purchase_comment_available'] = 'no'
+                    vals['purchase_comment_date'] = False
+                    if rec.state == 'seen':
+                        vals['state'] = 'new'
+                if not super(product_traffic, self).write(cr, uid, rec.id, vals, context=context):
+                    return False
+            return True
+        return super(product_traffic, self).write(cr, uid, ids, values, context=context)
