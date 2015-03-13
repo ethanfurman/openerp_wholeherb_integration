@@ -5,7 +5,12 @@ class fis_integration_config_settings(osv.osv_memory):
     _inherit = "res.config.settings"
     _columns = {
         'company_id': fields.many2one('res.company', 'Company', required=True),
-        'traffic_followers': fields.related('company_id', 'traffic_followers_ids', type='many2many', string='Auto-Followers', relation='res.users'),
+        'traffic_followers': fields.related(
+            'company_id', 'traffic_followers_ids',
+            type='many2many',
+            string='Auto-Followers',
+            relation='res.users',
+            ),
     }
 
     def create(self, cr, uid, values, context=None):
@@ -33,7 +38,7 @@ class fis_integration_config_settings(osv.osv_memory):
         if company_id:
             company = self.pool.get('res.company').browse(cr, uid, company_id, context=context)
             values = {
-                'traffic_followers': company.traffic_followers_ids,
+                'traffic_followers': [r.id for r in company.traffic_followers_ids],
             }
         return {'value': values}
     
