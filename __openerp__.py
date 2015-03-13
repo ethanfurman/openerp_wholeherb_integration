@@ -18,7 +18,7 @@
     #        'security/ir.model.access.csv',
     #    ],
     'update_xml': [
-            'res_config_view.xml',
+            'res_config_view.xaml',
             'res_partner_view.xaml',
             'product_view.xaml',
             'purchasing_view.xaml',
