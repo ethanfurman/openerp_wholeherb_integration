@@ -472,7 +472,7 @@ class product_traffic(osv.Model):
     def _check_already_open(self, cr, uid, ids):
         products = set()
         for rec in self.browse(cr, SUPERUSER_ID, [None]):
-            if rec.state == 'done':
+            if rec.state in (False, 'done'):
                 continue
             if rec.product_id in products:
                 return False
@@ -480,14 +480,14 @@ class product_traffic(osv.Model):
         return True
 
     def _delete_stale_entries(self, cr, uid, arg=None, context=None):
-        'deletes entries that have been in the seen state for longer than 20 days'
+        'zombifies entries that have been in the seen state for longer than 20 days'
         today = Date.today()
         cart = []
         for rec in self.browse(cr, uid, context=context):
             if today - Date(rec.purchase_comment_date) > 20:
                 cart.append(rec.id)
         if cart:
-            self.unlink(cr, uid, cart, context=context)
+            self.write(cr, uid, cart, {'state': False}, context=context)
         return True
 
     _columns = {
@@ -502,6 +502,7 @@ class product_traffic(osv.Model):
         'state': fields.selection(
             (('new','New'), ('seen', 'Seen'), ('ordered','On Order'), ('done', 'Received')),
             'Status',
+            track_visibility='change_only',
             ),
         'purchase_comment_available': fields.selection(
             (('no',''), ('yes','Yes')),
@@ -524,7 +525,7 @@ class product_traffic(osv.Model):
             context = {}
         ctx = context.copy()
         ctx['mail_track_initial'] = True
-        if 'purchase_comment' in values:
+        if values.get('purchase_comment'):
             values['purchase_comment_available'] = 'yes'
             values['purchase_comment_date'] = fields.date.today()
             values['state'] = 'seen'
@@ -542,12 +543,13 @@ class product_traffic(osv.Model):
         if isinstance(ids, (int, long)):
             ids = [ids]
         if ('purchase_comment' in values or 'state' in values) and ids:
-            pc = values.get('purchase_commint')
+            pc = values.get('purchase_comment')
             s = values.get('state')
             for rec in self.browse(cr, uid, ids, context=context):
                 vals = values.copy()
                 if pc is not None:
                     if pc:
+                        print 'pc is', repr(pc)
                         vals['purchase_comment_available'] = 'yes'
                         vals['purchase_comment_date'] = fields.date.today()
                         if rec.state == 'new':
@@ -559,6 +561,7 @@ class product_traffic(osv.Model):
                             vals['state'] = 'new'
                 if s not in (None, 'new', 'seen'):
                     vals['purchase_comment_date'] = fields.date.today()
+                print vals
                 if not super(product_traffic, self).write(cr, uid, rec.id, vals, context=context):
                     return False
             return True
