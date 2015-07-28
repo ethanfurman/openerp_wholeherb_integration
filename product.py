@@ -263,7 +263,6 @@ class product_product(xmlid, osv.Model):
                 raise ValueError("too many matches for category code %s" % values['categ_id'])
             values['categ_id'] = prod_cat.browse(cr, uid, cat_ids)[0]['id']
             values['module'] = product_module
-            print values
             self.write(cr, uid, [id], values, context=context)
         return True
 
@@ -549,7 +548,6 @@ class product_traffic(osv.Model):
                 vals = values.copy()
                 if pc is not None:
                     if pc:
-                        print 'pc is', repr(pc)
                         vals['purchase_comment_available'] = 'yes'
                         vals['purchase_comment_date'] = fields.date.today()
                         if rec.state == 'new':
@@ -561,7 +559,6 @@ class product_traffic(osv.Model):
                             vals['state'] = 'new'
                 if s not in (None, 'new', 'seen'):
                     vals['purchase_comment_date'] = fields.date.today()
-                print vals
                 if not super(product_traffic, self).write(cr, uid, rec.id, vals, context=context):
                     return False
             return True
