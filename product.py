@@ -231,6 +231,8 @@ class product_product(xmlid, osv.Model):
             ),
         'product_is_blend' : fields.boolean('Product is blend'),
         'lot_ids': fields.one2many('wholeherb_integration.product_lot', 'product_id', 'Lots'),
+        'c_of_a': fields.html(string='Certificates of Analysis'),
+        'sds': fields.html(string='Safety Data Sheets'),
         }
 
     def button_fis_refresh(self, cr, uid, ids, context=None):
@@ -483,7 +485,10 @@ class product_traffic(osv.Model):
         today = Date.today()
         cart = []
         for rec in self.browse(cr, uid, context=context):
-            if today - Date(rec.purchase_comment_date) > 20:
+            if (
+                rec.purchase_comment_date and
+                (today - Date(rec.purchase_comment_date) > 20)
+                ):
                 cart.append(rec.id)
         if cart:
             self.write(cr, uid, cart, {'state': False}, context=context)
@@ -528,15 +533,22 @@ class product_traffic(osv.Model):
             values['purchase_comment_available'] = 'yes'
             values['purchase_comment_date'] = fields.date.today()
             values['state'] = 'seen'
-        new_id = super(product_traffic, self).create(cr, uid, values, context=ctx)
         user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
         follower_ids = [u.id for u in user.company_id.traffic_followers_ids]
         if follower_ids:
-            self.message_subscribe_users(cr, uid, [new_id], user_ids=follower_ids, context=context)
-        return new_id
+            values['message_follower_user_ids'] = follower_ids
+        return super(product_traffic, self).create(cr, uid, values, context=ctx)
 
     def mark_as(self, cr, uid, ids, state, context=None):
         return self.write(cr, uid, ids, {'state': state}, context=context)
+
+    def name_get(self, cr, uid, ids, context=None):
+        if isinstance(ids, (int, long)):
+            ids = [ids]
+        res = []
+        for record in self.browse(cr, uid, ids, context=context):
+            res.append((record.id, record.product_id.name))
+        return res
 
     def write(self, cr, uid, ids, values, context=None):
         if isinstance(ids, (int, long)):
