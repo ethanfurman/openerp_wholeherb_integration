@@ -487,7 +487,7 @@ class product_traffic(osv.Model):
         for rec in self.browse(cr, uid, context=context):
             if (
                 rec.purchase_comment_date and
-                (today - Date(rec.purchase_comment_date) > 20)
+                ((today - Date(rec.purchase_comment_date)).days > 20)
                 ):
                 cart.append(rec.id)
         if cart:
