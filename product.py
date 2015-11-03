@@ -171,7 +171,7 @@ class product_product(xmlid, osv.Model):
         for rec in records:
             current = values[rec.id] = {}
             try:
-                imd_rec = imd.get_object_from_model_resid(cr, uid, model, rec.id, context=context)
+                imd_rec = imd.get_object_from_model_resid(cr, uid, model, rec.id)
                 fis_recs = nvty.get_subset(rec.xml_id)
                 if not fis_recs:
                     raise ValueError('no matching records for %s' % rec.xml_id)
