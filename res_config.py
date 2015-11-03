@@ -41,4 +41,4 @@ class fis_integration_config_settings(osv.osv_memory):
                 'traffic_followers': [r.id for r in company.traffic_followers_ids],
             }
         return {'value': values}
-    
+

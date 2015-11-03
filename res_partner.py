@@ -7,7 +7,7 @@ from osv import osv, fields
 
 _logger = logging.getLogger(__name__)
 
-CONFIG_ERROR = "Cannot sync products until  Settings --> Configuration --> FIS Integration --> %s  has been specified." 
+CONFIG_ERROR = "Cannot sync products until  Settings --> Configuration --> FIS Integration --> %s  has been specified."
 
 class FISenum(str, enum.Enum):
     pass

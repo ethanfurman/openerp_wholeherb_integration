@@ -156,7 +156,7 @@ def get_item_desc(text):
 
 def get_lot_id(lot_model, lots, lot_no, **values):
     """returns existing lot_id, or new lot_id if lot_no doesn't already exist
-    
+
     kwds will added to any create call"""
     lot_no = fix_names(lot_no)
     if lot_no in lots:
@@ -416,7 +416,7 @@ def purchasing_lots(file_name, nuke):
             po_number = int(lot[Field.po_no])
             vessel = lot[Field.vessel]
             # this will have to wait :(
-            # supplier = 
+            # supplier =
             po_key = po_number
             values = PropertyDict(purchase_order=po_number, vessel=vessel, supplier_id=supplier_id)
             if po_key in oe_purchases:
@@ -642,7 +642,7 @@ def preship_log(sample_file, supplier_file, nuke):
     """
     Import a file into wholeherb_integration.preship_sample and res_partner.
 
-    example file name: PreShip_Sample_Log_[Sample2 | Suppliers ]_stage1.dbf 
+    example file name: PreShip_Sample_Log_[Sample2 | Suppliers ]_stage1.dbf
     """
     class Sample(IntEnum):
         received_date = 0

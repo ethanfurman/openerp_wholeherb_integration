@@ -1,7 +1,7 @@
 from collections import defaultdict
 from fnx.xid import xmlid
 from fnx.BBxXlate.fisData import fisData
-from fnx import NameCase, translator, xid, contains_any, Date
+from fnx import NameCase, translator, contains_any, Date
 from openerp.addons.product.product import sanitize_ean13
 from openerp.tools import SUPERUSER_ID
 from osv.osv import except_osv as ERPError
@@ -13,7 +13,7 @@ import time
 
 _logger = logging.getLogger(__name__)
 
-CONFIG_ERROR = "Cannot sync products until  Settings --> Configuration --> FIS Integration --> %s  has been specified." 
+CONFIG_ERROR = "Cannot sync products until  Settings --> Configuration --> FIS Integration --> %s  has been specified."
 
 lose_digits = translator(delete='0123456789')
 
@@ -99,23 +99,23 @@ class product_category(xmlid, osv.Model):
 
     _columns = {
         'xml_id': fields.function(
-            xid.get_xml_ids,
+            xmlid.get_xml_ids,
             arg=('cnvzc', ),
-            fnct_inv=xid.update_xml_id,
+            fnct_inv=xmlid.update_xml_id,
             fnct_inv_arg=('cnvzc', ),
             string="FIS ID",
             type='char',
             method=False,
-            fnct_search=xid.search_xml_id,
+            fnct_search=xmlid.search_xml_id,
             multi='external',
             ),
         'module': fields.function(
-            xid.get_xml_ids,
+            xmlid.get_xml_ids,
             arg=('cnvzc', ),
             string="FIS Module",
             type='char',
             method=False,
-            fnct_search=xid.search_xml_id,
+            fnct_search=xmlid.search_xml_id,
             multi='external',
             ),
         }
@@ -190,21 +190,21 @@ class product_product(xmlid, osv.Model):
 
     _columns = {
         'xml_id': fields.function(
-            xid.get_xml_ids,
+            xmlid.get_xml_ids,
             arg=('nvty', ),
             string="FIS ID",
             type='char',
             method=False,
-            fnct_search=xid.search_xml_id,
+            fnct_search=xmlid.search_xml_id,
             multi='external',
             ),
         'module': fields.function(
-            xid.get_xml_ids,
+            xmlid.get_xml_ids,
             arg=('nvty', ),
             string="FIS Module",
             type='char',
             method=False,
-            fnct_search=xid.search_xml_id,
+            fnct_search=xmlid.search_xml_id,
             multi='external',
             ),
 
@@ -325,7 +325,7 @@ class product_product(xmlid, osv.Model):
 
         _logger.info(self._name + " done!")
         return True
-    
+
     def _get_fis_values(self, fis_rec):
         values = {}
         values['xml_id'] = values['default_code'] = fis_rec[P.code]
