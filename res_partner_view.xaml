@@ -1,8 +1,8 @@
 !!!xml1.0
-%openerp
-    %data
+~openerp
+    ~data
 
-        %record #view_partners_form_xml_id model='ir.ui.view'
+        ~record #view_partners_form_xml_id model='ir.ui.view'
                 @name: view.res.partner.form.xml_id
                 @model: res.partner
                 @inherit_id ref='base.view_partner_form'
@@ -13,58 +13,58 @@
                         @module attrs="{'readonly':True}"
                         @adb_no attrs="{'readonly':True, 'invisible':[('adb_no','=',False)]}"
                     @comment position='before'
-                        %group colspan="4" attrs="{'invisible': ['|',('is_company','=',False), ('supplier','=',False)]}"
-                            %group $Vendor_Info colspan='2'
+                        ~group colspan="4" attrs="{'invisible': ['|',('is_company','=',False), ('supplier','=',False)]}"
+                            ~group $Vendor_Info colspan='2'
                                 @vn_tele
                                 @vn_fax
                                 @vn_telex
-                                %separator
-                                %separator
+                                ~separator
+                                ~separator
                                 @vn_org_cert
                                 @vn_org_cert_file
                                 @vn_org_exp
-                            %group $Supplier_Info colspan='2'
+                            ~group $Supplier_Info colspan='2'
                                 @sp_tele
                                 @sp_fax
                                 @sp_telex
-                                %separator
-                                %separator
+                                ~separator
+                                ~separator
                                 @sp_non_gmo
                                 @sp_gmo_exp
-                                %separator
-                                %separator
+                                ~separator
+                                ~separator
                                 @sp_kosher
                                 @sp_kosher_exp
 
         // Update the built-in res_partner forms to not show customers assigned to somebody else
 
-        %record #action_partner_form model='ir.actions.act_window'
+        ~record #action_partner_form model='ir.actions.act_window'
             @name: Partners
             @res_model: res.partner
             @domain: ['|', ('user_id','=',uid), ('user_id','=',False)]
 
-        %record #action_partner_customer_form model='ir.actions.act_window'
+        ~record #action_partner_customer_form model='ir.actions.act_window'
             @name: Customers
             @res_model: res.partner
             @domain: ['|', ('user_id','=',uid), ('user_id','=',False)]
 
-        %record #action_partner_supplier_form model='ir.actions.act_window'
+        ~record #action_partner_supplier_form model='ir.actions.act_window'
             @name: Suppliers/Vendors
             @res_model: res.partner
             @domain: ['|', ('user_id','=',uid), ('user_id','=',False)]
 
-        %record #action_partner_employee_form model='ir.actions.act_window'
+        ~record #action_partner_employee_form model='ir.actions.act_window'
             @name: Employees
             @res_model: res.partner
             @domain: ['|', ('user_id','=',uid), ('user_id','=',False)]
 
-        %record #action_partner_other_form model='ir.actions.act_window'
+        ~record #action_partner_other_form model='ir.actions.act_window'
             @name: Other Partners
             @res_model: res.partner
             @domain: ['|', ('user_id','=',uid), ('user_id','=',False)]
 
-    %data noupdate='1'
-        %record model='ir.cron' #res_partner_fis_update
+    ~data noupdate='1'
+        ~record model='ir.cron' #res_partner_fis_update
             @name: FIS Supplier/Vendor Update
             @interval_number: 1
             @interval_type: days
