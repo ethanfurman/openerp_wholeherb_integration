@@ -1,6 +1,6 @@
 import enum
 import logging
-from fnx import xid, check_company_settings
+from fnx import xid
 from fnx.BBxXlate.fisData import fisData
 from fnx import cszk, fix_phone, fix_date, Rise, Sift, AddrCase, NameCase, BsnsCase, normalize_address
 from osv import osv, fields

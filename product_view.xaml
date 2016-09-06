@@ -3,37 +3,37 @@
 -act_window = 'ir.actions.act_window'
 -act_window_view = 'ir.actions.act_window.view'
 
-%openerp
-    %data
+~openerp
+    ~data
 
         // Add external_id and salesinq tab to product.product
-        %record #product_normal_form_view_xml_id model=view
+        ~record #product_normal_form_view_xml_id model=view
                 @name: view.product.product.form.xml_id
                 @model: product.product
                 @inherit_id ref='product.product_normal_form_view'
                 @priority eval='7'
                 @arch type='xml'
-                    %xpath expr="//div[@name='buttons']" position='inside'
-                        %button name='button_fis_refresh' $FIS_Refresh type='object'
-                    %xpath expr="//div[@name='options']" position='inside'
+                    ~xpath expr="//div[@name='buttons']" position='inside'
+                        ~button name='button_fis_refresh' $FIS_Refresh type='object'
+                    ~xpath expr="//div[@name='options']" position='inside'
                         @product_is_blend
-                        %label for='product_is_blend'
-                    %page $Information position='after'
-                        %page $Shipping_Instructions
+                        ~label for='product_is_blend'
+                    ~page $Information position='after'
+                        ~page $Shipping_Instructions
                             @spcl_ship_instr nolabel='1' placeholder='Special shipping instructions here...'
-                    %page $Sales position='after'
-                        %page $Lots
+                    ~page $Sales position='after'
+                        ~page $Lots
                             @lot_ids nolabel='1'
-                                %tree
+                                ~tree
                                     @lot_no
                                     @cofo_ids widget='many2many'
                                     @qty_remain
                                     @qty_recd_uom_id
-                    %page $Sales position='after'
-                        %page $Documents
-                            %seperator $Certificates_of_Analysis
+                    ~page $Sales position='after'
+                        ~page $Documents
+                            ~seperator $Certificates_of_Analysis
                             @c_of_a
-                            %seperator $Safety_Data_Sheets
+                            ~seperator $Safety_Data_Sheets
                             @sds
 
                     // %%page $Sales position='after'
@@ -49,50 +49,50 @@
 
                     @list_price position='after'
                         @sold_by
-                    @default_code position='replace'
+                    @default_code position='after'
                         @latin
                         @xml_id
 
-        %record #product_normal_action model=act_window
+        ~record #product_normal_action model=act_window
             @name: Products
             @type: ir.actions.act_window
             @res_model: product.product
             @domain: ['|',('product_tmpl_id.product_manager','=',uid),('product_tmpl_id.product_manager','=',False)]
 
-        %record #product_normal_action_sell model=act_window
+        ~record #product_normal_action_sell model=act_window
             @name: Products
             @type: ir.actions.act_window
             @res_model: product.product
             @domain: ['|',('product_tmpl_id.product_manager','=',uid),('product_tmpl_id.product_manager','=',False)]
 
-        %record #product_category_list_view_xml_id model=view
+        ~record #product_category_list_view_xml_id model=view
             @name: product.category.list.xml_id
             @model: product.category
             @inherit_id ref='product.product_category_list_view'
             @arch type='xml'
                 @complete_name position='after'
-                    %field name='xml_id'
+                    ~field name='xml_id'
 
-        %record #product_category_form_view_xml_id model=view
+        ~record #product_category_form_view_xml_id model=view
             @name: product.category.form.xml_id
             @model: product.category
             @inherit_id ref='product.product_category_form_view'
             @arch type='xml'
                 @parent_id position='before'
-                    %group colspan='4'
-                        %field name='xml_id'
+                    ~group colspan='4'
+                        ~field name='xml_id'
 
-        %record #wholeherb_integration_blend_category_form model=view
+        ~record #wholeherb_integration_blend_category_form model=view
             @name: Product Blend Categories
             @model: wholeherb_integration.blend_category
             @arch type='xml'
-                %form $Blend_Category
+                ~form $Blend_Category
                     @name
-                    %notebook colspan='4'
-                        %page $General_Info
-                        %page $Blends
+                    ~notebook colspan='4'
+                        ~page $General_Info
+                        ~page $Blends
                             @blends_ids nolabel='1'
-                                %form
+                                ~form
                                     @code
                                     @name
                                     @packaging
@@ -101,92 +101,92 @@
                                     @uom
                                     @batchsize
                                     @numberbatches
-                                %tree
+                                ~tree
                                     @code
                                     @name
-                        %page $Notes
+                        ~page $Notes
 
-        %record #wholeherb_integration_blend_category_tree model=view
+        ~record #wholeherb_integration_blend_category_tree model=view
             @name: product_blend_category
             @model: wholeherb_integration.blend_category
             @arch type='xml'
-                %tree $categories
+                ~tree $categories
                     @name
 
-        %record #action_wholeherb_integration_blend_category model=act_window
+        ~record #action_wholeherb_integration_blend_category model=act_window
             @name: Product Blend Categories
             @res_model: wholeherb_integration.blend_category
             @view_type: form
             @view_id ref='wholeherb_integration_blend_category_tree'
             @view_mode: tree,form
 
-        %menuitem name='Blend Categories' #product_blend_categories parent='product.prod_config_main' action='action_wholeherb_integration_blend_category' groups='base.group_user'
+        ~menuitem name='Blend Categories' #product_blend_categories parent='product.prod_config_main' action='action_wholeherb_integration_blend_category' groups='base.group_user'
 
-        %record #wholeherb_integration_blend_form model=view
+        ~record #wholeherb_integration_blend_form model=view
             @name: wholeherb_integration_blend
             @model: wholeherb_integration.blend
             @arch type='xml'
-                %form $Blends
+                ~form $Blends
                     @code colspan='4'
                     @name colspan='4'
                     @category_name colspan='4'
-                    %notebook colspan='4'
-                        %page $General
+                    ~notebook colspan='4'
+                        ~page $General
                             @packaging
                             @special_instructions
                             @amount
                             @uom
                             @batchsize
                             @numberbatches
-                        %page $Ingredients
+                        ~page $Ingredients
                             @ingredients_ids nolabel='1'
-                                %form
+                                ~form
                                     @product_id
                                     @percentinblend
-                                %tree
+                                ~tree
                                     @product_id
                                     @percentinblend
-                        %page $Notes
+                        ~page $Notes
 
-        %record #wholeherb_integration_blend_tree model=view
+        ~record #wholeherb_integration_blend_tree model=view
             @name: wholeherb_integration_blend_tree
             @model: wholeherb_integration.blend
             @arch type='xml'
-                %tree $blends
+                ~tree $blends
                     @code
                     @name
                     @category_name
 
-        %record #action_wholeherb_integration_blend model=act_window
+        ~record #action_wholeherb_integration_blend model=act_window
             @name: Product Blends
             @res_model: wholeherb_integration.blend
             @view_type: form
             @view_id ref='wholeherb_integration_blend_tree'
             @view_mode: tree,form
 
-        %menuitem @Blends #wholeherb_integration_blend parent='base.menu_product' action='action_wholeherb_integration_blend' groups='base.group_user'
+        ~menuitem @Blends #wholeherb_integration_blend parent='base.menu_product' action='action_wholeherb_integration_blend' groups='base.group_user'
 
-        %record #wholeherb_integration_product_lot_form model=view
+        ~record #wholeherb_integration_product_lot_form model=view
             @name: wholeherb_integration_product_lot
             @model: wholeherb_integration.product_lot
             @arch type='xml'
-                %form $Product_Lots version='7.0'
-                    %div
-                        %h3
-                            %label for='lot_no' $Lot
+                ~form $Product_Lots version='7.0'
+                    ~div
+                        ~h3
+                            ~label for='lot_no' $Lot
                             @lot_no nolabel='1' class='oe_inline'
-                            %separator
-                            %label for='product_id' $Item
+                            ~separator
+                            ~label for='product_id' $Item
                             @product_id nolabel='1' class='oe_inline'
-                    %group
-                        %group $Item_Info
+                    ~group
+                        ~group $Item_Info
                             @date_received
                             @qty_recd_uom_id
                             @qty_recd
                             @qty_remain
                             @prev_lot_no_id
                             @cofo_ids
-                        %group $Vendor_Info
+                        ~group $Vendor_Info
                             @supplier_id
                             @source_lot_no
                             @preship_id
@@ -195,106 +195,106 @@
                             @customs
                             @act_fob_cost
 
-        %record #wholeherb_integration_product_lot_tree model=view
+        ~record #wholeherb_integration_product_lot_tree model=view
             @name: wholeherb_integration_product_lot_tree
             @model: wholeherb_integration.product_lot
             @arch type='xml'
-                %tree $product_lots
+                ~tree $product_lots
                     @lot_no
                     @product_id
                     @qty_remain
 
-        %record #action_wholeherb_integration_product_lot model=act_window
+        ~record #action_wholeherb_integration_product_lot model=act_window
             @name: Product Lots
             @res_model: wholeherb_integration.product_lot
             @view_type: form
             @view_mode: tree,form
             @domain eval="[('lot_no_valid','=',True),('preship_lot','=',False)]"
 
-        %record #action_wholeherb_integration_product_lot_tree model=act_window_view
+        ~record #action_wholeherb_integration_product_lot_tree model=act_window_view
             @sequence eval='10'
             @view_mode: tree
             @view_id ref='wholeherb_integration_product_lot_tree'
             @act_window_id ref='action_wholeherb_integration_product_lot'
 
-        %record #action_wholeherb_integration_product_lot_form model=act_window_view
+        ~record #action_wholeherb_integration_product_lot_form model=act_window_view
             @sequence eval='20'
             @view_mode: form
             @view_id ref='wholeherb_integration_product_lot_form'
             @act_window_id ref='action_wholeherb_integration_product_lot'
 
-        %menuitem @Lots #wholeherb_integration_product_lot parent='base.menu_product' action='action_wholeherb_integration_product_lot' groups='base.group_user'
+        ~menuitem @Lots #wholeherb_integration_product_lot parent='base.menu_product' action='action_wholeherb_integration_product_lot' groups='base.group_user'
 
         // product traffic
 
-        %record #wholeherb_integration_product_traffic_tree model=view
+        ~record #wholeherb_integration_product_traffic_tree model=view
             @name: wholeherb_integration_product_traffic_tree
             @model: wholeherb_integration.product_traffic
             @arch type='xml'
-                %tree $Product_Traffic
+                ~tree $Product_Traffic
                     @date
                     @product_id
                     @sales_comment
                     @purchase_comment
 
-        %record #wholeherb_integration_product_traffic_form model=view
+        ~record #wholeherb_integration_product_traffic_form model=view
             @name: wholeherb_integration_product_traffic_form
             @model: wholeherb_integration.product_traffic
             @arch type='xml'
-                %form $Product_Traffic version='7.0'
-                    %header
+                ~form $Product_Traffic version='7.0'
+                    ~header
                         @state widget='statusbar'
-                    %group
-                        %group
+                    ~group
+                        ~group
                             @product_id options="{'limit':15, 'create':False, 'create_edit':False}"
-                        %group
+                        ~group
                             @date
-                        %group
+                        ~group
                             @sales_comment
                             @purchase_comment
-                    %div .oe_chatter
+                    ~div .oe_chatter
                         @message_follower_ids widget='mail_followers'
                         @message_ids widget='mail_thread'
 
-        %record #search_product_traffic model=view
+        ~record #search_product_traffic model=view
             @name: Product Traffic Searh
             @model: wholeherb_integration.product_traffic
             @arch type='xml'
-                %search $Search_Traffic
+                ~search $Search_Traffic
                     @date $Created
                     @state $Status
                     @sales_comment $Qty_Level
-                    %separator
-                    %filter $New @type_new domain="[('state','=','new')]"
-                    %filter $Seen @type_seen domain="[('state','=','seen')]"
-                    %filter $Ordered @type_ordered domain="[('state','=','ordered')]"
-                    %filter $Received @type_received domain="[('state','=','done')]"
-                    %filter $Open @type_open domain="[('state','not in',[False,'done'])]"
-                    %filter $Complete @type_closed domain="[('state','=','done')]"
-                    %separator
-                    %group expand='0' string='Group by...'
-                        %filter $Qty_Level domain='[]' context="{'group_by': 'sales_comment'}"
-                        %filter $Status domain='[]' context="{'group_by': 'state'}"
+                    ~separator
+                    ~filter $New @type_new domain="[('state','=','new')]"
+                    ~filter $Seen @type_seen domain="[('state','=','seen')]"
+                    ~filter $Ordered @type_ordered domain="[('state','=','ordered')]"
+                    ~filter $Received @type_received domain="[('state','=','done')]"
+                    ~filter $Open @type_open domain="[('state','not in',[False,'done'])]"
+                    ~filter $Complete @type_closed domain="[('state','=','done')]"
+                    ~separator
+                    ~group expand='0' string='Group by...'
+                        ~filter $Qty_Level domain='[]' context="{'group_by': 'sales_comment'}"
+                        ~filter $Status domain='[]' context="{'group_by': 'state'}"
 
-        %record #action_wholeherb_integration_product_traffic model=act_window
+        ~record #action_wholeherb_integration_product_traffic model=act_window
             @name: Product Traffic
             @res_model: wholeherb_integration.product_traffic
             @view_type: form
             @view_mode: tree,form
             @context: {'mail_track_initial': True, 'search_default_type_open': 1}
 
-        %menuitem @Traffic #wholeherb_integration_product_traffic parent='base.menu_product' action='action_wholeherb_integration_product_traffic' groups='base.group_user'
+        ~menuitem @Traffic #wholeherb_integration_product_traffic parent='base.menu_product' action='action_wholeherb_integration_product_traffic' groups='base.group_user'
 
         // product traffic more actions
 
-        %record model='ir.actions.server' #action_state_ordered
+        ~record model='ir.actions.server' #action_state_ordered
             @name: Mark as Ordered
             @type: ir.actions.server
             @model_id ref='model_wholeherb_integration_product_traffic'
             @state: code
             @code: self.mark_as(cr, uid, context.get('active_ids'), 'ordered', context=context)
 
-        %record model='ir.values' #value_state_ordered
+        ~record model='ir.values' #value_state_ordered
             @name: Ordered
             @action_id ref='action_state_ordered'
             @value eval="'ir.actions.server,' + str(ref('action_state_ordered'))"
@@ -303,14 +303,14 @@
             @model: wholeherb_integration.product_traffic
             @key2: client_action_multi
 
-        %record model='ir.actions.server' #action_state_received
+        ~record model='ir.actions.server' #action_state_received
             @name: Mark as Received
             @type: ir.actions.server
             @model_id ref='model_wholeherb_integration_product_traffic'
             @state: code
             @code: self.mark_as(cr, uid, context.get('active_ids'), 'done', context=context)
 
-        %record model='ir.values' #value_state_received
+        ~record model='ir.values' #value_state_received
             @name: Received
             @action_id ref='action_state_received'
             @value eval="'ir.actions.server,' + str(ref('action_state_received'))"
@@ -319,9 +319,9 @@
             @model: wholeherb_integration.product_traffic
             @key2: client_action_multi
 
-    %data noupdate='1'
+    ~data noupdate='1'
 
-        %record model='ir.cron' #product_category_update
+        ~record model='ir.cron' #product_category_update
             @name: Product Categories Update
             @interval_number: 1
             @interval_type: days
@@ -333,7 +333,7 @@
             @nextcall eval="'2013-04-09 08:00:00'"
             @priority: 100
 
-        %record model='ir.cron' #product_inventory_update
+        ~record model='ir.cron' #product_inventory_update
             @name: Product Inventory Update
             @interval_number: 1
             @interval_type: days
@@ -345,7 +345,7 @@
             @nextcall eval="'2013-04-09 08:05:00'"
             @priority: 200
 
-        %record model='ir.cron' #product_traffic_stale
+        ~record model='ir.cron' #product_traffic_stale
             @name: Delete stale product_traffic entries
             @interval_number: 1
             @interval_type: days

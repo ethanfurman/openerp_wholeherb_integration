@@ -1,27 +1,27 @@
 !!!xml1.0
-%openerp
-    %data
+~openerp
+    ~data
 
-        %menuitem @Purchasing #wholeherb_integration_purchasing parent='base.menu_base_partner' groups='base.group_sale_salesman' 
+        ~menuitem @Purchasing #wholeherb_integration_purchasing parent='base.menu_base_partner' groups='base.group_sale_salesman' 
 
-        %record #purchasing_lot_tree_view model='ir.ui.view'
+        ~record #purchasing_lot_tree_view model='ir.ui.view'
             @name: Purchase Lot Tree View
             @model: wholeherb_integration.product_lot
             @arch type='xml'
-                %tree $Purchased_Lot version='7.0'
+                ~tree $Purchased_Lot version='7.0'
                     @lot_no
                     @product_id
                     @date_received
                     @qty_recd
                     @qty_recd_uom_id
 
-        %record #purchasing_lot_form_view model='ir.ui.view'
+        ~record #purchasing_lot_form_view model='ir.ui.view'
             @name: Purchase Lot Form View
             @model: wholeherb_integration.product_lot
             @arch type='xml'
-                %form $Purchased_Lot version='7.0'
-                    %group
-                        %group $General
+                ~form $Purchased_Lot version='7.0'
+                    ~group
+                        ~group $General
                             @lot_no
                             @product_id
                             @status
@@ -30,14 +30,14 @@
                             @preship_status class='oe_inline'
                             @match_preship
                             @source_lot_no
-                        %group $Quantities
+                        ~group $Quantities
                             @on_order class='oe_inline'
                             @on_order_uom_id class='oe_inline'
                             @date_received
                             @qty_recd class='oe_inline'
                             @qty_recd_uom_id class='oe_line'
                             @qty_avail
-                        %group $Schedule
+                        ~group $Schedule
                             @terms
                             @risk_factor
                             @pack
@@ -47,69 +47,69 @@
                             @fda
                             @customs
                             @expected_date
-                        %group $Costs
+                        ~group $Costs
                             @cost
                             @proj_clearance
                             @proj_fob_cost
-                            %separator colspan='2'
+                            ~separator colspan='2'
                             @act_cost
                             @i_f
                             @cus
                             @misc
                             @act_fob_cost
-                    %notebook
-                        %page string='Comments (S)'
+                    ~notebook
+                        ~page string='Comments (S)'
                             @s_comment nolabel='1'
-                        %page string='Comments (P/R)'
+                        ~page string='Comments (P/R)'
                             @pr_comment nolabel='1'
 
-        %record #purchasing_tree_view model='ir.ui.view'
+        ~record #purchasing_tree_view model='ir.ui.view'
             @name: Purchasing View
             @model: wholeherb_integration.purchase_order
             @arch type='xml'
-                %tree $Purchase_Orders version='7.0'
+                ~tree $Purchase_Orders version='7.0'
                     @purchase_order
                     @supplier_id
                     @vessel
 
-        %record #purchasing_form_view model='ir.ui.view'
+        ~record #purchasing_form_view model='ir.ui.view'
             @name: Purchasing View
             @model: wholeherb_integration.purchase_order
             @priority eval='20'
             @arch type='xml'
-                %form $Purchase_Orders version='7.0'
-                    %div
-                        %h2
+                ~form $Purchase_Orders version='7.0'
+                    ~div
+                        ~h2
                             @purchase_order
-                    %group
-                        %group
+                    ~group
+                        ~group
                             @supplier_id
                             @vessel
                     @lot_ids
                         context="{'form_view_ref':'wholeherb_integration.purchasing_lot_form_view', 'tree_view_ref':'wholeherb_integration.purchasing_lot_tree_view'}"
 
-        %record #purchase_order_normal_action model='ir.actions.act_window'
+        ~record #purchase_order_normal_action model='ir.actions.act_window'
             @name: Purchase Orders
             @type: ir.actions.act_window
             @res_model: wholeherb_integration.purchase_order
             @view_type: form
             @view_mode: tree,form
 
-        %record #purchase_order_form_view model='ir.actions.act_window.view'
+        ~record #purchase_order_form_view model='ir.actions.act_window.view'
             @sequence eval='20'
             @view_mode: form
             @view_id ref='purchasing_form_view'
             @act_window_id ref='purchase_order_normal_action'
 
-        %record #purchase_order_tree_view model='ir.actions.act_window.view'
+        ~record #purchase_order_tree_view model='ir.actions.act_window.view'
             @sequence eval='10'
             @view_mode: tree
             @view_id ref='purchasing_tree_view'
             @act_window_id ref='purchase_order_normal_action'
 
-        %menuitem @Purchases #purchasing_views parent='wholeherb_integration_purchasing' action='purchase_order_normal_action' groups='base.group_sale_salesman' sequence='30' 
+        ~menuitem @Purchases #purchasing_views parent='wholeherb_integration_purchasing' action='purchase_order_normal_action' groups='base.group_sale_salesman' sequence='30' 
 
-        %record #purchase_lot_normal_action model='ir.actions.act_window'
+        ~record #purchase_lot_normal_action model='ir.actions.act_window'
             @name: Purchased Lots
             @type: ir.actions.act_window
             @res_model: wholeherb_integration.product_lot
@@ -118,44 +118,44 @@
             @view_mode: list,form
             @domain eval="[('lot_no_valid','=',True)]"
 
-        %menuitem @Lots #purchasing_lot_views parent='wholeherb_integration_purchasing' action='purchase_lot_normal_action' groups='base.group_sale_salesman' sequence='10' 
+        ~menuitem @Lots #purchasing_lot_views parent='wholeherb_integration_purchasing' action='purchase_lot_normal_action' groups='base.group_sale_salesman' sequence='10' 
 
-        %record model='ir.ui.view' #purchasing_preship_log_tree_view
+        ~record model='ir.ui.view' #purchasing_preship_log_tree_view
             @name: Pre-Ship View
             @model: wholeherb_integration.preship_sample
             @arch type='xml'
-                %tree $Pre-Ship_Samples
+                ~tree $Pre-Ship_Samples
                     @customer
                     @supplier_id
                     @lot_id
                     @product_id
                     @approved
 
-        %record model='ir.ui.view' #purchasing_preship_log_form_view
+        ~record model='ir.ui.view' #purchasing_preship_log_form_view
             @name: Pre-Ship View
             @model: wholeherb_integration.preship_sample
             @arch type='xml'
-                %form $Pre-Ship_Samples version='7.0'
-                    %group
-                        %group
+                ~form $Pre-Ship_Samples version='7.0'
+                    ~group
+                        ~group
                             @product_id
                             @adb_desc attrs="{'invisible':[('product_id','!=',False)]}"
                             @lot_id
                             @received_date
-                        %group
+                        ~group
                             @salesrep_id
                             @adb_salesrep attrs="{'invisible':[('salesrep_id','!=',False)]}"
                             @customer
                             @approved
-                        %group
+                        ~group
                             @supplier_id
-                        %group
+                        ~group
                             @rnd_use
-                    %notebook
-                        %page $Comments
+                    ~notebook
+                        ~page $Comments
                             @comments nolabel='1'
 
-        %record model='ir.actions.act_window' #purchasing_preship_sample_normal_action
+        ~record model='ir.actions.act_window' #purchasing_preship_sample_normal_action
             @name: Pre-Ship Samples
             @type: ir.actions.act_window
             @res_model: wholeherb_integration.preship_sample
@@ -163,4 +163,4 @@
             @view_id ref='purchasing_preship_log_tree_view'
             @view_mode: list,form
 
-        %menuitem name='Pre-Ship Samples' #preship_views parent='wholeherb_integration_purchasing' action='purchasing_preship_sample_normal_action' groups='base.group_sale_salesman' sequence='20' 
+        ~menuitem name='Pre-Ship Samples' #preship_views parent='wholeherb_integration_purchasing' action='purchasing_preship_sample_normal_action' groups='base.group_sale_salesman' sequence='20' 
