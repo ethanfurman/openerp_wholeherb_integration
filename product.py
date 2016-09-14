@@ -1,15 +1,10 @@
-from collections import defaultdict
 from fnx.xid import xmlid
 from fnx.BBxXlate.fisData import fisData
 from fnx import NameCase, translator, contains_any, Date
-from openerp.addons.product.product import sanitize_ean13
 from openerp.tools import SUPERUSER_ID
-from osv.osv import except_osv as ERPError
 from osv import osv, fields
-from urllib import urlopen
 import enum
 import logging
-import time
 
 _logger = logging.getLogger(__name__)
 
@@ -162,16 +157,12 @@ class product_product(xmlid, osv.Model):
     def _product_available(self, cr, uid, ids, field_names=None, arg=False, context=None):
         if context is None:
             context = {}
-        model = self._name
-        module = 'nvty'
-        imd = self.pool.get('ir.model.data')
         nvty = fisData('NVTY', subset='10%s', filter=warehouses)
         records = self.browse(cr, uid, ids, context=context)
         values = {}
         for rec in records:
             current = values[rec.id] = {}
             try:
-                imd_rec = imd.get_object_from_model_resid(cr, uid, model, rec.id, context=context)
                 fis_recs = nvty.get_subset(rec.xml_id)
                 if not fis_recs:
                     raise ValueError('no matching records for %s' % rec.xml_id)
@@ -239,9 +230,7 @@ class product_product(xmlid, osv.Model):
         if isinstance(ids, (int, long)):
             ids = [ids]
         product_module = 'nvty'
-        category_module = 'cnvzc'
         prod_cat = self.pool.get('product.category')
-        prod_template = self.pool.get('product.template')
         nvty = fisData('NVTY', subset='10%s', filter=warehouses)
         for id in ids:
             current = self.browse(cr, uid, ids[0], context=context)
@@ -335,7 +324,6 @@ class product_product(xmlid, osv.Model):
             latin = ''
         values['latin'] = latin
         values['categ_id'] = fis_rec[P.category].upper()
-        #values['ean13'] = sanitize_ean13(fis_rec[P.ean13])
         values['active'] = 1
         values['sale_ok'] = 1
         avail_code = fis_rec[P.available].upper()
