@@ -4,6 +4,7 @@ syntax: glob
 *.pyo
 *.orig
 *.xml
+*.xsl
 *.rej
 *~
 .*~
