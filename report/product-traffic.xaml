@@ -11,14 +11,10 @@
 
 !!! xsl1.0
 ~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
-    ~xsl:variable name='initial_bottom_pos': 9.5
-    ~xsl:variable name='initial_left_pos': 0.5
-    ~xsl:variable name='height_increment': 0.25
-    ~xsl:variable name='width_increment': 7
+    ~xsl:variable name='initial_bottom_pos': 10.25
+    ~xsl:variable name='height_increment': 0.2
     ~xsl:variable name='frame_height': 0.34in
-    ~xsl:variable name='frame_width': 7.5in
-    ~xsl:variable name='number_columns': 1
-    ~xsl:variable name='max_frames': 36
+    ~xsl:variable name='max_frames': 47
 
     ~xsl:template match='/'
         ~xsl:apply-templates select='lines'
@@ -28,20 +24,18 @@
             ~template author='OpenERP:Sample' title='Product Traffic Report' pageSize='us_letter'
                 ~pageTemplate id='all'
                     ~pageGraphics
-                    ~xsl:apply-templates mode='frames' select='report'
                     ~xsl:apply-templates mode='frames' select='line'
             ~stylesheet
                 ~paraStyle name='nospace' fontName='Courier' fontSize='9' spaceAfter='0' spaceBefore='0'
             ~story
-                ~xsl:apply-templates mode='story' select='report'
                 ~xsl:apply-templates mode='story' select='line'
                     ~xsl:sort select='create-date'
                     ~xsl:sort select='partner-name'
                     ~xsl:sort select='salesperson'
 
     ~xsl:template match='report' mode='frames'
-        ~frame width='6.0in' height='0.35in' x1='0.5in' y1='10.0in'
-        ~frame width='1.5in' height='0.35in' x1='6.5in' y1='10.0in'
+        ~frame width='6.0in' height='0.35in' x1='0.5in' y1='10.5in'
+        ~frame width='1.5in' height='0.35in' x1='6.5in' y1='10.5in'
 
     ~xsl:template match='report' mode='story'
         ~h5
@@ -51,20 +45,43 @@
 
     ~xsl:template match='line' mode='frames'
         ~xsl:if test='position() < $max_frames + 1'
-            ~frame
-                ~xsl:attribute name='width'
-                    ~xsl:value-of select='$frame_width'
+            ~frame width='1.0in' x1='0.75in'
                 ~xsl:attribute name='height'
                     ~xsl:value-of select='$frame_height'
-                ~xsl:attribute name='x1'
-                    ~xsl:value-of select='$initial_left_pos + ((position()-1) mod $number_columns) * $width_increment'
-                    ~xsl:text: in
                 ~xsl:attribute name='y1'
-                    ~xsl:value-of select='$initial_bottom_pos - floor((position()-1) div $number_columns) * $height_increment'
+                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
+                    ~xsl:text: in
+            ~frame width='3.0in' x1='1.75in'
+                ~xsl:attribute name='height'
+                    ~xsl:value-of select='$frame_height'
+                ~xsl:attribute name='y1'
+                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
+                    ~xsl:text: in
+            ~frame width='0.5in' x1='4.75in'
+                ~xsl:attribute name='height'
+                    ~xsl:value-of select='$frame_height'
+                ~xsl:attribute name='y1'
+                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
+                    ~xsl:text: in
+            ~frame width='2.5in' x1='5.25in'
+                ~xsl:attribute name='height'
+                    ~xsl:value-of select='$frame_height'
+                ~xsl:attribute name='y1'
+                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
                     ~xsl:text: in
 
     ~xsl:template match='line' mode='story'
-        ~para style='nospace'
-            ~xsl:value-of select="concat(create-date, '  ', product, '   ', sales-comment, '  ', purchase-comment)"
-        ~xsl:if test='position() < last()'
-            ~nextFrame
+        ~pre
+            ~xsl:value-of select='create-date'
+        ~nextFrame
+        ~pre
+            ~xsl:value-of select='product'
+        ~nextFrame
+        ~pre
+            ~xsl:value-of select='sales-comment'
+        ~nextFrame
+        ~pre
+            ~xsl:value-of select='purchase-comment'
+        ~nextFrame
+        //~xsl:if test='position() < last()'
+        //    ~nextFrame
