@@ -58,24 +58,8 @@ class res_partner(xid.xmlid, osv.Model):
     _inherit = 'res.partner'
 
     _columns = {
-        'xml_id': fields.function(
-            xid.get_xml_ids,
-            arg=('posm', 'vnms', 'csms', 'vcon', 'pcon', 'preship_supplier'),
-            string="FIS ID",
-            type='char',
-            method=False,
-            fnct_search=xid.search_xml_id,
-            multi='external',
-            ),
-        'module': fields.function(
-            xid.get_xml_ids,
-            arg=('posm', 'vnms', 'csms', 'vcon', 'pcon', 'preship_supplier'),
-            string="FIS Module",
-            type='char',
-            method=False,
-            fnct_search=xid.search_xml_id,
-            multi='external',
-            ),
+        'xml_id': fields.char('FIS ID', size=16, readonly=True),
+        'module': fields.char('FIS Module', size=16, readonly=True),
         'adb_no': fields.integer('Access DB ID'),
         'sp_non_gmo': fields.boolean(
             'Non-GMO vendor?',
@@ -127,11 +111,11 @@ class res_partner(xid.xmlid, osv.Model):
     def fis_updates(self, cr, uid, *args):
         _logger.info("res_partner.fis_updates starting...")
         state_table = self.pool.get('res.country.state')
-        state_recs = state_table.browse(cr, uid, state_table.search(cr, uid, [(1,'=',1)]))
+        state_recs = state_table.browse(cr, uid, state_table.search(cr, uid, [('id','!=',0)]))
         state_recs = dict([(r.name, (r.id, r.code, r.country_id.id)) for r in state_recs])
         #state_recs = dict([(r['name'], (r['id'], r['code'], r['country_id.id'])) for r in state_recs])
         country_table = self.pool.get('res.country')
-        country_recs = country_table.browse(cr, uid, country_table.search(cr, uid, [(1,'=',1)]))
+        country_recs = country_table.browse(cr, uid, country_table.search(cr, uid, [('id','!=',0)]))
         country_recs_code = dict([(r['code'], r['id']) for r in country_recs])
         country_recs_name = dict([(r['name'], r['id']) for r in country_recs])
 
@@ -183,6 +167,7 @@ class res_partner(xid.xmlid, osv.Model):
                 self.write(cr, uid, id, result)
             else:
                 id = self.create(cr, uid, result)
+                vendor_codes[key] = id
             seen_addresses[addr1] = id
             contact = ven_rec[V.contact]
             if contact:
@@ -194,12 +179,14 @@ class res_partner(xid.xmlid, osv.Model):
                 result['supplier'] = True
                 result['use_parent_address'] = True
                 result['parent_id'] = id
-                result['xml_id'] = key
+                result['xml_id'] = key[0]
+                key = result['xml_id'], result['module']
                 if key in vendor_codes:
                     id = vendor_codes[key]
                     self.write(cr, uid, id, result)
                 else:
                     contact_id = self.create(cr, uid, result)
+                    vendor_codes[key] = id
 
         _logger.info('vendors done...')
 
@@ -256,6 +243,7 @@ class res_partner(xid.xmlid, osv.Model):
                 self.write(cr, uid, id, result)
             else:
                 id = self.create(cr, uid, result)
+                supplier_codes[key] = id
             seen_addresses[addr1] = id
 
         _logger.info('suppliers done...')
@@ -317,6 +305,7 @@ class res_partner(xid.xmlid, osv.Model):
                 self.write(cr, uid, id, result)
             else:
                 id = self.create(cr, uid, result)
+                customer_codes[key] = id
             seen_addresses[addr1] = id
 
         _logger.info('customers done...')

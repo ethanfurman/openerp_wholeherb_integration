@@ -93,35 +93,20 @@ class product_category(xmlid, osv.Model):
     _inherit = 'product.category'
 
     _columns = {
-        'xml_id': fields.function(
-            xmlid.get_xml_ids,
-            arg=('cnvzc', ),
-            fnct_inv=xmlid.update_xml_id,
-            fnct_inv_arg=('cnvzc', ),
-            string="FIS ID",
-            type='char',
-            method=False,
-            fnct_search=xmlid.search_xml_id,
-            multi='external',
-            ),
-        'module': fields.function(
-            xmlid.get_xml_ids,
-            arg=('cnvzc', ),
-            string="FIS Module",
-            type='char',
-            method=False,
-            fnct_search=xmlid.search_xml_id,
-            multi='external',
-            ),
+        'xml_id': fields.char('FIS ID', size=16, readonly=True),
+        'module': fields.char('FIS Module', size=16, readonly=True),
         }
 
 
     def fis_updates(self, cr, uid, *args):
         _logger.info("product.category.fis_updates starting...")
         module  = 'cnvzc'
-        category_ids = self.search(cr, uid, [('module','=',module)])
-        category_recs = self.browse(cr, uid, category_ids)
-        category_codes = dict([(r.xml_id, dict(name=r.name, id=r.id, parent_id=r.parent_id)) for r in category_recs])
+        xml_id_map = self.get_xml_id_map(cr, uid, module=module)
+        category_recs = dict((r.id, r) for r in self.browse(cr, uid, xml_id_map.values()))
+        category_codes = {}
+        for key, id in xml_id_map.items():
+            rec = category_recs[id]
+            category_codes[key] = dict(name=rec.name, id=rec.id, parent_id=rec.parent_id)
         cnvz = fisData('CNVZc', keymatch='c10%s')
         for category_rec in cnvz:
             result = {}
@@ -180,25 +165,8 @@ class product_product(xmlid, osv.Model):
         return values
 
     _columns = {
-        'xml_id': fields.function(
-            xmlid.get_xml_ids,
-            arg=('nvty', ),
-            string="FIS ID",
-            type='char',
-            method=False,
-            fnct_search=xmlid.search_xml_id,
-            multi='external',
-            ),
-        'module': fields.function(
-            xmlid.get_xml_ids,
-            arg=('nvty', ),
-            string="FIS Module",
-            type='char',
-            method=False,
-            fnct_search=xmlid.search_xml_id,
-            multi='external',
-            ),
-
+        'xml_id': fields.char('FIS ID', size=16, readonly=True),
+        'module': fields.char('FIS Module', size=16, readonly=True),
         'sold_by': fields.char('Sold by', size=50),
         'latin': fields.char('Latin name', size=40),
         'avail': fields.char('Available?', size=24),
@@ -272,8 +240,8 @@ class product_product(xmlid, osv.Model):
         cat_recs = prod_cat.browse(cr, uid, cat_ids)
         cat_codes = dict([(r.xml_id, r.id) for r in cat_recs])
         # create a mapping of id -> res_id for product items
-        prod_ids = prod_items.search(cr, uid, [('module','=',product_module)])
-        prod_recs = prod_items.browse(cr, uid, prod_ids)
+        prod_xml_id_map = self.get_xml_id_map(cr, uid, module=product_module)
+        prod_recs = prod_items.browse(cr, uid, prod_xml_id_map.values())
         # xml_id is also stored in default_code, so if the xml_id association is ever lost (by uninstalling this
         # module, for example) we can reassociate once the module in reinstalled
         synced_prods = {}
