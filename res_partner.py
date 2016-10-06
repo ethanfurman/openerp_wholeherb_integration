@@ -121,8 +121,8 @@ class res_partner(xid.xmlid, osv.Model):
 
         seen_addresses = {}
 
-        vendor_recs = self.browse(cr, uid, self.search(cr, uid, [('module','in',['vnms','vcon'])]))
-        vendor_codes = dict([((r.xml_id, r.module), r.id) for r in vendor_recs])
+        vendor_codes = self.get_xml_id_map(cr, uid, 'vnms')
+        vendor_contact_codes = self.get_xml_id_map(cr, uid, 'vcon')
         vnms = fisData('VNMS', keymatch='10%s')
         for ven_rec in vnms:
             result = {}
@@ -132,7 +132,7 @@ class res_partner(xid.xmlid, osv.Model):
             result['use_parent_address'] = False
             result['xml_id'] = ven_rec[V.code]
             result['module'] = 'vnms'
-            key = result['xml_id'], result['module']
+            key = result['xml_id']
             result['name'] = BsnsCase(ven_rec[V.name])
             if not result['name']:
                 _logger.critical("Vendor %s has no name -- skipping" % (key, ))
@@ -179,19 +179,18 @@ class res_partner(xid.xmlid, osv.Model):
                 result['supplier'] = True
                 result['use_parent_address'] = True
                 result['parent_id'] = id
-                result['xml_id'] = key[0]
-                key = result['xml_id'], result['module']
-                if key in vendor_codes:
-                    id = vendor_codes[key]
+                result['xml_id'] = key
+                if key in vendor_contact_codes:
+                    id = vendor_contact_codes[key]
                     self.write(cr, uid, id, result)
                 else:
                     contact_id = self.create(cr, uid, result)
-                    vendor_codes[key] = id
+                    vendor_contact_codes[key] = id
 
         _logger.info('vendors done...')
 
-        supplier_recs = self.browse(cr, uid, self.search(cr, uid, [('module','in',['posm','pcon'])]))
-        supplier_codes = dict([(r['xml_id'], r['id']) for r in supplier_recs])
+        supplier_codes = self.get_xml_id_map(cr, uid, 'posm')
+        supplier_contact_codes = self.get_xml_id_map(cr, uid, 'pcon')
         posm = fisData('POSM', keymatch='10%s')
         for sup_rec in posm:
             result = {}
@@ -248,8 +247,7 @@ class res_partner(xid.xmlid, osv.Model):
 
         _logger.info('suppliers done...')
 
-        customer_recs = self.browse(cr, uid, self.search(cr, uid, [('module','=','csms')]))
-        customer_codes = dict([(r['xml_id'], r['id']) for r in customer_recs])
+        customer_codes = self.get_xml_id_map(cr, uid, 'csms')
         csms = fisData('CSMS', keymatch='10%s ')
         for cus_rec in csms:
             result = {}
