@@ -6,6 +6,7 @@
     ~line type='fields' @id
         ~create-date type='field' @date
         ~product type='field' name='product_id.name'
+        ~code type='field' name='product_id.xml_id'
         ~sales-comment type='field' @sales_comment
         ~purchase-comment type='field' @purchase_comment
 
@@ -14,7 +15,7 @@
     ~xsl:variable name='initial_bottom_pos': 10.25
     ~xsl:variable name='height_increment': 0.2
     ~xsl:variable name='frame_height': 0.34in
-    ~xsl:variable name='max_frames': 47
+    ~xsl:variable name='max_frames': 50
 
     ~xsl:template match='/'
         ~xsl:apply-templates select='lines'
@@ -29,13 +30,11 @@
                 ~paraStyle name='nospace' fontName='Courier' fontSize='9' spaceAfter='0' spaceBefore='0'
             ~story
                 ~xsl:apply-templates mode='story' select='line'
-                    ~xsl:sort select='create-date'
-                    ~xsl:sort select='partner-name'
-                    ~xsl:sort select='salesperson'
+                    ~xsl:sort select='code'
 
     ~xsl:template match='report' mode='frames'
-        ~frame width='6.0in' height='0.35in' x1='0.5in' y1='10.5in'
-        ~frame width='1.5in' height='0.35in' x1='6.5in' y1='10.5in'
+        ~frame width='6.0in' height='0.35in' x1='0.25in' y1='10.5in'
+        ~frame width='1.75in' height='0.35in' x1='6.5in' y1='10.5in'
 
     ~xsl:template match='report' mode='story'
         ~h5
@@ -45,25 +44,31 @@
 
     ~xsl:template match='line' mode='frames'
         ~xsl:if test='position() < $max_frames + 1'
-            ~frame width='1.0in' x1='0.75in'
+            ~frame width='0.5in' x1='0.25in'
                 ~xsl:attribute name='height'
                     ~xsl:value-of select='$frame_height'
                 ~xsl:attribute name='y1'
                     ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
                     ~xsl:text: in
-            ~frame width='3.0in' x1='1.75in'
+            ~frame width='0.75in' x1='1.0in'
                 ~xsl:attribute name='height'
                     ~xsl:value-of select='$frame_height'
                 ~xsl:attribute name='y1'
                     ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
                     ~xsl:text: in
-            ~frame width='0.5in' x1='4.75in'
+            ~frame width='0.25in' x1='2.0in'
                 ~xsl:attribute name='height'
                     ~xsl:value-of select='$frame_height'
                 ~xsl:attribute name='y1'
                     ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
                     ~xsl:text: in
-            ~frame width='2.5in' x1='5.25in'
+            ~frame width='3.0in' x1='2.5in'
+                ~xsl:attribute name='height'
+                    ~xsl:value-of select='$frame_height'
+                ~xsl:attribute name='y1'
+                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
+                    ~xsl:text: in
+            ~frame width='2.25in' x1='5.5in'
                 ~xsl:attribute name='height'
                     ~xsl:value-of select='$frame_height'
                 ~xsl:attribute name='y1'
@@ -71,17 +76,20 @@
                     ~xsl:text: in
 
     ~xsl:template match='line' mode='story'
-        ~pre
-            ~xsl:value-of select='create-date'
+        ~para style='nospace'
+            ~xsl:value-of select="code"
         ~nextFrame
-        ~pre
-            ~xsl:value-of select='product'
+        ~para style='nospace'
+            ~xsl:value-of select="create-date"
         ~nextFrame
-        ~pre
-            ~xsl:value-of select='sales-comment'
+        ~para style='nospace'
+            ~xsl:value-of select="sales-comment"
         ~nextFrame
-        ~pre
+        ~para style='nospace'
+            ~xsl:value-of select="product"
+        ~nextFrame
+        ~pre fontSize='7'
             ~xsl:value-of select='purchase-comment'
         ~nextFrame
         //~xsl:if test='position() < last()'
-        //    ~nextFrame
+        //    ~nextFram
