@@ -135,13 +135,16 @@ class res_partner(xid.xmlid, osv.Model):
             key = result['xml_id']
             result['name'] = BsnsCase(ven_rec[V.name])
             if not result['name']:
-                _logger.critical("Vendor %s has no name -- skipping" % (key, ))
+                _logger.critical("Vendor %s has no or an invalid name -- skipping" % (key, ))
                 continue
             addr1, addr2, addr3 = Sift(ven_rec[V.addr1], ven_rec[V.addr2], ven_rec[V.addr3])
             addr2, city, state, postal, country = cszk(addr2, addr3)
             addr3 = ''
             if city and not (addr2 or state or postal or country):
                 addr2, city = city, addr2
+            if postal == '0':
+                _logger.critical("Vendor %s has a zip code of '0' -- skipping" % (key, ))
+                continue
             addr1 = normalize_address(addr1)
             addr2 = normalize_address(addr2)
             addr1, addr2 = Rise(AddrCase(addr1, addr2))
@@ -202,13 +205,16 @@ class res_partner(xid.xmlid, osv.Model):
             result['module'] = 'posm'
             result['name'] = BsnsCase(sup_rec[S.name])
             if not result['name']:
-                _logger.critical("Supplier %s has no name -- skipping" % (key, ))
+                _logger.critical("Supplier %s has no or an invalid name -- skipping" % (key, ))
                 continue
             addr1, addr2, addr3 = Sift(sup_rec[S.addr1], sup_rec[S.addr2], sup_rec[S.addr3])
             addr2, city, state, postal, country = cszk(addr2, addr3)
             addr3 = ''
             if city and not (addr2 or state or postal or country):
                 addr2, city = city, addr2
+            if postal == '0':
+                _logger.critical("Supplier %s has a zip code of '0' -- skipping" % (key, ))
+                continue
             addr1 = normalize_address(addr1)
             addr2 = normalize_address(addr2)
             addr1, addr2 = Rise(AddrCase(addr1, addr2))
@@ -258,14 +264,17 @@ class res_partner(xid.xmlid, osv.Model):
             result['xml_id'] = key = cus_rec[C.code]
             result['module'] = 'csms'
             result['name'] = BsnsCase(cus_rec[C.name])
-            if not result['name']:
-                _logger.critical("Customer %s has no name -- skipping" % (key, ))
+            if not result['name'] or result['name'].isdigit():
+                _logger.critical("Customer %s has no or an invalid name -- skipping" % (key, ))
                 continue
             addr1, addr2, addr3 = Sift(cus_rec[C.addr1], cus_rec[C.addr2], cus_rec[C.addr3])
             addr2, city, state, postal, country = cszk(addr2, addr3)
             addr3 = ''
             if city and not (addr2 or state or postal or country):
                 addr2, city = city, addr2
+            if postal == '0':
+                _logger.critical("Customer %s has a zip code of '0' -- skipping" % (key, ))
+                continue
             addr1 = normalize_address(addr1)
             addr2 = normalize_address(addr2)
             addr1, addr2 = Rise(AddrCase(addr1, addr2))
