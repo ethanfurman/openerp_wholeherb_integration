@@ -2,8 +2,9 @@ import enum
 import logging
 from fnx import xid
 from fnx.oe import check_company_settings
-from fnx.BBxXlate.fisData import fisData
-from fnx import cszk, fix_phone, fix_date, Rise, Sift, AddrCase, NameCase, BsnsCase, normalize_address
+from VSS.BBxXlate.fisData import fisData
+from VSS.address import cszk, Rise, Sift, AddrCase, NameCase, BsnsCase, normalize_address
+from VSS.utils import fix_phone, fix_date
 from osv import osv, fields
 
 _logger = logging.getLogger(__name__)

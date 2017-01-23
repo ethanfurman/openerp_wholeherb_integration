@@ -1,6 +1,8 @@
 from fnx.xid import xmlid
-from fnx.BBxXlate.fisData import fisData
-from fnx import NameCase, translator, contains_any, Date
+from dbf import Date
+from VSS.BBxXlate.fisData import fisData
+from VSS.address import NameCase
+from VSS.utils import translator, contains_any
 from openerp.tools import SUPERUSER_ID
 from osv import osv, fields
 import enum

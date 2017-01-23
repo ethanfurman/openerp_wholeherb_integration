@@ -1,7 +1,8 @@
 from collections import defaultdict
 from fnx.xid import xmlid
-from fnx.BBxXlate.fisData import fisData
-from fnx import NameCase, translator, xid
+from VSS.address import NameCase
+from VSS.BBxXlate.fisData import fisData
+from VSS.utils import translator
 from openerp.addons.product.product import sanitize_ean13
 from osv import osv, fields
 from urllib import urlopen
