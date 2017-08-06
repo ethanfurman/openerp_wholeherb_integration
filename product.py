@@ -474,7 +474,7 @@ class product_traffic(osv.Model):
         }
 
     _defaults = {
-        'date': lambda *a: fields.date.today(),
+        'date': lambda s, c, u, ctx=None: fields.date.today(s, c),
         'state': lambda *a: 'new'
         }
 
@@ -489,7 +489,7 @@ class product_traffic(osv.Model):
         ctx['mail_track_initial'] = True
         if values.get('purchase_comment'):
             values['purchase_comment_available'] = 'yes'
-            values['purchase_comment_date'] = fields.date.today()
+            values['purchase_comment_date'] = fields.date.today(self, cr)
             values['state'] = 'seen'
         user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
         follower_ids = [u.id for u in user.company_id.traffic_followers_ids]
@@ -519,7 +519,7 @@ class product_traffic(osv.Model):
                 if pc is not None:
                     if pc:
                         vals['purchase_comment_available'] = 'yes'
-                        vals['purchase_comment_date'] = fields.date.today()
+                        vals['purchase_comment_date'] = fields.date.today(self, cr)
                         if rec.state == 'new':
                             vals['state'] = 'seen'
                     else:
@@ -528,7 +528,7 @@ class product_traffic(osv.Model):
                         if rec.state == 'seen':
                             vals['state'] = 'new'
                 if s not in (None, 'new', 'seen'):
-                    vals['purchase_comment_date'] = fields.date.today()
+                    vals['purchase_comment_date'] = fields.date.today(self, cr)
                 if not super(product_traffic, self).write(cr, uid, rec.id, vals, context=context):
                     return False
             return True
