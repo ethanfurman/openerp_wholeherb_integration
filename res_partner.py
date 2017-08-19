@@ -107,6 +107,8 @@ class res_partner(xid.xmlid, osv.Model):
         'vn_org_exp': fields.date(
             'Cert expiration',
             ),
+        'ship_to_parent_id': fields.many2one('res.partner', 'Related Ship-To'),
+        'ship_to_ids': fields.one2many('res.partner', 'ship_to_parent_id', 'Ship-To Addresses'),
         }
 
     def fis_updates(self, cr, uid, *args):

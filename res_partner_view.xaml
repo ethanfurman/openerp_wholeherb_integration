@@ -35,6 +35,54 @@
                                 ~separator
                                 @sp_kosher
                                 @sp_kosher_exp
+                    ~xpath expr="//page[@string='Contacts']" position='after'
+                        ~page $Ship_To attrs="{'invisible': [('is_company','=',False)]}"
+                            @ship_to_ids context="{'default_ship_to_parent_id': active_id, 'default_customer': False}" mode='kanban'
+                                ~kanban
+                                    @color
+                                    @name
+                                    @email
+                                    @parent_id
+                                    @is_company
+                                    @phone
+                                    @street
+                                    @street2
+                                    @zip
+                                    @city
+                                    @country_id
+                                    @state_id
+                                    @has_image
+                                    ~templates
+                                        ~t t-name='kanban-box'
+                                            ~t t-set='color' t-value='kanban_color(record.color.raw_value)'
+                                            ~div style='position: relative' .oe_kanban_vignette
+                                                ~a t-if='! read_only_mode' type='delete' style='position: absolute; right: 0; padding: 4px; diplay: inline-block': X
+                                                ~div .oe_module_vignette
+                                                    ~div .oe_module_desc
+                                                        ~div .oe_kanban_box_content .oe_kanban_color_bglight .oe_kanban_color_border
+                                                            ~table .oe_kanban_table
+                                                                ~tr
+                                                                    ~td .oe_kanban_title1 align='left' valign='middle'
+                                                                        ~div
+                                                                            @name
+                                                                        ~div t-if='record.email.raw_value'
+                                                                            ~a title='Mail' t-att-href="'mailto:'+record.email.value"
+                                                                                @email
+                                                                        ~div name='street' t-if='record.street.raw_value'
+                                                                            @street
+                                                                        ~div name='street2' t-if='record.street2.raw_value'
+                                                                            @street2
+                                                                        ~div name='csz' t-if='record.city.raw_value or record.state_id.raw_value or record.zip.raw_value'
+                                                                            ~span t-if='record.city.raw_value'
+                                                                                @city: ,
+                                                                            ~span t-if='record.state_id.raw_value'
+                                                                                @state_abbr options="{'no_open': True}"
+                                                                            ~span t-if='record.zip.raw_value'
+                                                                                @zip
+                                                                        ~div name='phone' t-if='record.phone.raw_value': Phone:
+                                                                            @phone
+
+
 
         // Update the built-in res_partner forms to not show customers assigned to somebody else
 
