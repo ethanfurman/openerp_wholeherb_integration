@@ -81,8 +81,25 @@
                                                                                 @zip
                                                                         ~div name='phone' t-if='record.phone.raw_value': Phone:
                                                                             @phone
-
-
+                                ~form version='7.0'
+                                    ~sheet
+                                        ~div .oe_title
+                                            ~h1
+                                                @name default_focus='1' placeholder='Name'
+                                        ~group
+                                            ~group
+                                                ~label for='street' $Address
+                                                ~div
+                                                    @street placeholder='street'
+                                                    @street2
+                                                    ~div .address_format
+                                                        @city placeholder='City' style='width: 40%%'
+                                                        @state_id placeholder='State' .oe_no_button style='width: 37%%' options="{'no_open': True}" on_change='onchange_state(state_id)'
+                                                        @zip placeholder='ZIP' style='width: 20%%'
+                                                    @country_id placeholder='Country' .oe_no_button options="{'no_open': True}"
+                                            ~group
+                                                @phone
+                                                @email
 
         // Update the built-in res_partner forms to not show customers assigned to somebody else
 
