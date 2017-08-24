@@ -11,11 +11,11 @@
         ~purchase-comment type='field' @purchase_comment
 
 !!! xsl1.0
-~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform' xmlns:fn='http://www.w3.org/2005/xpath-functions'
     ~xsl:variable name='initial_bottom_pos': 10.25
     ~xsl:variable name='height_increment': 0.2
-    ~xsl:variable name='frame_height': 0.34in
-    ~xsl:variable name='max_frames': 50
+    ~xsl:variable name='frame_height': 0.5
+    ~xsl:variable name='max_frames': 18
 
     ~xsl:template match='/'
         ~xsl:apply-templates select='lines'
@@ -23,73 +23,60 @@
     ~xsl:template match='lines'
         ~document
             ~template author='OpenERP:Sample' title='Product Traffic Report' pageSize='us_letter'
-                ~pageTemplate id='all'
-                    ~pageGraphics
-                    ~xsl:apply-templates mode='frames' select='line'
+                ~pageTemplate id='first_page'
+                    ~xsl:call-template name='first_page_frames'
+                ~pageTemplate id='other_pages'
+                    ~xsl:call-template name='other_pages_frames'
             ~stylesheet
+                ~blockTableStyle id='left'
+                    ~blockFont name='Helvetica' size='9'
+                    ~blockValign value='TOP'
+                ~blockTableStyle id='center'
+                    ~blockFont name='Helvetica' size='9'
+                    ~blockValign value='TOP'
+                    ~blockAlignment value='CENTER'
                 ~paraStyle name='nospace' fontName='Courier' fontSize='9' spaceAfter='0' spaceBefore='0'
             ~story
-                ~xsl:apply-templates mode='story' select='line'
-                    ~xsl:sort select='code'
+                ~setNextTemplate name='other_pages'
+                ~xsl:apply-templates match='report' mode='story'
+                ~blockTable colWidths='63, 63, 36, 306' style='left'
+                    ~tr style='center'
+                        ~td: Code
+                        ~td: Date
+                        ~td: Status
+                        ~td: Product and Comment
+                    ~xsl:apply-templates select='line'
+                        ~xsl:sort select='code'
+
+    ~xsl:template name='first_page_frames'
+        ~xsl:apply-templates match='report' mode='frames'
+        ~frame id='col1' x1='0.5in' y1='0.25in' width='6.75in' height='10.25in'
+
+    ~xsl:template name='other_pages_frames'
+        ~frame id='col1' x1='0.5in' y1='0.25in' width='6.75in' height='10.5in'
 
     ~xsl:template match='report' mode='frames'
-        ~frame width='6.0in' height='0.35in' x1='0.25in' y1='10.5in'
-        ~frame width='1.75in' height='0.35in' x1='6.5in' y1='10.5in'
-
+        ~frame id='title' width='6.0in' height='0.35in' x1='0.25in' y1='10.5in'
+        ~frame id='date' width='1.75in' height='0.35in' x1='6.5in' y1='10.5in'
+    
     ~xsl:template match='report' mode='story'
         ~h5
             ~xsl:value-of select='title'
         ~h5
             ~xsl:value-of select='date'
 
-    ~xsl:template match='line' mode='frames'
-        ~xsl:if test='position() < $max_frames + 1'
-            ~frame width='0.5in' x1='0.25in'
-                ~xsl:attribute name='height'
-                    ~xsl:value-of select='$frame_height'
-                ~xsl:attribute name='y1'
-                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
-                    ~xsl:text: in
-            ~frame width='0.75in' x1='1.0in'
-                ~xsl:attribute name='height'
-                    ~xsl:value-of select='$frame_height'
-                ~xsl:attribute name='y1'
-                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
-                    ~xsl:text: in
-            ~frame width='0.25in' x1='2.0in'
-                ~xsl:attribute name='height'
-                    ~xsl:value-of select='$frame_height'
-                ~xsl:attribute name='y1'
-                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
-                    ~xsl:text: in
-            ~frame width='3.0in' x1='2.5in'
-                ~xsl:attribute name='height'
-                    ~xsl:value-of select='$frame_height'
-                ~xsl:attribute name='y1'
-                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
-                    ~xsl:text: in
-            ~frame width='2.25in' x1='5.5in'
-                ~xsl:attribute name='height'
-                    ~xsl:value-of select='$frame_height'
-                ~xsl:attribute name='y1'
-                    ~xsl:value-of select='$initial_bottom_pos - (position()-1) * $height_increment'
-                    ~xsl:text: in
-
-    ~xsl:template match='line' mode='story'
-        ~para style='nospace'
-            ~xsl:value-of select="code"
-        ~nextFrame
-        ~para style='nospace'
-            ~xsl:value-of select="create-date"
-        ~nextFrame
-        ~para style='nospace'
-            ~xsl:value-of select="sales-comment"
-        ~nextFrame
-        ~para style='nospace'
-            ~xsl:value-of select="product"
-        ~nextFrame
-        ~pre fontSize='7'
-            ~xsl:value-of select='purchase-comment'
-        ~nextFrame
-        //~xsl:if test='position() < last()'
-        //    ~nextFram
+    ~xsl:template match='line'
+        ~tr
+            ~td
+                ~xsl:value-of select='code'
+            ~td style='center'
+                ~xsl:value-of select='create-date'
+            ~td style='center'
+                ~xsl:value-of select='sales-comment'
+            ~td
+                ~para style='nospace'
+                    ~b
+                        ~xsl:value-of select='product'
+                    :cdata
+                        -->
+                    ~xsl:value-of select='purchase-comment'
