@@ -11,7 +11,7 @@
         ~purchase-comment type='field' @purchase_comment
 
 !!! xsl1.0
-~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform' xmlns:fn='http://www.w3.org/2005/xpath-functions'
+~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
     ~xsl:variable name='initial_bottom_pos': 10.25
     ~xsl:variable name='height_increment': 0.2
     ~xsl:variable name='frame_height': 0.5
@@ -24,8 +24,12 @@
         ~document
             ~template author='OpenERP:Sample' title='Product Traffic Report' pageSize='us_letter'
                 ~pageTemplate id='first_page'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
                     ~xsl:call-template name='first_page_frames'
                 ~pageTemplate id='other_pages'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
                     ~xsl:call-template name='other_pages_frames'
             ~stylesheet
                 ~blockTableStyle id='left'
@@ -49,21 +53,26 @@
                         ~xsl:sort select='code'
 
     ~xsl:template name='first_page_frames'
-        ~xsl:apply-templates match='report' mode='frames'
-        ~frame id='col1' x1='0.5in' y1='0.25in' width='6.75in' height='10.25in'
+        ~frame id='col1' x1='0.5in' y1='0.75in' width='6.75in' height='9.5in'
 
     ~xsl:template name='other_pages_frames'
-        ~frame id='col1' x1='0.5in' y1='0.25in' width='6.75in' height='10.5in'
+        ~frame id='col2' x1='0.5in' y1='0.75in' width='6.75in' height='9.5in'
 
-    ~xsl:template match='report' mode='frames'
-        ~frame id='title' width='6.0in' height='0.35in' x1='0.25in' y1='10.5in'
-        ~frame id='date' width='1.75in' height='0.35in' x1='6.5in' y1='10.5in'
-    
-    ~xsl:template match='report' mode='story'
-        ~h5
+    ~xsl:template match='report'
+        ~setFont name='Helvetica' size='12'
+        ~drawString x='0.5in' y='10.5in'
             ~xsl:value-of select='title'
-        ~h5
+        ~setFont name='Helvetica' size='10'
+        ~drawCentredString x='4.25in' y='10.7in'
+            ~xsl:value-of select='//corporate-header/corporation/name'
+        ~setFont name='Helvetica' size='12'
+        ~drawRightString x='8.0in' y='10.5in'
             ~xsl:value-of select='date'
+        ~setFont name='Helvetica' size='8'
+        ~drawCentredString x='4.25in' y='0.43in'
+            ~xsl:value-of select='//corporate-header/corporation/rml_header1'
+        ~drawCentredString x='4.25in' y='0.3in'
+            ~xsl:value-of select='//corporate-header/corporation/rml_footer'
 
     ~xsl:template match='line'
         ~tr
