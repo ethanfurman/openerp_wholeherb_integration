@@ -320,7 +320,7 @@
             @model: wholeherb_integration.product_traffic
             @key2: client_action_multi
 
-        ~report model='wholeherb_integration.product_traffic' name='wholeherb_integration.product_traffic.selected_records' header='False' auto='True' multi='True' xml='wholeherb_integration/report/product-traffic.xml' xsl='wholeherb_integration/report/product-traffic.xsl' $Product_Traffic #report_wholeherb_integration_product_traffic
+        ~report model='wholeherb_integration.product_traffic' name='wholeherb_integration.product_traffic.selected_records' header='True' auto='True' multi='True' xml='wholeherb_integration/report/product-traffic.xml' xsl='wholeherb_integration/report/product-traffic.xsl' $Product_Traffic #report_wholeherb_integration_product_traffic
 
     ~data noupdate='1'
 
