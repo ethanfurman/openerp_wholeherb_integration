@@ -12,10 +12,6 @@
 
 !!! xsl1.0
 ~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
-    ~xsl:variable name='initial_bottom_pos': 10.25
-    ~xsl:variable name='height_increment': 0.2
-    ~xsl:variable name='frame_height': 0.5
-    ~xsl:variable name='max_frames': 18
 
     ~xsl:template match='/'
         ~xsl:apply-templates select='lines'
