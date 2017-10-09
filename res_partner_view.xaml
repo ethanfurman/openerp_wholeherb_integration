@@ -35,6 +35,14 @@
                                 ~separator
                                 @sp_kosher
                                 @sp_kosher_exp
+                    ~xpath expr="//page[@string='Internal Notes']" position='inside'
+                        ~group
+                            ~group
+                                @create_uid
+                                @create_date
+                            ~group
+                                @write_uid
+                                @write_date
                     ~xpath expr="//page[@string='Contacts']" position='after'
                         ~page $Ship_To attrs="{'invisible': [('is_company','=',False)]}"
                             @ship_to_ids context="{'default_ship_to_parent_id': active_id, 'default_customer': False}" mode='kanban'
