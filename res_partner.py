@@ -59,7 +59,7 @@ class S(FISenum):
 
 
 class res_partner(xid.xmlid, osv.Model):
-    """Inherits partner and makes the external_id visible and modifiable
+    """Inherits partner and makes the external_id visible
     
     if 'active' is False, do not update last write date
     """
