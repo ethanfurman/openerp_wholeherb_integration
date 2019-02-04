@@ -8,6 +8,10 @@
                 @inherit_id ref='base.view_partner_form'
                 @priority eval='18'
                 @arch type='xml'
+                    @customer position='attributes'
+                        ~attribute @attrs: {'readonly': [('xml_id','!=',False)]}
+                    @supplier position='attributes'
+                        ~attribute @attrs: {'readonly': [('xml_id','!=',False)]}
                     @website position='after'
                         @xml_id attrs="{'readonly':True}"
                         @module attrs="{'readonly':True}"
