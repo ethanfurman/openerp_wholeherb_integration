@@ -17,7 +17,7 @@
     #'init_xml': [
     #        'security/ir.model.access.csv',
     #    ],
-    'update_xml': [
+    'data': [
             'res_config_view.xaml',
             'res_partner_view.xaml',
             'product_view.xaml',
