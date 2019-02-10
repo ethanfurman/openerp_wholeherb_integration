@@ -13,6 +13,7 @@
             "product",
             "fnx",
             "resource",
+            "sample",
             ],
     #'init_xml': [
     #        'security/ir.model.access.csv',
@@ -23,6 +24,7 @@
             'product_view.xaml',
             'purchasing_view.xaml',
             'sample_view.xaml',
+            'sample_request_view.xaml',
             'security/ir.model.access.csv',
         ],
     'test': [],

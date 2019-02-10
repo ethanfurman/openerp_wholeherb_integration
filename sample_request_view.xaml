@@ -1,0 +1,15 @@
+!!!xml1.0
+
+-view = 'ir.ui.view'
+
+~openerp
+    ~data noupdate='0'
+
+            ~record model=view #sample_request_xmlid_form
+                @name: sample.request.xmlid_form
+                @model: sample.request
+                @inherit_id ref='sample.sample_request_form'
+                @priority eval='13'
+                @arch type='xml'
+                    @partner_id position='attributes'
+                     ~attribute: domain="[('xml_id','!=',False),('customer','=',True),('is_company','=',True),('ship_to_parent_id','=',False)]"
