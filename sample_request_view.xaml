@@ -12,4 +12,4 @@
                 @priority eval='13'
                 @arch type='xml'
                     @partner_id position='attributes'
-                     ~attribute: domain="[('xml_id','!=',False),('customer','=',True),('is_company','=',True),('ship_to_parent_id','=',False)]"
+                     ~attribute @domain: [('xml_id','!=',False),('customer','=',True),('is_company','=',True),('ship_to_parent_id','=',False)]
