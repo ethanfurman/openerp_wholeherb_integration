@@ -1,0 +1,47 @@
+!!!xml1.0
+~openerp
+    ~data
+
+        ~record model='ir.ui.view' #wholeherb_integration_sample_memo_tree
+            @name: view.wholeherb_integration.sample_memo.list
+            @model: wholeherb_integration.sample_memo
+            @arch type='xml'
+                ~tree $Sample_Memo
+                    @order_num
+                    @order_date
+                    @customer_id
+
+        ~record model='ir.ui.view' #wholeherb_integration_sample_memo_form
+            @name: view.wholeherb_integration.sample_memo.form
+            @model: wholeherb_integration.sample_memo
+            @arch type='xml'
+                ~form $Sample_Memo version='7.0'
+                    ~group
+                        ~group
+                            @order_num
+                            @customer_id
+                            @customer_contact_id
+                            @employee_id
+                        ~group
+                            @order_date
+                            @promise_date
+                            @ship_date
+                            @shipping_id
+                        ~separator colspan='4'
+                        @lot_ids colspan='4' nolabel='1'
+                            ~tree
+                                @lot_no
+                                @product_id
+                                @source_lot_no
+                        ~separator colspan='4'
+                        ~label for='comments' $Comments
+                        @comments colspan='4' nolabel='1'
+
+        ~record model='ir.actions.act_window' #action_wholeherb_integration_sample_memo
+            @name: Sample Memos
+            @res_model: wholeherb_integration.sample_memo
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='wholeherb_integration_sample_memo_tree'
+
+        ~menuitem name='Sample Memo' #wholeherb_integration_sample_memo parent='base.menu_sales' action='action_wholeherb_integration_sample_memo'
