@@ -9,7 +9,7 @@ class sample_product(osv.Model):
     _inherit = 'sample.product'
 
     _columns = {
-        # 'product_id': fields.many2one('product.product', string='Item', domain=[('categ_id','child_of','Saleable')]),
+        'product_id': fields.many2one(),
         'product_lot_requested': fields.many2one(
                 'wholeherb_integration.product_lot',
                 string='Requested Lot #',
