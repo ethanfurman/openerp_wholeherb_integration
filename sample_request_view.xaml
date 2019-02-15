@@ -14,19 +14,23 @@
                 @partner_id position='attributes'
                     ~attribute @domain: [('xml_id','!=',False),('customer','=',True),('is_company','=',True),('ship_to_parent_id','=',False)]
 
+
        ~record model=view #sample_product_list_full
             @name: sample.product.list
             @model: sample.product
+            @inherit_id ref='sample.sample_product_list_full'
             @priority eval='15'
             @arch type='xml'
                     @product_id position='replace'
                         @product_id
                          | options="{'create_edit':true}"
                     @product_lot_requested position='replace'
-                        @product_lot_requested
+                        @product_lot_requested_id
                          | options="{'create_edit':true}"
                          | context="{'default_product_id': product_id}"
                     @product_lot_used position='replace'
-                        @product_lot_used
+                        @product_lot_used_id
                          | options="{'create_edit':true}"
                          | context="{'default_product_id': product_id}"
+                    ~xpath expr="//button[@name='button_same_lot_no']" position='attributes'
+                        ~attribute @attrs: {'invisible': ['|','|',('request_state','!=','production'),('product_lot_requested_id','=',False),('product_lot_used_id','!=', False)]}

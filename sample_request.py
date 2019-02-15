@@ -31,7 +31,7 @@ class sample_product(osv.Model):
                 string='Requested Lot #',
                 domain="[('product_id','=',product_id)]",
                 ),
-        'product_lot_requested': fields.functionn(
+        'product_lot_requested': fields.function(
                 _get_requested_lot,
                 type='char',
                 store={
