@@ -51,7 +51,7 @@ class sample_product(osv.Model):
                 type='char',
                 store={
                     'sample.product':
-                        (lambda s, c, u, ids, ctx: ids, ['product_lot_usedid'], 10),
+                        (lambda s, c, u, ids, ctx: ids, ['product_lot_used_id'], 10),
                     'product.product':
                         (_get_changed_sample_product_ids, ['default_code', 'name'], 15),
                     },
