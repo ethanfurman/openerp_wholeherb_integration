@@ -13,6 +13,8 @@
             @arch type='xml'
                 @partner_id position='attributes'
                     ~attribute @domain: [('xml_id','!=',False),('customer','=',True),('is_company','=',True),('ship_to_parent_id','=',False)]
+                @ship_to_id position='attributes'
+                    ~attribute @domain: [('ship_to_parent_id','=','partner_id')]
 
 
        ~record model=view #sample_product_list_full

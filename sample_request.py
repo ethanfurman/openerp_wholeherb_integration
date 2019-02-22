@@ -3,6 +3,16 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+
+class sample_request(osv.Model):
+    _name = 'sample.request'
+    _inherit = 'sample.request'
+
+    _columns= {
+        'ship_to_parent_id': fields.related('ship_to_id', 'ship_to_parent_id'),
+        }
+
+
 class sample_product(osv.Model):
     'make lot number field point to wholeherb_integration.product_lot'
     _name = 'sample.product'
