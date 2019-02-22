@@ -9,7 +9,7 @@ class sample_request(osv.Model):
     _inherit = 'sample.request'
 
     _columns= {
-        'ship_to_parent_id': fields.related('ship_to_id', 'ship_to_parent_id'),
+        'ship_to_parent_id': fields.related('ship_to_id', 'ship_to_parent_id', type='many2one'),
         }
 
 
