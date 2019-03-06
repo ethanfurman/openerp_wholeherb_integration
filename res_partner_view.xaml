@@ -113,6 +113,19 @@
                                                 @phone
                                                 @email
 
+
+        // add unrestricted view to Settings menu
+
+        ~record #all_res_partner_view model='ir.actions.act_window'
+            @name: Partners
+            @res_model: res.partner
+            @view_type: form
+            @view_mode: tree,form
+            @domain: ['|',('active','=',False),('active','!=',False)]
+
+        ~menuitem @Partners #menu_all_res_partner parent='base.next_id_4' action='all_res_partner_view'
+
+
         // Update the built-in res_partner forms to not show customers assigned to somebody else
 
         ~record #action_partner_form model='ir.actions.act_window'
