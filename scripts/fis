@@ -338,9 +338,10 @@ def tables():
         employees=('', FLAG, None),
         contacts=('include contacts', FLAG, None),
         products=('', FLAG, None),
+        salesinq=('', FLAG, None),
         key=('only process key', OPTION, None)
         )
-def update_openerp(database, customers, suppliers, vendors, carriers, employees, contacts, products, key):
+def update_openerp(database, customers, suppliers, vendors, carriers, employees, contacts, products, salesinq, key):
     "update OpenERP from FIS data"
     oe = connect_oe(database)
     partner_key = '10%s'
@@ -375,6 +376,29 @@ def update_openerp(database, customers, suppliers, vendors, carriers, employees,
         default_product_codes = get_records(oe, model='product.product', domain=[('xml_id','=',False),('default_code','!=',False)])
         nvty = fd.fisData('NVTY', keymatch='10%s')
         update_products(nvty, product_codes, default_product_codes)
+    if salesinq:
+        res_partner = oe.get_model('res.partner')
+        active_customers = get_active_salesinq_customers()
+        oe_customers = get_records(
+                res_partner,
+                domain=[('customer','=',True)],
+                fields=['id','xml_id', 'is_salesinq_able'],
+                )
+        added = 0
+        removed = 0
+        for customer in oe_customers:
+            if not customer.xml_id:
+                if customer.is_salesinq_able:
+                    res_partner.write(customer.id, {'is_salesinq_able': False})
+                    removed += 1
+            elif customer.is_salesinq_able and customer.xml_id not in active_customers:
+                res_partner.write(customer.id, {'is_salesinq_able': False})
+                removed += 1
+            elif not customer.is_salesinq_able and customer.xml_id in active_customers:
+                res_partner.write(customer.id, {'is_salesinq_able': True})
+                added += 1
+        print('%d records activated\n%d records deactivated' % (added, removed))
+
 
 @Command(
         filenum=Spec('file abbreviation or number to operate on', ),
@@ -1150,6 +1174,23 @@ def get_active_salesinq_customers():
                     result.add(fis_id)
                     print(line)
     print('found %d active companies' % len(result))
+    return result
+
+def get_all_salesinq_customers():
+    import requests
+    result = dict()
+    if not config.network.all_customer_url:
+        error('salesinq url not defined')
+    else:
+        try:
+            web_data = requests.get(config.network.all_customer_url)
+        except requests.exceptions.ConnectionError:
+            error('unable to fetch data from SalesInq server')
+        else:
+            result = dict(
+                    re.findall(r'(\d{6}) - (.*)', web_data.text)
+                    )
+    print('found %d companies' % len(result))
     return result
 
 class FISenum(str, Enum):
