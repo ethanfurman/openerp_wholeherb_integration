@@ -16,7 +16,7 @@ import os
 import re
 import sys
 from openerplib import get_connection, get_records
-from openerplib.dates import str_to_datetime, DEFAULT_SERVER_DATETIME_FORMAT as DT_FORMAT
+from openerplib.dates import str_to_datetime
 from openerplib.dates import DEFAULT_SERVER_DATETIME_FORMAT as DT_FORMAT
 from openerplib.dates import DEFAULT_SERVER_DATE_FORMAT as D_FORMAT
 
@@ -377,27 +377,7 @@ def update_openerp(database, customers, suppliers, vendors, carriers, employees,
         nvty = fd.fisData('NVTY', keymatch='10%s')
         update_products(nvty, product_codes, default_product_codes)
     if salesinq:
-        res_partner = oe.get_model('res.partner')
-        active_customers = get_active_salesinq_customers()
-        oe_customers = get_records(
-                res_partner,
-                domain=[('customer','=',True)],
-                fields=['id','xml_id', 'is_salesinq_able'],
-                )
-        added = 0
-        removed = 0
-        for customer in oe_customers:
-            if not customer.xml_id:
-                if customer.is_salesinq_able:
-                    res_partner.write(customer.id, {'is_salesinq_able': False})
-                    removed += 1
-            elif customer.is_salesinq_able and customer.xml_id not in active_customers:
-                res_partner.write(customer.id, {'is_salesinq_able': False})
-                removed += 1
-            elif not customer.is_salesinq_able and customer.xml_id in active_customers:
-                res_partner.write(customer.id, {'is_salesinq_able': True})
-                added += 1
-        print('%d records activated\n%d records deactivated' % (added, removed))
+        update_salesinq(oe)
 
 
 @Command(
@@ -998,6 +978,29 @@ def update_products(table, item_map, default_product_codes):
         else:
             print('  creating with:', values, verbose=2)
             item_map[key] = product.create(values, context=context)
+
+def update_salesinq(oe):
+    res_partner = oe.get_model('res.partner')
+    active_customers = get_active_salesinq_customers()
+    oe_customers = get_records(
+            res_partner,
+            domain=[('customer','=',True)],
+            fields=['id','xml_id','is_salesinq_able'],
+            )
+    added = 0
+    removed = 0
+    for customer in oe_customers:
+        if not customer.xml_id:
+            if customer.is_salesinq_able:
+                res_partner.write(customer.id, {'is_salesinq_able': False})
+                removed += 1
+        elif customer.is_salesinq_able and customer.xml_id not in active_customers:
+            res_partner.write(customer.id, {'is_salesinq_able': False})
+            removed += 1
+        elif not customer.is_salesinq_able and customer.xml_id in active_customers:
+            res_partner.write(customer.id, {'is_salesinq_able': True})
+            added += 1
+    print('%d records activated\n%d records deactivated' % (added, removed))
 
 def format_record(record, fields=None):
     lines = []
