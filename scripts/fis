@@ -567,15 +567,19 @@ def update_customers(oe, contacts, state_recs, country_recs_name, key):
                 result['notes'] = 'main address from customer record'
                 print('  ship-to:', ship_to_key)
             else:
-                result['xml_id'] = ship_to_key = 'ship_' + ship_to[F140.code] + (ship_to[F140.ship_to_sequence].strip() or '00')
+                short_ship_to = '%s-%s' % (ship_to[F140.code], (ship_to[F140.ship_to_sequence].strip() or '00'))
+                result['xml_id'] = ship_to_key = 'ship_' + short_ship_to
                 print('  ship-to:', ship_to_key)
                 result['notes'] = ship_to[F140.comments]
-                result['name'] = re.sub(
-                        config.fis_imports.name_from,
-                        config.fis_imports.name_to,
-                        BsnsCase(ship_to[F140.name]),
-                        flags=re.I,
-                        ) or customer_name
+                result['name'] = '%s: %s' % (
+                        short_ship_to,
+                        re.sub(
+                            config.fis_imports.name_from,
+                            config.fis_imports.name_to,
+                            BsnsCase(ship_to[F140.name]),
+                            flags=re.I,
+                            ) or customer_name
+                        )
                 addr1, addr2, addr3 = Sift(ship_to[F140.addr1], ship_to[F140.addr2], ship_to[F140.addr3])
                 addr2, city, state, postal, country = cszk(addr2, addr3)
                 addr3 = ''
