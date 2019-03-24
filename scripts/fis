@@ -424,8 +424,12 @@ def update_customers(oe, contacts, state_recs, country_recs_name, search_key):
     customer_codes = get_xml_id_map(oe, model='res.partner', module='csms')
     customer_last_write = dict([
         (d.id, d.write_date)
-        for d in get_records(oe, 'res.partner', ids=customer_codes.values(), fields=['write_date'])
-        ])
+        for d in get_records(
+            oe, 'res.partner',
+            ids=customer_codes.values(),
+            fields=['write_date'],
+            context={'active_test':False},
+            )])
     customer_ship_tos = get_xml_id_map(oe, model='res.partner', module='csmsbs')
     customers = fd.fisData('CSMS', keymatch='10%s ')
     print('%d customers in CSMS' % len(customers))
