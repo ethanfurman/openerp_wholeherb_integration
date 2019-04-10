@@ -331,7 +331,6 @@ def tables():
 
 
 @Command(
-        database=('which database to update', ),
         customers=('', FLAG, None),
         suppliers=('', FLAG, None),
         vendors=('', FLAG, None),
@@ -342,8 +341,9 @@ def tables():
         salesinq=('', FLAG, None),
         key=('only process key', OPTION, None)
         )
-def update_openerp(database, customers, suppliers, vendors, carriers, employees, contacts, products, salesinq, key):
+def update_openerp(customers, suppliers, vendors, carriers, employees, contacts, products, salesinq, key):
     "update OpenERP from FIS data"
+    database = config.openerp.db
     global oe, partner_key
     oe = connect_oe(database)
     partner_key = '10%s'
