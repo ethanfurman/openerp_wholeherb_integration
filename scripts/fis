@@ -309,7 +309,8 @@ def schema(filenum, output, number):
         abort('unknown output type: %s' % output)
 
 
-@Command()
+@Command(
+        )
 def tables():
     "list FIS tables"
     keys = [k for k in fd.tables.keys() if isinstance(k, (int,long))]
@@ -343,41 +344,29 @@ def tables():
         )
 def update_openerp(database, customers, suppliers, vendors, carriers, employees, contacts, products, salesinq, key):
     "update OpenERP from FIS data"
+    global oe, partner_key
     oe = connect_oe(database)
     partner_key = '10%s'
-    # if partner:
-    #     partner_key %= partner
+    if key:
+        partner_key %= key
     state_recs = get_records(oe, 'res.country.state')
     state_recs = dict([(r.name, (r.id, r.code, r.country_id[0])) for r in state_recs])
     country_recs = get_records(oe, 'res.country')
     country_recs_name = dict([(r.name, r.id) for r in country_recs])
     if customers:
-        update_customers(oe, contacts, state_recs, country_recs_name, key)
-    if key:
-        abort('only customers can use "key"')
+        update_customers(contacts, state_recs, country_recs_name, key)
     if suppliers:
-        supplier_codes = get_xml_id_map(oe, model='res.partner', module='posm')
-        posm = fd.fisData('POSM', keymatch=partner_key)
-        update_suppliers(posm, supplier_codes, contacts, state_recs, country_recs_name)
+        update_suppliers(contacts, state_recs, country_recs_name)
     if vendors:
-        vendor_codes = get_xml_id_map(oe, model='res.partner', module='vnms')
-        vnms = fd.fisData('VNMS', keymatch=partner_key)
-        update_vendors(vnms, vendor_codes, contacts, state_recs, country_recs_name)
+        update_vendors(contacts, state_recs, country_recs_name)
     if carriers:
-        carrier_codes = get_xml_id_map(oe, model='res.partner', module='F27')
-        carrier = fd.fisData(27, keymatch='SV10%s')
-        update_carriers(carrier, carrier_codes, state_recs, country_recs_name)
+        update_carriers(state_recs, country_recs_name)
     if employees:
-        employee_codes = get_xml_id_map(oe, model='res.partner', module='F74')
-        emp1 = fd.fisData('EMP1', keymatch='10%s')
-        update_employees(emp1, employee_codes, state_recs, country_recs_name)
+        update_employees(state_recs, country_recs_name)
     if products:
-        product_codes = get_xml_id_map(oe, model='product.product', module='nvty')
-        default_product_codes = get_records(oe, model='product.product', domain=[('xml_id','=',False),('default_code','!=',False)])
-        nvty = fd.fisData('NVTY', keymatch='10%s')
-        update_products(nvty, product_codes, default_product_codes)
+        update_products()
     if salesinq:
-        update_salesinq(oe)
+        update_salesinq()
 
 
 @Command(
@@ -414,7 +403,7 @@ table_keys = {
     }
 
 
-def update_customers(oe, contacts, state_recs, country_recs_name, key):
+def update_customers(contacts, state_recs, country_recs_name, key):
     context = {
         'mail_create_nosubscribe': True,
         'log_write_date': False,
@@ -454,8 +443,6 @@ def update_customers(oe, contacts, state_recs, country_recs_name, key):
         if key in active_salesinq_customers or not active_salesinq_customers:
             # if active customers is empty, mark them all as active
             result['active'] = True
-        # notify_by = Specials.get_member(cus_rec[F33.catalog_category].upper(), None)
-        # result['special_notifications'] = notify_by and notify_by.db or False
         result['name'] = customer_name = re.sub(
                 config.fis_imports.name_from,
                 config.fis_imports.name_to,
@@ -526,7 +513,6 @@ def update_customers(oe, contacts, state_recs, country_recs_name, key):
             result = {
                     'active': result['active'],
                     'fis_valid': fis_valid,
-                    # 'special_notifications': result['special_notifications'],
                     }
             result['name'] = re.sub(
                     config.fis_imports.name_from,
@@ -549,7 +535,7 @@ def update_customers(oe, contacts, state_recs, country_recs_name, key):
                 id = res_partner.create(result, context=context)
                 customer_codes[contact_key] = id
         # process alternate ship-tos
-        alternates = ship_tos.get_subset(key) # or ((None, None), )
+        alternates = ship_tos.get_subset(key)
         for _, ship_to in sorted(alternates):
             result = {
                     'active': result['active'],
@@ -623,10 +609,12 @@ def update_customers(oe, contacts, state_recs, country_recs_name, key):
     print('                 inactive: %5d' % inactive_count)
 
 
-def update_suppliers(table, customer_codes, contacts, state_recs, country_recs_name ):
+def update_suppliers(contacts, state_recs, country_recs_name ):
+    supplier_codes = get_xml_id_map(model='res.partner', module='posm')
+    posm = fd.fisData('POSM', keymatch=partner_key)
     context = {'mail_create_nosubscribe': True}
-    print('processing %d POSM records' % len(table))
-    for sup_rec in table:
+    print('processing %d POSM records' % len(posm))
+    for sup_rec in posm:
         result = {'active': False}
         result['is_company'] = True
         result['supplier'] = True
@@ -637,8 +625,6 @@ def update_suppliers(table, customer_codes, contacts, state_recs, country_recs_n
         # valid customer code? active account?
         result['fis_valid'] = True
         result['active'] = True
-        # notify_by = Specials.get_member(cus_rec[F33.catalog_category].upper(), None)
-        # result['special_notifications'] = notify_by and notify_by.db or False
         result['name'] = re.sub(
                 config.fis_imports.name_from,
                 config.fis_imports.name_to,
@@ -677,40 +663,20 @@ def update_suppliers(table, customer_codes, contacts, state_recs, country_recs_n
         if not result['name']:
             # _logger.critical("Missing name for customer %s -- skipping" % (key, ))
             continue
-        if key in customer_codes:
-            id = customer_codes[key]
+        if key in supplier_codes:
+            id = supplier_codes[key]
             # leave fis_valid alone
             del result['fis_valid']
             res_partner.write(id, result, context=context)
         else:
             id = res_partner.create(result, context=context)
-            customer_codes[key] = id
-        # if contacts and cus_rec[F33.contact]:
-        #     cus_id = id
-        #     contact = cus_rec[F33.contact]
-        #     result = {
-        #             'fis_valid': fis_valid,
-        #             # 'special_notifications': result['special_notifications'],
-        #             }
-        #     result['name'] = re.sub('sunridge', 'SunRidge', NameCase(contact), flags=re.I)
-        #     result['is_company'] = False
-        #     result['customer'] = True
-        #     result['parent_id'] = cus_id
-        #     result['use_parent_address'] = True
-        #     result['xml_id'] = key = 'cntct_' + key
-        #     result['module'] = 'F33'
-        #     if key in customer_codes:
-        #         id = customer_codes[key]
-        #         # leave fis_valid alone
-        #         del result['fis_valid']
-        #         res_partner.write(id, result)
-        #     else:
-        #         id = res_partner.create(result, context=context)
-        #         customer_codes[key] = id
+            supplier_codes[key] = id
 
-def update_vendors(table, vendor_codes, contacts, state_recs, country_recs_name ):
+def update_vendors(contacts, state_recs, country_recs_name ):
+    vendor_codes = get_xml_id_map(model='res.partner', module='vnms')
+    vnms = fd.fisData('VNMS', keymatch=partner_key)
     context = {'mail_create_nosubscribe': True}
-    for ven_rec in table:
+    for ven_rec in vnms:
         result = {'active': False}
         result['is_company'] = True
         result['supplier'] = True
@@ -721,8 +687,6 @@ def update_vendors(table, vendor_codes, contacts, state_recs, country_recs_name 
         # valid customer code? active account?
         result['fis_valid'] = True
         result['active'] = True
-        # notify_by = Specials.get_member(cus_rec[F33.catalog_category].upper(), None)
-        # result['special_notifications'] = notify_by and notify_by.db or False
         result['name'] = re.sub(
                 config.fis_imports.name_from,
                 config.fis_imports.name_to,
@@ -769,52 +733,30 @@ def update_vendors(table, vendor_codes, contacts, state_recs, country_recs_name 
         else:
             id = res_partner.create(result, context=context)
             vendor_codes[key] = id
-        # if contacts and cus_rec[F33.contact]:
-        #     cus_id = id
-        #     contact = cus_rec[F33.contact]
-        #     result = {
-        #             'fis_valid': fis_valid,
-        #             # 'special_notifications': result['special_notifications'],
-        #             }
-        #     result['name'] = re.sub('sunridge', 'SunRidge', NameCase(contact), flags=re.I)
-        #     result['is_company'] = False
-        #     result['customer'] = True
-        #     result['parent_id'] = cus_id
-        #     result['use_parent_address'] = True
-        #     result['xml_id'] = key = 'cntct_' + key
-        #     result['module'] = 'F33'
-        #     if key in vendor_codes:
-        #         id = vendor_codes[key]
-        #         # leave fis_valid alone
-        #         del result['fis_valid']
-        #         res_partner.write(id, result)
-        #     else:
-        #         id = res_partner.create(result, context=context)
-        #         vendor_codes[key] = id
 
-def update_carriers(table, carrier_codes, contacts, state_recs, country_recs_name ):
+def update_carriers(contacts, state_recs, country_recs_name ):
+    carrier_codes = get_xml_id_map(model='res.partner', module='F27')
+    carrier = fd.fisData(27, keymatch='SV10%s')
     context = {'mail_create_nosubscribe': True}
-    for ven_rec in table:
+    for carrier_rec in carrier:
         result = {'active': False}
         result['is_company'] = True
         result['supplier'] = True
         result['customer'] = False
         result['use_parent_address'] = False
-        result['xml_id'] = key = ven_rec[F65.code]
+        result['xml_id'] = key = carrier_rec[F27.code]
         result['module'] = 'VNMS'
         # valid customer code? active account?
         result['fis_valid'] = True
         result['active'] = True
-        # notify_by = Specials.get_member(cus_rec[F33.catalog_category].upper(), None)
-        # result['special_notifications'] = notify_by and notify_by.db or False
         result['name'] = re.sub(
                 config.fis_imports.from_name,
                 config.fis_imports.to_name,
-                BsnsCase(ven_rec[F65.name]),
+                BsnsCase(carrier_rec[F27.name]),
                 flags=re.I,
                 )
         print('name:', result['name'])
-        addr1, addr2, addr3 = Sift(ven_rec[F65.addr1], ven_rec[F65.addr2], ven_rec[F65.addr3])
+        addr1, addr2, addr3 = Sift(carrier_rec[F27.addr1], carrier_rec[F27.addr2], carrier_rec[F27.addr3])
         addr2, city, state, postal, country = cszk(addr2, addr3)
         addr3 = ''
         print('  ' + '\n  '.join([addr1, addr2, addr3, str([city, state, postal]), country]), verbose=2)
@@ -841,7 +783,7 @@ def update_carriers(table, carrier_codes, contacts, state_recs, country_recs_nam
                 continue
             else:
                 result['country_id'] = country_id
-        result['phone'] = fix_phone(ven_rec[F65.tele])
+        result['phone'] = fix_phone(carrier_rec[F27.tele])
         if not result['name']:
             # _logger.critical("Missing name for customer %s -- skipping" % (key, ))
             continue
@@ -853,52 +795,30 @@ def update_carriers(table, carrier_codes, contacts, state_recs, country_recs_nam
         else:
             id = res_partner.create(result, context=context)
             carrier_codes[key] = id
-        # if contacts and cus_rec[F33.contact]:
-        #     cus_id = id
-        #     contact = cus_rec[F33.contact]
-        #     result = {
-        #             'fis_valid': fis_valid,
-        #             # 'special_notifications': result['special_notifications'],
-        #             }
-        #     result['name'] = re.sub('sunridge', 'SunRidge', NameCase(contact), flags=re.I)
-        #     result['is_company'] = False
-        #     result['customer'] = True
-        #     result['parent_id'] = cus_id
-        #     result['use_parent_address'] = True
-        #     result['xml_id'] = key = 'cntct_' + key
-        #     result['module'] = 'F33'
-        #     if key in carrier_codes:
-        #         id = carrier_codes[key]
-        #         # leave fis_valid alone
-        #         del result['fis_valid']
-        #         res_partner.write(id, result)
-        #     else:
-        #         id = res_partner.create(result, context=context)
-        #         carrier_codes[key] = id
 
-def update_employees(table, employee_codes, contacts, state_recs, country_recs_name ):
+def update_employees(contacts, state_recs, country_recs_name ):
+    employee_codes = get_xml_id_map(model='res.partner', module='F74')
+    emp1 = fd.fisData('EMP1', keymatch='10%s')
     context = {'mail_create_nosubscribe': True}
-    for ven_rec in table:
+    for emp_rec in emp1:
         result = {'active': False}
         result['is_company'] = True
         result['supplier'] = True
         result['customer'] = False
         result['use_parent_address'] = False
-        result['xml_id'] = key = ven_rec[F65.code]
+        result['xml_id'] = key = emp_rec[F74.code]
         result['module'] = 'VNMS'
         # valid customer code? active account?
         result['fis_valid'] = True
         result['active'] = True
-        # notify_by = Specials.get_member(cus_rec[F33.catalog_category].upper(), None)
-        # result['special_notifications'] = notify_by and notify_by.db or False
         result['name'] = re.sub(
                 config.fis_imports.from_name,
                 config.fis_imports.to_name,
-                BsnsCase(ven_rec[F65.name]),
+                BsnsCase(emp_rec[F74.name]),
                 flags=re.I,
                 )
         print('name:', result['name'])
-        addr1, addr2, addr3 = Sift(ven_rec[F65.addr1], ven_rec[F65.addr2], ven_rec[F65.addr3])
+        addr1, addr2, addr3 = Sift(emp_rec[F74.addr1], emp_rec[F74.addr2], emp_rec[F74.addr3])
         addr2, city, state, postal, country = cszk(addr2, addr3)
         addr3 = ''
         print('  ' + '\n  '.join([addr1, addr2, addr3, str([city, state, postal]), country]), verbose=2)
@@ -925,7 +845,7 @@ def update_employees(table, employee_codes, contacts, state_recs, country_recs_n
                 continue
             else:
                 result['country_id'] = country_id
-        result['phone'] = fix_phone(ven_rec[F65.tele])
+        result['phone'] = fix_phone(emp_rec[F74.tele])
         if not result['name']:
             # _logger.critical("Missing name for customer %s -- skipping" % (key, ))
             continue
@@ -937,41 +857,22 @@ def update_employees(table, employee_codes, contacts, state_recs, country_recs_n
         else:
             id = res_partner.create(result, context=context)
             employee_codes[key] = id
-        # if contacts and cus_rec[F33.contact]:
-        #     cus_id = id
-        #     contact = cus_rec[F33.contact]
-        #     result = {
-        #             'fis_valid': fis_valid,
-        #             # 'special_notifications': result['special_notifications'],
-        #             }
-        #     result['name'] = re.sub('sunridge', 'SunRidge', NameCase(contact), flags=re.I)
-        #     result['is_company'] = False
-        #     result['customer'] = True
-        #     result['parent_id'] = cus_id
-        #     result['use_parent_address'] = True
-        #     result['xml_id'] = key = 'cntct_' + key
-        #     result['module'] = 'F33'
-        #     if key in employee_codes:
-        #         id = employee_codes[key]
-        #         # leave fis_valid alone
-        #         del result['fis_valid']
-        #         res_partner.write(id, result)
-        #     else:
-        #         id = res_partner.create(result, context=context)
-        #         employee_codes[key] = id
 
-def update_products(table, item_map, default_product_codes):
+def update_products():
     context = {'mail_create_nosubscribe': True}
-    for item in table:
+    product_codes = get_xml_id_map(oe, model='product.product', module='nvty')
+    default_product_codes = get_records(oe, model='product.product', domain=[('xml_id','=',False),('default_code','!=',False)])
+    nvty = fd.fisData('NVTY', keymatch='10%s')
+    for item in nvty:
         values = {}
         values['xml_id'] = values['default_code'] = key = item[F135.item_id]
         values['module'] = 'NVTY'
         values['name'] = NameCase(name_chars(' - '.join(item[F135.name].split('\x10'))))
         print('name:', values['name'])
         values['latin'] = item[F135.latin_name]
-        if key in item_map:
+        if key in product_codes:
             # update existing FIS record
-            id = item_map[key]
+            id = product_codes[key]
             print('  updating with:', values, verbose=2)
             product.write(id, values, context=context)
         elif key in default_product_codes:
@@ -981,9 +882,9 @@ def update_products(table, item_map, default_product_codes):
             product.write(id, values, context=context)
         else:
             print('  creating with:', values, verbose=2)
-            item_map[key] = product.create(values, context=context)
+            product_codes[key] = product.create(values, context=context)
 
-def update_salesinq(oe):
+def update_salesinq():
     res_partner = oe.get_model('res.partner')
     active_customers = get_active_salesinq_customers()
     oe_customers = get_records(
@@ -1152,7 +1053,7 @@ def connect_oe(database, connection=[]):
     product = connection[0].get_model('product.product')
     return connection[0]
 
-def get_xml_id_map(oe, model, module, ids=None):
+def get_xml_id_map(model, module, ids=None):
     "return {xml_id: id} for all xml_ids in module"
     imd = oe.get_model('ir.model.data')
     result = {}
