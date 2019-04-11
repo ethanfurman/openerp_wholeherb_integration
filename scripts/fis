@@ -15,7 +15,7 @@ import random
 import os
 import re
 import sys
-from openerplib import get_connection, get_records
+from openerplib import get_connection, get_records, AttrDict
 from openerplib.dates import str_to_datetime
 from openerplib.dates import DEFAULT_SERVER_DATETIME_FORMAT as DT_FORMAT
 from openerplib.dates import DEFAULT_SERVER_DATE_FORMAT as D_FORMAT
@@ -949,8 +949,8 @@ def update_lots():
                 changed += 1
         else:
             print('  creating with:', values, verbose=2)
-            oe_lots[lot_no] = values
-            oe_lots[lot_no]['id'] = product_lot.create(values, context=context)
+            oe_lots[lot_no] = AttrDict(**values)
+            oe_lots[lot_no].id = product_lot.create(values, context=context)
             added += 1
     print('seen lots: %r' % (seen_lots, ), verbose=2)
     empty_lot_ids = [
@@ -963,7 +963,7 @@ def update_lots():
     print('zeroing out %d records no longer in system' % len(empty_lot_ids))
     product_lot.write(empty_lot_ids, {'qty_remain': 0}, context=context)
     zeroed += len(empty_lot_ids)
-    print('%3d records added\n%3drecords changed\n%3d records zeroed'
+    print('%3d records added\n%3d records changed\n%3d records zeroed'
             % (added, changed, zeroed))
 
 
