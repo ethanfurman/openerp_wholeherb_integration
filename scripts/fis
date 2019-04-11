@@ -8,7 +8,7 @@ from scription import *
 from VSS.BBxXlate import fisData as fd
 from VSS.BBxXlate.bbxfile import TableError
 from VSS.address import cszk, normalize_address, Rise, Sift, AddrCase, NameCase, BsnsCase, name_chars
-from VSS.utils import fix_phone
+from VSS.utils import fix_phone, fix_date
 from antipathy import Path
 import dbf
 import random
@@ -413,7 +413,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
         }
     print('looking for', search_key)
     active_salesinq_customers = get_active_salesinq_customers()
-    customer_codes = get_xml_id_map(oe, model='res.partner', module='csms')
+    customer_codes = get_xml_id_map(model='res.partner', module='csms')
     customer_last_write = dict([
         (d.id, d.write_date)
         for d in get_records(
@@ -422,7 +422,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
             fields=['write_date'],
             context={'active_test':False},
             )])
-    customer_ship_tos = get_xml_id_map(oe, model='res.partner', module='csmsbs')
+    customer_ship_tos = get_xml_id_map(model='res.partner', module='csmsbs')
     customers = fd.fisData('CSMS', keymatch='10%s ')
     print('%d customers in CSMS' % len(customers))
     ship_tos = fd.fisData('CSMSB', subset='10%s1')
@@ -870,7 +870,7 @@ def update_employees(contacts, state_recs, country_recs_name ):
 
 def update_products():
     context = {'mail_create_nosubscribe': True}
-    product_codes = get_xml_id_map(oe, model='product.product', module='nvty')
+    product_codes = get_xml_id_map(model='product.product', module='nvty')
     default_product_codes = get_records(oe, model='product.product', domain=[('xml_id','=',False),('default_code','!=',False)])
     nvty = fd.fisData('NVTY', keymatch='10%s')
     for item in nvty:
@@ -896,32 +896,43 @@ def update_products():
 
 def update_lots():
     context = {'mail_create_nosubscribe': True}
-    product_codes = get_xml_id_map(oe, model='product.product', module='nvty')
+    print('getting products from OpenERP')
+    product_codes = get_xml_id_map('product.product', module='nvty')
+    print('getting default product codes from OpenERP')
     default_product_codes = dict([
         (p.default_code, p.id)
         for p in get_records(
             oe, model='product.product',
             domain=[('xml_id','=',False),('default_code','!=',False)],
             )])
+    product_lot = oe.get_model('wholeherb_integration.product_lot')
+    print('getting lots from OpenERP')
     oe_lots = dict([
         (l.lot_no, l)
-        for l in get_records(
-            oe, 'wholeherb_integration.product_lot',
-            )])
+        for l in get_records(product_lot)
+        ])
     nvba = fd.fisData('NVBA', subset='10')
     seen_lots = set()
     added = changed = zeroed = 0
-    for lot in nvba:
+    for lot in ProgressView(
+            iterable=nvba,
+            view_type='bar',
+            ):
         values = {}
+        if lot[F250.wrhse_id] != '0SON':
+            continue
         values['lot_no'] = lot_no = lot[F250.lot_no]
-        print('processing %s' % (lot_no, ))
+        if not lot_no:
+            print('missing lot number, skipping %r' % (lot, ), verbose=2)
+            continue
+        print('processing %s' % (lot_no, ), verbose=2)
         values['qty_remain'] = lot[F250.qty_on_hand]
-        values['date_received'] = lot[F250.prod_receipt_data]
+        values['date_received'] = guess_date(lot[F250.prod_receipt_date])
         prod_xml_id = lot[F250.item_id]
         if prod_xml_id in product_codes:
-            prod_id = product_codes[prod_xml_id].id
+            prod_id = product_codes[prod_xml_id]
         elif prod_xml_id in default_product_codes:
-            prod_id = default_product_codes[prod_xml_id].id
+            prod_id = default_product_codes[prod_xml_id]
         else:
             # no proper item, ignore lot
             continue
@@ -931,23 +942,26 @@ def update_lots():
             # update existing record
             id = oe_lots[lot_no].id
             print('  updating with:', values, verbose=2)
-            nvba.write(id, values, context=context)
+            product_lot.write(id, values, context=context)
             if values['qty_remain'] == 0:
                 zeroed += 1
             else:
                 changed += 1
         else:
             print('  creating with:', values, verbose=2)
-            oe_lots[lot_no] = nvba.create(values, context=context)
+            oe_lots[lot_no] = values
+            oe_lots[lot_no]['id'] = product_lot.create(values, context=context)
             added += 1
+    print('seen lots: %r' % (seen_lots, ), verbose=2)
     empty_lot_ids = [
             l.id
             for l in get_records(
                 oe, 'wholeherb_integration.product_lot',
-                domain=[('id','not in',list(seen_lots)),('qty_remain','!=',0)],
+                domain=[('lot_no','not in',list(seen_lots)),('qty_remain','!=',0)],
                 fields=['id'],
                 )]
-    nvba.write(empty_lot_ids, {'qty_remain': 0}, context=context)
+    print('zeroing out %d records no longer in system' % len(empty_lot_ids))
+    product_lot.write(empty_lot_ids, {'qty_remain': 0}, context=context)
     zeroed += len(empty_lot_ids)
     print('%3d records added\n%3drecords changed\n%3d records zeroed'
             % (added, changed, zeroed))
@@ -1121,6 +1135,17 @@ def connect_oe(database, connection=[]):
     res_partner = connection[0].get_model('res.partner')
     product = connection[0].get_model('product.product')
     return connection[0]
+
+def guess_date(text):
+    if not text.strip():
+        return False
+    one, two, three = text[:2], text[2:4], text[4:]
+    if not one.isdigit() or int(one) > 31:
+        return fix_date(text, format='ymd').strftime(D_FORMAT)
+    elif not three.isdigit() or int(three) > 31 or int(two) > 12:
+        return fix_date(text, format='mdy').strftime(D_FORMAT)
+    else:
+        return False
 
 def get_xml_id_map(model, module, ids=None):
     "return {xml_id: id} for all xml_ids in module"
@@ -1359,3 +1384,4 @@ class F341(FISenum):
     short_desc =    'Cn$'
 
 Main()
+
