@@ -409,6 +409,8 @@ class product_lot(osv.Model):
             ),
         'lot_no_valid': fields.boolean('Unique lot number'),
         'preship_lot': fields.boolean('Pre-Ship lot?'),
+        'create_date': fields.datetime('Lot # created on', readonly=True, track_visibility='onchange'),
+        'create_uid': fields.many2one('res.users', string='Lot # created by', readonly=True),
         }
 
     def create(self, cr, uid, values, context=None):

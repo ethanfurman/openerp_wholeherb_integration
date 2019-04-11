@@ -194,6 +194,9 @@
                             @fda
                             @customs
                             @act_fob_cost
+                            ~separator colspan='2'
+                            @create_date
+                            @create_uid
 
         ~record #wholeherb_integration_product_lot_tree model=view
             @name: wholeherb_integration_product_lot_tree
