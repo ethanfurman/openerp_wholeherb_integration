@@ -406,21 +406,27 @@ table_keys = {
     }
 
 
-def update_customers(contacts, state_recs, country_recs_name, key):
+def update_customers(contacts, state_recs, country_recs_name, search_key):
     context = {
         'mail_create_nosubscribe': True,
         'log_write_date': False,
         }
-    print('looking for', key)
+    print('looking for', search_key)
     active_salesinq_customers = get_active_salesinq_customers()
     customer_codes = get_xml_id_map(oe, model='res.partner', module='csms')
     customer_last_write = dict([
         (d.id, d.write_date)
-        for d in get_records(oe, 'res.partner', ids=customer_codes.values(), fields=['write_date'])
-        ])
+        for d in get_records(
+            oe, 'res.partner',
+            ids=customer_codes.values(),
+            fields=['write_date'],
+            context={'active_test':False},
+            )])
     customer_ship_tos = get_xml_id_map(oe, model='res.partner', module='csmsbs')
     customers = fd.fisData('CSMS', keymatch='10%s ')
+    print('%d customers in CSMS' % len(customers))
     ship_tos = fd.fisData('CSMSB', subset='10%s1')
+    print('%d ship-to addresses in CSMSB' % len(ship_tos))
     two_year_cutoff = dbf.Date.today().replace(delta_year=-2).strftime(D_FORMAT)
     print('two year cutoff:', two_year_cutoff)
     customer_count = active_count = inactive_count = 0
@@ -429,7 +435,8 @@ def update_customers(contacts, state_recs, country_recs_name, key):
     # all at once
     # process customers
     for cus_rec in customers:
-        if key and key != cus_rec[F33.code]:
+        if search_key and search_key != cus_rec[F33.code]:
+            print('skipping customer: %r != %r' % (search_key, cus_rec[F33.code]), verbose=2)
             continue
         customer_count += 1
         # rep = cus_rec[F33.salesrep]
