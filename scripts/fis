@@ -405,6 +405,7 @@ table_keys = {
     328: '10%s000010000',
     }
 
+valid_lot = re.compile('^M?\d{1,6}(F|HT|S|ST|)?$')
 
 def update_customers(contacts, state_recs, country_recs_name, search_key):
     context = {
@@ -919,36 +920,41 @@ def update_lots():
             view_type='bar',
             ):
         values = {}
-        if lot[F250.wrhse_id] != '0SON':
-            continue
         values['lot_no'] = lot_no = lot[F250.lot_no]
-        if not lot_no:
-            print('missing lot number, skipping %r' % (lot, ), verbose=2)
+        prod_xml_id = lot[F250.item_id]
+        print('processing %-8s, lot %-10s...  ' % (prod_xml_id, lot_no, ), end='', verbose=3)
+        if lot[F250.wrhse_id] != '0SON':
+            print('skipping -- wrong warehouse (%r)' % (lot[F250.wrhse_id], ), verbose=3)
             continue
-        print('processing %s' % (lot_no, ), verbose=2)
+        if not lot_no:
+            print('skipping -- missing lot number (%r)' % (lot, ), verbose=3)
+            continue
+        if not valid_lot.match(lot_no):
+            print('skipping -- invalid lot number', verbose=3)
+            continue
         values['qty_remain'] = lot[F250.qty_on_hand]
         values['date_received'] = guess_date(lot[F250.prod_receipt_date])
-        prod_xml_id = lot[F250.item_id]
         if prod_xml_id in product_codes:
             prod_id = product_codes[prod_xml_id]
         elif prod_xml_id in default_product_codes:
             prod_id = default_product_codes[prod_xml_id]
         else:
             # no proper item, ignore lot
+            print('skipping -- product %r not in OpenERP' % (prod_xml_id, ), verbose=3)
             continue
         seen_lots.add(lot_no)
         values['product_id'] = prod_id
         if lot_no in oe_lots:
             # update existing record
             id = oe_lots[lot_no].id
-            print('  updating with:', values, verbose=2)
+            print('  updating with:', values, verbose=3)
             product_lot.write(id, values, context=context)
             if values['qty_remain'] == 0:
                 zeroed += 1
             else:
                 changed += 1
         else:
-            print('  creating with:', values, verbose=2)
+            print('  creating with:', values, verbose=3)
             oe_lots[lot_no] = AttrDict(**values)
             oe_lots[lot_no].id = product_lot.create(values, context=context)
             added += 1
