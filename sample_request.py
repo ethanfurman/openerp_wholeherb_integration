@@ -58,7 +58,7 @@ class sample_product(osv.Model):
         'product_lot_used_id': fields.many2one(
                 'wholeherb_integration.product_lot',
                 string='Used Lot #',
-                domain="[('product_id','=',product_id)]",
+                domain="[('product_id','=',product_id),('lot_no_valid','=',True)]",
                 ),
         'product_lot_used': fields.function(
                 _get_requested_lot,
