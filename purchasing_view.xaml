@@ -116,7 +116,7 @@
             @view_type: form
             @view_id ref='purchasing_lot_tree_view'
             @view_mode: list,form
-            @domain eval="[('lot_no_valid','=',True)]"
+            @domain eval="[]"
 
         ~menuitem @Lots #purchasing_lot_views parent='wholeherb_integration_purchasing' action='purchase_lot_normal_action' groups='base.group_sale_salesman' sequence='10' 
 
