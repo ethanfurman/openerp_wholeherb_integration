@@ -405,15 +405,6 @@ class product_lot(osv.Model):
         'create_uid': fields.many2one('res.users', string='Lot # created by', readonly=True),
         }
 
-    def create(self, cr, uid, values, context=None):
-        if 'lot_no' in values:
-            values['lot_no_valid'] = self._validate_lot_no(values['lot_no'])
-        return super(product_lot, self).create(cr, uid, values, context=context)
-
-    def write(self, cr, uid, ids, values, context=None):
-        if 'lot_no' in values:
-            values['lot_no_valid'] = self._validate_lot_no(values['lot_no'])
-        return super(product_lot, self).write(cr, uid, ids, values, context=context)
 
 class product_traffic(osv.Model):
     _name = 'wholeherb_integration.product_traffic'
