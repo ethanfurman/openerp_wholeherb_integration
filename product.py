@@ -2,17 +2,19 @@ from fnx.xid import xmlid
 from dbf import Date
 from VSS.BBxXlate.fisData import fisData
 from VSS.address import NameCase
-from VSS.utils import translator, contains_any
-from openerp.tools import SUPERUSER_ID
+from VSS.utils import translator
+from openerp.tools import SUPERUSER_ID, self_ids
 from osv import osv, fields
 import enum
 import logging
+import re
 
 _logger = logging.getLogger(__name__)
 
 CONFIG_ERROR = "Cannot sync products until  Settings --> Configuration --> FIS Integration --> %s  has been specified."
 
 lose_digits = translator(delete='0123456789')
+valid_lot = re.compile('^M?\d{1,6}(F|HT|S|ST|)?$')
 
 def warehouses(rec):
     return rec[P.warehouse] in ('0SON','0PRO','0QAH','0INP','0EXW','0GLD')
@@ -358,29 +360,11 @@ class product_lot(osv.Model):
     _rec_name = 'lot_no'
     _order = 'lot_no desc'
 
-    def _check_unique_lot_num(self, cr, uid, ids, context=None):
-        "make sure we don't have duplicate valid lot numbers"
-        if isinstance(ids, (int, long)):
-            ids = [ids]
-        valid_ids = set()
-        for record in self.browse(cr, uid, self.search(cr, uid, [(1,'=',1)], context=context), context=context):
-            if record.lot_no_valid:
-                if record.lot_no in valid_ids:
-                    return False
-                valid_ids.add(record.lot_no)
-        return True
-
-    def _validate_lot_no(self, lot_no):
-        "return True if lot_no is a good lot number"
-        if isinstance(lot_no, basestring):
-            text = lot_no.strip(' \t\'"\n').upper()
-            if ( not text
-              or not text.startswith(('0', '1', '3', 'P', 'A', 'C', 'F', 'G', 'L', 'M', 'R'))
-              or not 4 < len(text) < 9
-              or contains_any(text, '/', ' ', '(', ')')):
-                return False
-            return True
-        return False
+    def _validate_lot_no(self, cr, uid, ids, field_name, arg, context=None):
+        res = {}
+        for rec in self.browse(cr, uid, ids, context=context):
+            res[rec.id] = bool(valid_lot.match(rec.lot_no))
+        return res
 
     _columns = {
         'lot_no': fields.char('Lot #', size=10),
@@ -407,7 +391,15 @@ class product_lot(osv.Model):
             'lid',
             'Country of Origin',
             ),
-        'lot_no_valid': fields.boolean('Unique lot number'),
+        'lot_no_valid': fields.function(
+            _validate_lot_no,
+            help='lot number matches pattern "^M?\d{1,6}(F|HT|S|ST|)?$"',
+            type='boolean',
+            string='Valid lot number?',
+            store={
+                'wholeherb_integration.product_lot': (self_ids, ['lot_no'], 10),
+                },
+            ),
         'preship_lot': fields.boolean('Pre-Ship lot?'),
         'create_date': fields.datetime('Lot # created on', readonly=True, track_visibility='onchange'),
         'create_uid': fields.many2one('res.users', string='Lot # created by', readonly=True),
