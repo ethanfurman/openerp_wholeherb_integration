@@ -31,10 +31,10 @@
                                     @qty_recd_uom_id
                     ~page $Sales position='after'
                         ~page $Documents
-                            ~seperator $Certificates_of_Analysis
-                            @c_of_a
-                            ~seperator $Safety_Data_Sheets
-                            @sds
+                            ~separator $Certificates_of_Analysis attrs="{'invisible': [('c_of_a','=',False)]}"
+                            @c_of_a attrs="{'invisible': [('c_of_a','=',False)]}"
+                            ~separator $Safety_Data_Sheets attrs="{'invisible': [('sds','=',False)]}"
+                            @sds attrs="{'invisible': [('sds','=',False)]}"
 
                     // ~page $Sales position='after'
                     //     ~page $Ingredients
