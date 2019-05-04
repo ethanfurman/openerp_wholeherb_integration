@@ -1,3 +1,4 @@
+from fnx_fs.fields import files
 from fnx.xid import xmlid
 from dbf import Date
 from VSS.BBxXlate.fisData import fisData
@@ -141,7 +142,10 @@ class product_template(osv.Model):
 class product_product(xmlid, osv.Model):
     'Adds Available column and sold_by columns'
     _name = 'product.product'
-    _inherit = 'product.product'
+    _inherit = ['product.product', 'fnx_fs.fs']
+
+    _fnxfs_path = 'product'
+    _fnxfs_path_fields = ['xml_id', 'name']
 
     def _product_available(self, cr, uid, ids, field_names=None, arg=False, context=None):
         if context is None:
@@ -194,9 +198,17 @@ class product_product(xmlid, osv.Model):
             ),
         'product_is_blend' : fields.boolean('Product is blend'),
         'lot_ids': fields.one2many('wholeherb_integration.product_lot', 'product_id', 'Lots'),
-        'c_of_a': fields.html(string='Certificates of Analysis'),
-        'sds': fields.html(string='Safety Data Sheets'),
+        'fnxfs_files': files('general', string='Available Files'),
+        'c_of_a': files('c_of_a', string='Certificates of Analysis'),
+        'sds': files('sds', string='Safety Data Sheets'),
         }
+
+    def fnxfs_folder_name(self, records):
+        "return name of folder to hold related files"
+        res = {}
+        for record in records:
+            res[record['id']] = record['xml_id'] or ("%s-%d" % (record['name'], record['id']))
+        return res
 
     def button_fis_refresh(self, cr, uid, ids, context=None):
         if isinstance(ids, (int, long)):
