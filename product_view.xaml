@@ -32,9 +32,9 @@
                     ~page $Sales position='after'
                         ~page $Documents
                             ~separator $Certificates_of_Analysis attrs="{'invisible': [('c_of_a','=',False)]}"
-                            @c_of_a attrs="{'invisible': [('c_of_a','=',False)]}"
+                            @c_of_a attrs="{'invisible': [('c_of_a','=',False)]}" options="{'no_embed': True}"
                             ~separator $Safety_Data_Sheets attrs="{'invisible': [('sds','=',False)]}"
-                            @sds attrs="{'invisible': [('sds','=',False)]}"
+                            @sds attrs="{'invisible': [('sds','=',False)]}" options="{'no_embed': True}"
 
                     // ~page $Sales position='after'
                     //     ~page $Ingredients
