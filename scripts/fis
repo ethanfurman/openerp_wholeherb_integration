@@ -405,7 +405,7 @@ table_keys = {
     328: '10%s000010000',
     }
 
-valid_lot = re.compile('^M?\d{1,6}(F|HT|S|ST|)?$')
+invalid_lot = re.compile('^new|po', re.I)
 
 def update_customers(contacts, state_recs, country_recs_name, search_key):
     context = {
@@ -929,7 +929,7 @@ def update_lots():
         if not lot_no:
             print('skipping -- missing lot number (%r)' % (lot, ), verbose=3)
             continue
-        if not valid_lot.match(lot_no):
+        if invalid_lot.match(lot_no):
             print('skipping -- invalid lot number', verbose=3)
             continue
         values['qty_remain'] = lot[F250.qty_on_hand]
