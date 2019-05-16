@@ -26,13 +26,9 @@
                     @product_id position='replace'
                         @product_id
                          | options="{'create_edit':true}"
-                    @product_lot_requested position='replace'
-                        @product_lot_requested_id
+                    @product_lot position='replace'
+                        @product_lot_id
                          | options="{'create_edit':true}"
                          | context="{'default_product_id': product_id}"
-                    @product_lot_used position='replace'
-                        @product_lot_used_id
-                         | options="{'create_edit':true}"
-                         | context="{'default_product_id': product_id}"
-                    ~xpath expr="//button[@name='button_same_lot_no']" position='attributes'
-                        ~attribute @attrs: {'invisible': ['|','|',('request_state','!=','production'),('product_lot_requested_id','=',False),('product_lot_used_id','!=', False)]}
+
+

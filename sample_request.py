@@ -40,45 +40,22 @@ class sample_product(osv.Model):
 
     _columns = {
         'product_id': fields.many2one(),
-        'product_lot_requested_id': fields.many2one(
+        'product_lot_id': fields.many2one(
                 'wholeherb_integration.product_lot',
-                string='Requested Lot #',
+                string='Lot # ID',
                 domain="[('product_id','=',product_id),('qty_remain','>',0)]",
+                old_name='product_lot_requested_id',
                 ),
-        'product_lot_requested': fields.function(
+        'product_lot': fields.function(
                 _get_requested_lot,
                 type='char',
+		string='Lot Number',
                 store={
                     'sample.product':
-                        (lambda s, c, u, ids, ctx: ids, ['product_lot_requested_id'], 10),
+                        (lambda s, c, u, ids, ctx: ids, ['product_lot_id'], 10),
                     'product.product':
                         (_get_changed_sample_product_ids, ['default_code', 'name'], 15),
                     },
-                ),
-        'product_lot_used_id': fields.many2one(
-                'wholeherb_integration.product_lot',
-                string='Used Lot #',
-                domain="[('product_id','=',product_id),('lot_no_valid','=',True)]",
-                ),
-        'product_lot_used': fields.function(
-                _get_requested_lot,
-                type='char',
-                store={
-                    'sample.product':
-                        (lambda s, c, u, ids, ctx: ids, ['product_lot_used_id'], 10),
-                    'product.product':
-                        (_get_changed_sample_product_ids, ['default_code', 'name'], 15),
-                    },
+                old_name='product_lot_requested'
                 ),
         }
-
-    def button_same_lot_no(self, cr, uid, ids, context=None):
-        if isinstance(ids, (int, long)):
-            ids = [ids]
-        for product in self.read(cr, uid, ids, fields=['id', 'product_lot_requested_id'], context=context):
-            self.write(
-                    cr, uid,
-                    product['id'],
-                    {'product_lot_used_id': product['product_lot_requested_id'][0]},
-                    context=context,
-                    )
