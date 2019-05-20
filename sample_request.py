@@ -49,7 +49,7 @@ class sample_product(osv.Model):
         'product_lot': fields.function(
                 _get_requested_lot,
                 type='char',
-		string='Lot Number',
+                string='Lot Number',
                 store={
                     'sample.product':
                         (lambda s, c, u, ids, ctx: ids, ['product_lot_id'], 10),
@@ -58,4 +58,13 @@ class sample_product(osv.Model):
                     },
                 old_name='product_lot_requested'
                 ),
+        'product_lot_cofo_ids': fields.related(
+            'product_lot_id', 'cofo_ids',
+            relation='res.country',
+            rel='lot_country_rel',
+            id1='cid',
+            id2='lid',
+            type='many2many',
+            string='Origin Countries',
+            ),
         }

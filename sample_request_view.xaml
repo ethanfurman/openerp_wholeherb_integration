@@ -1,12 +1,13 @@
 !!!xml1.0
 
+-act_window = 'ir.actions.act_window'
 -view = 'ir.ui.view'
 
 ~openerp
     ~data noupdate='0'
 
         ~record model=view #sample_request_xmlid_form
-            @name: sample.request.xmlid_form
+            @name: wholeherb_integration.sample.request.xmlid_form
             @model: sample.request
             @inherit_id ref='sample.sample_request_form'
             @priority eval='13'
@@ -17,8 +18,8 @@
                     ~attribute @domain: [('ship_to_parent_id','=','partner_id')]
 
 
-       ~record model=view #sample_product_list_full
-            @name: sample.product.list
+        ~record model=view #sample_product_list_full
+            @name: wholeherb_integration.sample.product.list
             @model: sample.product
             @inherit_id ref='sample.sample_product_list_full'
             @priority eval='15'
@@ -30,5 +31,6 @@
                         @product_lot_id
                          | options="{'create_edit':true}"
                          | context="{'default_product_id': product_id}"
+                        @product_lot_cofo_ids
 
 
