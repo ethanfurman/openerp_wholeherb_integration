@@ -34,3 +34,30 @@
                         @product_lot_cofo_ids
 
 
+        ~record model=view #sample_product_search_filter
+            @name: wholeherb_integration.sample.product.search
+            @model: sample.product
+            @arch type='xml'
+                ~search $Search_Product_Lot
+                    @request_ref_num $Sample_Number
+                    @product_lot $Lot_Used
+                    @product_id $Product
+                    @request_company $Company
+                    @request_contact $Contact
+                    ~group $Group_by... expand='0'
+                        ~filter $Company context="{'group_by': 'request_company'}" domain='[]'
+                        ~filter $Product context="{'group_by': 'product_id'}" domain='[]'
+                        ~filter $Lot context="{'group_by': 'product_lot'}" domain='[]'
+                        ~filter $Request context="{'group_by': 'request_ref_num'}"
+
+
+        ~record model=act_window #sample_product_action
+            @name: Sample Product Lots
+            @res_model: sample.product
+            @view_type: form
+            @view_mode: tree, form
+            @search_view_id ref='sample_product_search_filter'
+            @context: {'combine_company': False}
+            @domain: [('product_lot','!=',False)]
+
+        ~menuitem name='Sample Product Lots' #menu_sales_sample parent='sample.sample_sub' action='sample_product_action'
