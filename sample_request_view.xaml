@@ -1,7 +1,8 @@
 !!!xml1.0
 
--act_window = 'ir.actions.act_window'
 -view = 'ir.ui.view'
+-act_window = 'ir.actions.act_window'
+-act_window_view = 'ir.actions.act_window.view'
 
 ~openerp
     ~data noupdate='0'
@@ -55,9 +56,22 @@
             @name: Sample Product Lots
             @res_model: sample.product
             @view_type: form
+            @view_id ref='sample.sample_product_list'
             @view_mode: tree, form
             @search_view_id ref='sample_product_search_filter'
             @context: {'combine_company': False}
             @domain: [('product_lot','!=',False)]
 
-        ~menuitem name='Sample Product Lots' #menu_sales_sample parent='sample.sample_sub' action='sample_product_action'
+        ~record model=act_window_view #sample_product_list_view_action
+            @sequence eval='20'
+            @view_mode: tree
+            @view_id ref='sample.sample_product_list'
+            @act_window_id ref='sample_product_action'
+
+        ~record model=act_window_view #sample_product_form_view_action
+            @sequence eval='21'
+            @view_mode: form
+            @view_id ref='sample.sample_product_form'
+            @act_window_id ref='sample_product_action'
+
+        ~menuitem name='Sample Product Lots' #menu_sales_sample_product_lot parent='sample.sample_sub' action='sample_product_action'
