@@ -31,7 +31,7 @@
                         @product_lot_id
                          | options="{'create_edit':true}"
                          | context="{'default_product_id': product_id}"
-                        @product_lot_cofo_ids
+                        @product_lot_cofo_ids attrs="{'invisible': [('product_lot_id','=',False)]}"
 
 
         ~record model=view #sample_product_search_filter
