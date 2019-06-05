@@ -35,6 +35,16 @@
                         @product_lot_cofo_ids attrs="{'invisible': [('product_lot_id','=',False)]}"
 
 
+        ~record model=view #sample_product_form
+            @name: wholeherb_integration.sample.product.form
+            @model: sample.product
+            @inherit_id ref='sample.sample_product_form'
+            @priority eval='23'
+            @arch type='xml'
+                @product_lot position='after'
+                    @product_lot_cofo_ids
+
+
         ~record model=view #sample_product_search_filter
             @name: wholeherb_integration.sample.product.search
             @model: sample.product
@@ -71,7 +81,7 @@
         ~record model=act_window_view #sample_product_form_view_action
             @sequence eval='21'
             @view_mode: form
-            @view_id ref='sample.sample_product_form'
+            @view_id ref='wholeherb_integration.sample_product_form'
             @act_window_id ref='sample_product_action'
 
         ~menuitem name='Sample Product Lots' #menu_sales_sample_product_lot parent='sample.sample_sub' action='sample_product_action'
