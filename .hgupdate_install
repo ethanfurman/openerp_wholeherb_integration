@@ -1,1 +1,3 @@
+scripts/oe-export
 scripts/fis
+scripts/fnx_script_support.py
