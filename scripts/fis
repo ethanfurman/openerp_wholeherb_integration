@@ -513,8 +513,9 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
             res_partner.write(id, result, context=context)
         else:
             active_count += 1
-            id = res_partner.create(result, context=context)
+            result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'csms_%s_res_partner'%key.replace('.','_')}
             print('creating with:', result, verbose=2)
+            id = res_partner.create(result, context=context)
             customer_codes[key] = id
         cus_id = id
         default_ship_to = result.copy()
@@ -542,6 +543,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
                 id = customer_codes[contact_key]
                 res_partner.write(id, result, context=context)
             else:
+                result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'csms_cntct_%s_res_partner'%key.replace('.','_')}
                 print('creating contact with:', result, verbose=2)
                 id = res_partner.create(result, context=context)
                 customer_codes[contact_key] = id
@@ -612,6 +614,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
                 id = customer_ship_tos[ship_to_key]
                 res_partner.write(id, result, context=context)
             else:
+                result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'csmsbs_%s_res_partner'%ship_to_key.replace('.','_')}
                 print('creating ship-to with:', result, verbose=2)
                 id = res_partner.create(result, context=context)
                 customer_ship_tos[ship_to_key] = id
@@ -680,6 +683,7 @@ def update_suppliers(contacts, state_recs, country_recs_name ):
             del result['fis_valid']
             res_partner.write(id, result, context=context)
         else:
+            result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'posm_%s_res_partner'%key.replace('.','_')}
             id = res_partner.create(result, context=context)
             supplier_codes[key] = id
 
@@ -742,6 +746,7 @@ def update_vendors(contacts, state_recs, country_recs_name ):
             del result['fis_valid']
             res_partner.write(id, result, context=context)
         else:
+            result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'vnms_%s_res_partner'%key.replace('.','_')}
             id = res_partner.create(result, context=context)
             vendor_codes[key] = id
 
@@ -804,6 +809,7 @@ def update_carriers(contacts, state_recs, country_recs_name ):
             del result['fis_valid']
             res_partner.write(id, result, context=context)
         else:
+            result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'cnvzsv_%s_res_partner'%key.replace('.','_')}
             id = res_partner.create(result, context=context)
             carrier_codes[key] = id
 
@@ -866,6 +872,7 @@ def update_employees(contacts, state_recs, country_recs_name ):
             del result['fis_valid']
             res_partner.write(id, result, context=context)
         else:
+            result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'emp1_%s_res_partner'%key.replace('.','_')}
             id = res_partner.create(result, context=context)
             employee_codes[key] = id
 
@@ -892,6 +899,7 @@ def update_products():
             print('  updating with:', values, verbose=2)
             product.write(id, values, context=context)
         else:
+            result['imd_info'] = {'module':'whc', 'model':'product.product', 'name':'nvty_%s_product_product'%key.replace('.','_')}
             print('  creating with:', values, verbose=2)
             product_codes[key] = product.create(values, context=context)
 
@@ -954,6 +962,7 @@ def update_lots():
             else:
                 changed += 1
         else:
+            result['imd_info'] = {'module':'whc', 'model':'wholeherb_integration.product_lot', 'name':'nvba_%s_product_lot'%key.replace('.','_')}
             print('  creating with:', values, verbose=3)
             oe_lots[lot_no] = AttrDict(**values)
             oe_lots[lot_no].id = product_lot.create(values, context=context)

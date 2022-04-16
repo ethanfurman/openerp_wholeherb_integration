@@ -1,0 +1,222 @@
+!!! xml1.0
+~openerp
+    ~data
+
+
+        // top menu item
+        ~menuitem name='InHouse' #inhouse_root_menu sequence='47'
+
+        // first menu item
+        ~menuitem name='InHouse' #inhouse_main_menu parent='inhouse_root_menu' sequence='10'
+
+
+        // Product In Info views
+        ~record model='ir.ui.view' #inhouse_product_in_form
+            @name: inhouse.product_in.view.form
+            @model: inhouse.product_in
+            @type: form
+            @arch type='xml'
+                ~form string='Product In' version='7.0'
+                    ~header
+                        @voided .oe_highlight .oe_right .oe_bold attrs="{'invisible': [('voided','=',False)], 'readonly':True}"
+                    ~group col='6'
+                        ~group colspan='2'
+                            @process_number
+                        ~group colspan='2'
+                            @date_in
+                        ~group colspan='2'
+                            @product_id
+                    ~notebook colspan='4'
+                        ~page string='General Info'
+                            ~group
+                                ~group
+                                    @process
+                                    @reason
+                                    @equip_to_use
+                                    @screen_size
+                                ~group
+                                    @customer
+                                ~group
+                                    @raw_lot_number
+                                    @net_weight_in
+                                    @designated_pack
+                                    @alcohol_wash
+                                ~group
+                                    @treatment
+                            ~label for='comment' $Comments
+                            @comment
+                        ~page string='Job Time'
+                            @job_time_process_number_ids nolabel='1'
+                        ~page string='Finished Product Info'
+                            @product_out_process_number_ids nolabel='1'
+
+
+        ~record model='ir.ui.view' #inhouse_product_in_tree
+            @name: inhouse.product_in.view.tree
+            @model: inhouse.product_in
+            @type: tree
+            @arch type='xml'
+                ~tree string='Product In'
+                    @process_number
+                    @date_in
+                    @product_id
+                    @process
+                    @equip_to_use
+                    @customer
+                    @voided
+
+        ~record model='ir.ui.view' #inhouse_product_in_search
+            @name: inhouse.product_in.view.search
+            @model: inhouse.product_in
+            @type: search
+            @arch type='xml'
+                ~search string='Product In'
+                    @process_number
+                    @process
+                    @equip_to_use
+                    @product_id
+                    @raw_lot_number
+                    @customer
+                    @voided
+
+        ~record model='ir.actions.act_window' #action_inhouse_product_in
+            @name: Product In
+            @res_model: inhouse.product_in
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='inhouse_product_in_tree'
+
+        ~menuitem $Product_In #inhouse_product_in_menu parent='inhouse_main_menu' action='action_inhouse_product_in'
+
+        // Job Time views
+        ~record model='ir.ui.view' #inhouse_job_time_form
+            @name: inhouse.job_time.view.form
+            @model: inhouse.job_time
+            @type: form
+            @arch type='xml'
+                ~form string='Job Time' version='7.0'
+                    ~group
+                        ~group
+                            @process_number_id
+                            @product_id
+                            @lot_number_raw
+                            @lot_number_finished
+                        ~group
+                            @equipment_prep_time
+                            @stage_product_time
+                            @packaging_time
+                            @wt_check_time
+                            @qc_check_time
+                            @run_man_hours
+                            @machine_run_time
+                            @equip_disassembly_time
+                            @equip_clean_time
+                            @area_clean_time
+                            @other_time
+                            @total_man_hours
+
+
+        ~record model='ir.ui.view' #inhouse_job_time_tree
+            @name: inhouse.job_time.view.tree
+            @model: inhouse.job_time
+            @type: tree
+            @arch type='xml'
+                ~tree string='Job Time'
+                    @process_number_id
+                    @lot_number_raw
+                    @lot_number_finished
+                    @product_id
+                    @total_man_hours
+
+        ~record model='ir.ui.view' #inhouse_job_time_search
+            @name: inhouse.job_time.view.search
+            @model: inhouse.job_time
+            @type: search
+            @arch type='xml'
+                ~search string='Job Time'
+                    @process_number_id
+                    @lot_number_raw
+                    @lot_number_finished
+                    @product_id
+
+        ~record model='ir.actions.act_window' #action_inhouse_job_time
+            @name: Job Time
+            @res_model: inhouse.job_time
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='inhouse_job_time_tree'
+
+        ~menuitem $Job_Time #inhouse_job_time_menu parent='inhouse_main_menu' action='action_inhouse_job_time'
+
+        // Finished Product Info views
+        ~record model='ir.ui.view' #inhouse_product_out_form
+            @name: inhouse.product_out.view.form
+            @model: inhouse.product_out
+            @type: form
+            @arch type='xml'
+                ~form string='Finished Product' version='7.0'
+                    ~header
+                        @voided .oe_highlight .oe_right .oe_bold attrs="{'invisible': [('voided','=',False)], 'readonly':True}"
+                    ~group
+                        ~group
+                            @process_number_id
+                            @product_id
+                            @date_finished
+                            @released_for_sale
+                        ~group
+                            @lot_number_finished1
+                            @finished_lbs
+                            @finished_pack
+                            @treatment
+                            @magnetic_lbs
+                            @waste_lbs
+                        ~group
+                            @overs
+                            @lot_number_overs
+                            @overs_lbs
+                            @overs_pack
+                        ~group
+                            @unders
+                            @lot_number_unders
+                            @unders_lbs
+                            @unders_pack
+                        ~group
+                            @total_liners_used
+                    ~label for='comments' $Comment
+                    @comments
+
+
+        ~record model='ir.ui.view' #inhouse_product_out_tree
+            @name: inhouse.product_out.view.tree
+            @model: inhouse.product_out
+            @type: tree
+            @arch type='xml'
+                ~tree string='Finished Product'
+                    @process_number_id
+                    @product_id
+                    @lot_number_finished1
+                    @lot_number_overs
+                    @lot_number_unders
+                    @voided
+
+        ~record model='ir.ui.view' #inhouse_product_out_search
+            @name: inhouse.product_out.view.search
+            @model: inhouse.product_out
+            @type: search
+            @arch type='xml'
+                ~search string='Finished Product'
+                    @process_number_id
+                    @product_id
+                    @lot_number_finished1
+                    @lot_number_overs
+                    @lot_number_unders
+                    @voided
+
+        ~record model='ir.actions.act_window' #action_inhouse_product_out
+            @name: Finished Product
+            @res_model: inhouse.product_out
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='inhouse_product_out_tree'
+
+        ~menuitem $Finished_Product #whc_inhouse_product_out_menu parent='inhouse_main_menu' action='action_inhouse_product_out'

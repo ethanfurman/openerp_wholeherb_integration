@@ -1,3 +1,3 @@
 scripts/oe-export
 scripts/fis
-scripts/fnx_script_support.py
+scripts/fnx_script_support.py /$virtualenv/lib/python2.7/site-packages/fnx_script_support.py
