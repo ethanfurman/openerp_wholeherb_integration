@@ -201,6 +201,8 @@ class product_product(xmlid, osv.Model):
         'fnxfs_files': files('general', string='Available Files'),
         'c_of_a': files('c_of_a', string='Certificates of Analysis'),
         'sds': files('sds', string='Safety Data Sheets'),
+        'create_date': fields.datetime('Product created on', readonly=True),
+        'create_uid': fields.many2one('res.users', string='Product created by', readonly=True),
         }
 
     def fnxfs_folder_name(self, records):
