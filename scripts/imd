@@ -1,0 +1,382 @@
+#!/usr/local/sbin/suid-python --virtualenv
+"""
+Work with the ir.model.data file
+"""
+from __future__ import print_function
+
+from aenum import Enum
+from antipathy import Path
+from openerplib import get_connection, get_records
+from os import environ
+from scription import *
+from VSS.address import NameCase, name_chars
+from VSS.BBxXlate.fisData import fisData
+
+import re
+
+valid_lot = Var(lambda hay: re.match('^M?\d{1,6}(F|HT|S|ST|)?$', hay))
+
+@Script()
+def main():
+    global oe, config, ir_model_data, admin_user, fis_user
+    virtual_env = environ['VIRTUAL_ENV']
+    config = OrmFile(Path('%s/config/fnx.ini' % virtual_env), types={'_path':Path})
+    oe = get_connection(
+            database=config.openerp.db,
+            login=config.openerp.user,
+            password=config.openerp.pw,
+            hostname=config.openerp.host,
+            )
+    ir_model_data = oe.get_model('ir.model.data')
+    admin_user = ir_model_data.read([('module','=','base'),('name','=','user_root')], fields=['res_id'])[0]['res_id']
+    fis_user = oe.get_model('res.users').read([('login','=','fis_daemon')], fields=['id'])[0]['id']
+
+@Command(
+        )
+def fix_duplicates():
+    """
+    fix duplicate products, and update lots, traffic, samples, blends, etc.
+    """
+    # first do product.product, then product.log
+    #
+    # for product.product:
+    # - get FIS record
+    # - get group of possibly matching OE records
+    # - if no direct xml_id/module match in group, pick one
+    # - assign new FISTABLE_keyfield_OETABLE to imd
+    # - for each table linking to product.product (whc.product_lot, whc.product_traffic, whc.blend_ingredient)
+    #   - get all records that link to any of this group of matching records
+    #   - update each record with the canonical version
+    # - mark each duplicate product.product record as inactive
+    # - print simple summary
+    #
+    # for whc.product_lot
+    # - get FIS record
+    # - get group of possibly matching OE records
+    # - if no direct xml_id/module match in group, pick one created by FIS user/randomly
+    # - assign new FISTABLE_keyfield_OETABLE to imd
+    # - mark duplicates as inactive
+    #
+    import re
+    oe_product = oe.get_model('product.product')
+    oe_traffic = oe.get_model('wholeherb_integration.product_traffic')
+    oe_followers = oe.get_model('mail.followers')
+    oe_message = oe.get_model('mail.message')
+    oe_lot = oe.get_model('wholeherb_integration.product_lot')
+    oe_blend_ingredient = oe.get_model('wholeherb_integration.blend_ingredient')
+    oe_preship = oe.get_model('wholeherb_integration.preship_sample')
+    oe_sample = oe.get_model('sample.product')
+    #
+    oe_records = oe_product.read([(1,'=',1)], fields=['xml_id', 'module', 'name', 'latin', 'default_code', 'message_follower_ids', 'message_ids','create_uid'])
+    # oe_records = oe_product.read(['|','|',('xml_id','=','BUT1000'),('default_code','=','BUT10000'),('name','ilike','BUT10000')], fields=['xml_id', 'module', 'name', 'latin', 'default_code', 'message_follower_ids', 'message_ids'])
+    # two passes through oe_records to create {xml_id/module: record_ids}
+    fis_keys = {}
+    fis_names = {}
+    match = Var(re.match)
+    normalized = Var(normalize)
+    by_xml = 0
+    by_xml_in_default = 0
+    by_xml_in_name = 0
+    by_name = 0
+    dupes = 0
+    fixed = 0
+    echo('PRODUCTS')
+    for rec in ViewProgress(oe_records, '$total OE records'):
+        if rec.xml_id:
+            by_xml += 1
+            master_list = fis_keys.setdefault(rec.xml_id, [])
+            master_list.append(rec)
+            if normalized(rec.name):
+                fis_names[normalized()] = master_list
+    no_id = []
+    for rec in ViewProgress(oe_records, '$total OE records'):
+        if not rec.xml_id:
+            # look for an xml_id in the name
+            if match(r"\[?(\w{3}\d{5})\]? (.*)", rec.name or ''):
+                by_xml_in_name += 1
+                xml_id, name = match.groups()
+                master_list = fis_keys.setdefault(xml_id, [])
+                master_list.append(rec)
+                if normalized(name):
+                    fis_names[normalized()] = master_list
+            # look for an xml_id in default_code
+            elif match(r"\[?(\w{3}\d{5})\]?", rec.default_code or ''):
+                by_xml_in_default += 1
+                xml_id, = match.groups()
+                master_list = fis_keys.setdefault(xml_id, [])
+                master_list.append(rec)
+                if normalized(rec.name):
+                    fis_names[normalized()] = master_list
+            else:
+                no_id.append(rec)
+    # and one pass to try and match by name
+    lost = []
+    for rec in ViewProgress(no_id, '$total records with no xml_id'):
+        name = normalize(rec.name)
+        matches = fis_names.get(name)
+        if matches:
+            by_name += 1
+            matches.append(rec)
+        else:
+            lost.append(rec)
+    
+    counts = {}
+    duplicate_traffic = 0
+    for xml_id, records in ViewProgress(fis_keys.items(), '$total unique xml_ids'):
+        values = {}
+        module = 'NVTY'
+        # collect all followers and messages
+        message_followers = list(set(sum((r.message_follower_ids for r in records), [])))
+        messages = sum((r.message_ids for r in records), [])
+        # pick a record created by admin or fis_daemon
+        for i, rec in enumerate(records):
+            if rec.create_uid in (admin_user, fis_user):
+                primary = records.pop(i)
+                break
+        else:
+            primary = records.pop(0)
+        # fix empty xml_id?
+        if not primary.xml_id:
+            primary.xml_id = xml_id
+            oe_product.write(primary.id, {'xml_id': xml_id, 'module': 'NVTY'})
+            fixed += 1
+        if not records:
+            # nothing more to do
+            continue
+        secondary_ids = [r.id for r in records]
+        dupes += len(secondary_ids)
+        p = primary
+        # messages and followers first
+        affected_ids = oe_followers.search([('res_model','=','product.product'),('res_id','in',secondary_ids)])
+        if affected_ids:
+            oe_followers.write(affected_ids, {'res_id': p.id})
+        affected_ids = oe_message.search([('model','=','product.product'),('res_id','in',secondary_ids)])
+        if affected_ids:
+            oe_message.write(affected_ids, {'res_id': p.id})
+        merge_traffic(primary.id, secondary_ids)
+        for table in (oe_lot, oe_blend_ingredient, oe_preship, oe_sample):
+            affected_ids = table.search([('product_id','in',secondary_ids)])
+            if not affected_ids:
+                continue
+            counts.setdefault(table, 0)
+            counts[table] += len(affected_ids)
+            table.unlink(affected_ids)
+        oe_product.unlink(secondary_ids)
+    echo('matches by:\n    xml: %r\n    xml in default code: %r\n    xml in name: %r\n    name: %r' % (by_xml, by_xml_in_default, by_xml_in_name, by_name))
+    echo('duplicates: %r' % dupes)
+    echo('fixed: %r' % fixed)
+    echo('affected tables:\n    %s' % '\n    '.join('%s:  %s' % (k.model_name, v) for k, v in counts.items()))
+    #
+    echo('\n\nLOTS')
+    fis_keys = {}
+    oe_records = oe_lot.read([('lot_no_valid','=',True)])
+    oe_records.sort(key=lambda r: (r.lot_no, r.create_date))
+    dupes = 0
+    invalids = 0
+    for rec in ViewProgress(oe_records, '$total OE records'):
+        if not valid_lot(rec.lot_no):
+            invalids += 0
+            continue
+        master_list = fis_keys.setdefault(rec.lot_no, [])
+        master_list.append(rec)
+    for lot_no, records in ViewProgress(fis_keys.items(), '$total unique lot numbers'):
+        if len(lot_no) < 2:
+            continue
+        primary = records.pop(0)
+        secondary_ids = [r.id for r in records]
+        dupes += len(secondary_ids)
+        oe_lot.unlink(secondary_ids)
+    echo('invalids: %r' % invalids)
+    echo('duplicates: %r' % (len(oe_records)-invalids-len(fis_keys)))
+
+
+@Command(
+        add_missing=Spec('add missing fis bindings', FLAG),
+        )
+def stats(add_missing):
+    """
+    show the number of old-style F??? names vs new-style fis names
+    """
+    print('getting data from OpenERP')
+    # raw_data is a list of records
+    raw_data = get_records(
+            ir_model_data,
+            domain=['|',('module','=','fis'),('module','=like','F%'),('module','!=','FIS_now'),('module','!=','FIS_unfi')],
+            fields=['id','module','name','model','res_id'],
+            )
+    # sorted_data = {'11: product.category': {'fis': {1: rec, 13: rec}, 'integration': {1: rec, 13: rec}}}
+    sorted_data = {}
+    errors = []
+    for rec in ViewProgress(raw_data, message='sorting'):
+        try:
+            if rec.module == 'fis':
+                key = '%3s: %s' % (int(rec.name.split('_')[0][1:]), rec.model)
+                type = 'fis'
+            elif rec.module[0] == 'F':
+                key = '%3s: %s' % (int(rec.module.split('-')[0][1:]), rec.model)
+                type = 'integration'
+            else:
+                raise ValueError('unknown record type')
+        except:
+            errors.append(rec)
+            continue
+        row = sorted_data.setdefault(key, {})
+        row.setdefault(type, {})[rec.res_id] = rec
+    table = [('file #','fis','integration',('missing','added')[add_missing]), None]
+    for table_name in ViewProgress(sorted(sorted_data), message='building table'):
+        fis_integration_records = sorted_data[table_name]
+        fis = fis_integration_records.get('fis', {})
+        integration = fis_integration_records.get('integration', {})
+        missing = 0
+        for res_id in integration:
+            if res_id not in fis:
+                missing += 1
+                if add_missing:
+                    int_rec = integration[res_id]
+                    if int_rec.module in ('F33','F163','F135'):
+                        module = 'F%03d' % int(int_rec.module[1:])
+                        # get the record
+                        for rec in get_records(oe, int_rec.model, fields=['id','xml_id'], domain=[('id','=',int_rec.res_id)]):
+                            if rec.xml_id is None:
+                                name = ('%s_%s_%s' % (module, int_rec.name, int_rec.model)).replace('-','_')
+                            else:
+                                name = ('%s_%s_%s' % (module, rec.xml_id, int_rec.model)).replace('-','_')
+                            ir_model_data.create({
+                                    'module': 'fis',
+                                    'name': name,
+                                    'model': int_rec.model,
+                                    'res_id': int_rec.res_id,
+                                    })
+
+        table.append((table_name, len(fis), len(integration), missing))
+    echo(table, border='table')
+    if errors:
+        echo('\nunable to process:')
+        for err in errors:
+            echo('   %-5s %30s %20s %6s' % (err.module, err.name, err.model, err.res_id))
+
+
+# helpers
+
+def normalize(name):
+    name = name or ''
+    return (' '.join(name.upper().split())).strip()
+
+def info(row):
+    return 'xml id: %r'%row.xml_id, 'module: %r'%row.module, 'name: %r'%row.name, 'latin: %r'%row.latin
+
+def merge_traffic(primary_product_id, other_product_ids):
+    oe_traffic = oe.get_model('wholeherb_integration.product_traffic')
+    all_ids = [primary_product_id] + other_product_ids
+    # get all traffic entries for the product ids
+    # pick the most advanced (by status)
+    # gather all followers from the others
+    # update the others with status=False and product_id=primary
+    # ensure the one kept has the primary product id and all the followers
+    affected_entries = oe_traffic.read(
+            [('product_id','in',all_ids)],
+            fields=['product_id','sales_comment','purchase_comment','state','message_follower_ids','message_ids'],
+            )
+    if affected_entries:
+        for i, ae in enumerate(affected_entries):
+            if ae.product_id == primary_product_id:
+                p = primary_traffic = affected_entries.pop(i)
+                break
+        else:
+            p = primary_traffic = affected_entries.pop()
+            oe_traffic.write(p.id, {'product_id':primary_product_id})
+        rows = []
+        rows.append((
+            p.id, p.product_id, p.sales_comment, p.purchase_comment, p.state,
+            '\n'.join('[%d] %s' % (m.id, m.name) for m in p.message_follower_ids),
+            '\n'.join('[%d] %s' % (m.id, m.name) for m in p.message_ids),
+            ))
+        rows.append(None)
+        rows.append(('id','old product','sales','purchase','state','message_follower_ids','message_ids'))
+        rows.append(None)
+        for e in affected_entries:
+            rows.append((
+                e.id, e.product_id, e.sales_comment, e.purchase_comment, e.state,
+                '\n'.join('[%d] %s' % (m.id, m.name) for m in e.message_follower_ids),
+                '\n'.join('[%d] %s' % (m.id, m.name) for m in e.message_ids),
+                ))
+        if affected_entries:
+            oe_traffic.write([e.id for e in affected_entries], {'state':False, 'product_id':primary_product_id})
+
+def merge_sample(primary_product_id, other_product_ids):
+    pass
+
+def merge_lots(primary_product_id, other_product_ids):
+    pass
+
+def merge_sample(primary_product_id, other_product_ids):
+    pass
+
+def merge_sample(primary_product_id, other_product_ids):
+    pass
+
+
+#eunms
+
+class FISenum(str, Enum):
+    pass
+
+class F135(FISenum):
+    """
+    NVTY - INVENTORY MASTER FILE MAINTENANCE & INQU
+    """
+    company_id              = 'An$(1,2)'       #   0: Company Code
+    item_id                 = 'An$(3,8)'       #   1: Item Code
+    available               = 'Bn$(1,1)'       #   5: Available (Y/N/D/H)
+    product_category        = 'Bn$(4,1)'       #   8: Product Category
+    name                    = 'Cn$'            #  32: Description
+    latin_name              = 'Dn$(33,40)'     #  38: Latin Name
+    on_hand                 = 'I(6)'           #  55: Quantity on hand
+    committed               = 'I(7)'           #  56: Quantity Committed
+    on_order                = 'I(8)'           #  57: Quantity on order
+
+
+class F250(FISenum):
+    """
+    NVBA - INVENTORY LOT CONTROL FILE MAINTENANCE &
+    """
+    #
+    _init_ = "value sequence"
+    _order_ = lambda m: m.sequence
+    #
+    company_id               = 'An$(1,2)',     0     # Company Code
+    item_id                  = 'An$(3,8)',     1     # Item Code
+                                                     # (open) An$(11,4)
+    wrhse_id                 = 'An$(15,4)',    3     # Warehouse Code
+    lot_no                   = 'An$(19,8)',    4     # Lot Number
+    prod_receipt_date        = 'Bn$(1,6)',     5     # Production/Receipt Date
+    hold_date                = 'Bn$(7,6)',     6     # Hold Date
+                                                     # (open) Bn$(13,6)
+    tag_type_id              = 'Cn$(1,2)',     8     # Tag Type Code
+    random_weights           = 'Cn$(3,1)',     9     # Random Weights (Y,sp=no)
+    pack_type                = 'Cn$(4,2)',    10     # Pack Type
+    status_code              = 'Cn$(6,1)',    11     # Status Code (sp/H/C)
+    hold_reason_id           = 'Cn$(7,2)',    12     # Hold Reason Code
+    location                 = 'Cn$(9,2)',    13     # Location
+    comments_part_1          = 'Cn$(11,20)',  14     # Comments Part 1
+    reference_no             = 'Cn$(31,8)',   15     # Reference Number
+    bin_no                   = 'Cn$(39,6)',   16     # Bin Number
+    publ_whse_lot_no         = 'Cn$(44,15)',  17     # Publ Whse Lot No
+    comments_part_2          = 'Cn$(59,30)',  18     # Comments Part 2
+    qty_on_hand              = 'Q(0)',        19     # Quantity on Hand
+    qty_committed            = 'Q(1)',        20     # Quantity Committed
+    qty_on_order             = 'Q(2)',        21     # Quantity on Order
+    standard_lot_cst         = 'Q(3)',        22     # Standard Lot Cost
+    qty_produced             = 'Q(4)',        23     # Quantity Produced
+    qty_on_hold              = 'Q(5)',        24     # Quantity on Hold
+    standard_pack_in_lbs     = 'Q(6)',        25     # Standard Pack in Lbs
+    piece_count              = 'Q(7)',        26     # Piece Count
+    total_net_weight_on_hand = 'Q(8)',        27     # Total Net Weight on Hand
+    beg_bal                  = 'Q(9)',        28     # Beg Bal (temp)
+    net_movement             = 'Q(10)',       29     # Net movement(temp)
+
+
+
+# main
+
+Main()
