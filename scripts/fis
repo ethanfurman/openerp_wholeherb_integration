@@ -899,7 +899,7 @@ def update_products():
             print('  updating with:', values, verbose=2)
             product.write(id, values, context=context)
         else:
-            result['imd_info'] = {'module':'whc', 'model':'product.product', 'name':'nvty_%s_product_product'%key.replace('.','_')}
+            values['imd_info'] = {'module':'whc', 'model':'product.product', 'name':'nvty_%s_product_product'%key.replace('.','_')}
             print('  creating with:', values, verbose=2)
             product_codes[key] = product.create(values, context=context)
 
@@ -962,7 +962,11 @@ def update_lots():
             else:
                 changed += 1
         else:
-            result['imd_info'] = {'module':'whc', 'model':'wholeherb_integration.product_lot', 'name':'nvba_%s_product_lot'%key.replace('.','_')}
+            values['imd_info'] = {
+                    'module':'whc',
+                    'model':'wholeherb_integration.product_lot',
+                    'name':'nvba_%s_wholeherb_integration_product_lot'%prod_xml_id.replace('.','_'),
+                    }
             print('  creating with:', values, verbose=3)
             oe_lots[lot_no] = AttrDict(**values)
             oe_lots[lot_no].id = product_lot.create(values, context=context)
@@ -1165,14 +1169,17 @@ def guess_date(text):
 def get_xml_id_map(model, module, ids=None):
     "return {xml_id: id} for all xml_ids in module"
     imd = oe.get_model('ir.model.data')
+    model = model.replace('.','_')
+    module = module.replace('.','_')
     result = {}
     for rec in get_records(
             imd,
-            domain=[('model','=',model),('module','ilike',module)],
+            domain=[('model','=',model),('name','=ilike','%s%%%s'%(module,model))],
             skip_fields=['is_salesinq_able', 'salesinq_data', 'image', 'image_small', 'image_medium'],
             ):
         if ids is None or rec.res_id in ids:
-            result[rec.name] = rec.res_id
+            name = rec.name[len(module):-len(model)][1:-1]
+            result[name] = rec.res_id
     return result
 
 def get_active_salesinq_customers():
