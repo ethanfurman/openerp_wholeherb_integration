@@ -2,6 +2,7 @@ import enum
 import logging
 from dbf import Date
 from fnx import xid
+from fnx_fs.fields import files
 from fnx.oe import check_company_settings
 from VSS.BBxXlate.fisData import fisData
 from VSS.address import cszk, Rise, Sift, AddrCase, NameCase, BsnsCase, normalize_address
@@ -64,7 +65,10 @@ class res_partner(xid.xmlid, osv.Model):
     if 'active' is False, do not update last write date
     """
     _name = 'res.partner'
-    _inherit = 'res.partner'
+    _inherit = ['res.partner', 'fnx_fs.fs']
+
+    _fnxfs_path = 'res_partner'
+    _fnxfs_path_fields = ['xml_id', 'name']
 
     _columns = {
         'xml_id': fields.char('FIS ID', size=16, readonly=True),
@@ -121,7 +125,16 @@ class res_partner(xid.xmlid, osv.Model):
         'create_uid': fields.many2one('res.users', string='Created by', readonly=True),
         'write_date': fields.datetime('Last changed', readonly=True),
         'write_uid': fields.many2one('res.users', string='Last changed by', readonly=True),
+        'order_confirmations': files('order_confs', string='Order Confirmations', style='static_list', sort='newest'),
         }
+
+    def fnxfs_folder_name(self, records):
+        "return name of folder to hold related files"
+        res = {}
+        for record in records:
+            res[record['id']] = record['xml_id'] or ("%s-%d" % (record['name'], record['id']))
+        return res
+
 
     def write(self, cr, uid, ids, vals, context=None):
         context = (context or {}).copy()

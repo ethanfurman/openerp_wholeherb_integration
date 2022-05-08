@@ -39,6 +39,12 @@
                                 ~separator
                                 @sp_kosher
                                 @sp_kosher_exp
+                    ~xpath expr="//notebook" position='after'
+                        ~div .fnxfs_files
+                            ~hr colspan='4'
+                            ~br
+                            ~label for='order_confirmations' $Order_Confirmations
+                            @order_confirmations nolabel=1
                     ~xpath expr="//page[@string='Internal Notes']" position='inside'
                         ~group
                             ~group
@@ -47,6 +53,9 @@
                             ~group
                                 @write_uid
                                 @write_date
+                    // ~xpath expr="//page[@string='History']" position='after'
+                    //     ~page $Order_Confirmations
+                    //         @order_confirmations
                     ~xpath expr="//page[@string='Contacts']" position='after'
                         ~page $Ship_To attrs="{'invisible': [('is_company','=',False)]}"
                             @ship_to_ids context="{'default_ship_to_parent_id': active_id, 'default_customer': False}" mode='kanban'
