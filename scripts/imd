@@ -14,7 +14,7 @@ from VSS.BBxXlate.fisData import fisData
 
 import re
 
-valid_lot = Var(lambda hay: re.match('^M?\d{1,6}(F|HT|S|ST|)?$', hay))
+valid_lot = Var(lambda hay: re.match('^M?\d{1,6}(F|HT|S|ST|)?$', hay, flags=re.I))
 
 @Script()
 def main():
@@ -169,7 +169,7 @@ def fix_duplicates():
     #
     echo('\n\nLOTS')
     fis_keys = {}
-    oe_records = oe_lot.read([('lot_no_valid','=',True)])
+    oe_records = oe_lot.read([(1,'=',1)])
     oe_records.sort(key=lambda r: (r.lot_no, r.create_date))
     dupes = 0
     invalids = 0
@@ -177,15 +177,16 @@ def fix_duplicates():
         if not valid_lot(rec.lot_no):
             invalids += 0
             continue
-        master_list = fis_keys.setdefault(rec.lot_no, [])
+        master_list = fis_keys.setdefault(rec.lot_no.upper(), [])
         master_list.append(rec)
     for lot_no, records in ViewProgress(fis_keys.items(), '$total unique lot numbers'):
-        if len(lot_no) < 2:
-            continue
         primary = records.pop(0)
-        secondary_ids = [r.id for r in records]
-        dupes += len(secondary_ids)
-        oe_lot.unlink(secondary_ids)
+        if primary.lot_no.upper() != primary.lot_no:
+            oe_lot.write({'lot_no':primary.lot_no.upper()})
+        if records:
+            secondary_ids = [r.id for r in records]
+            dupes += len(secondary_ids)
+            oe_lot.unlink(secondary_ids)
     echo('invalids: %r' % invalids)
     echo('duplicates: %r' % (len(oe_records)-invalids-len(fis_keys)))
 
@@ -316,7 +317,7 @@ def merge_sample(primary_product_id, other_product_ids):
     pass
 
 
-#eunms
+# eunms
 
 class FISenum(str, Enum):
     pass
