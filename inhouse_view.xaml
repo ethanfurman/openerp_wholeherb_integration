@@ -37,7 +37,7 @@
                                 ~group
                                     @customer
                                 ~group
-                                    @raw_lot_number
+                                    @lot_ids
                                     @net_weight_in
                                     @designated_pack
                                     @alcohol_wash
@@ -75,7 +75,7 @@
                     @process
                     @equip_to_use
                     @product_id
-                    @raw_lot_number
+                    @lot_ids
                     @customer
                     @voided
 
@@ -99,8 +99,8 @@
                         ~group
                             @process_number_id
                             @product_id
-                            @lot_number_raw
-                            @lot_number_finished
+                            @lot_in_ids
+                            @lot_out_ids
                         ~group
                             @equipment_prep_time
                             @stage_product_time
@@ -123,8 +123,8 @@
             @arch type='xml'
                 ~tree string='Job Time'
                     @process_number_id
-                    @lot_number_raw
-                    @lot_number_finished
+                    @lot_in_ids
+                    @lot_out_ids
                     @product_id
                     @total_man_hours
 
@@ -135,8 +135,8 @@
             @arch type='xml'
                 ~search string='Job Time'
                     @process_number_id
-                    @lot_number_raw
-                    @lot_number_finished
+                    @lot_in_ids
+                    @lot_out_ids
                     @product_id
 
         ~record model='ir.actions.act_window' #action_inhouse_job_time
@@ -164,7 +164,7 @@
                             @date_finished
                             @released_for_sale
                         ~group
-                            @lot_number_finished1
+                            @finished_lot_ids
                             @finished_lbs
                             @finished_pack
                             @treatment
@@ -172,12 +172,12 @@
                             @waste_lbs
                         ~group
                             @overs
-                            @lot_number_overs
+                            @over_lot_ids
                             @overs_lbs
                             @overs_pack
                         ~group
                             @unders
-                            @lot_number_unders
+                            @under_lot_ids
                             @unders_lbs
                             @unders_pack
                         ~group
@@ -194,9 +194,9 @@
                 ~tree string='Finished Product'
                     @process_number_id
                     @product_id
-                    @lot_number_finished1
-                    @lot_number_overs
-                    @lot_number_unders
+                    @finished_lot_ids
+                    @over_lot_ids
+                    @under_lot_ids
                     @voided
 
         ~record model='ir.ui.view' #inhouse_product_out_search
@@ -207,9 +207,9 @@
                 ~search string='Finished Product'
                     @process_number_id
                     @product_id
-                    @lot_number_finished1
-                    @lot_number_overs
-                    @lot_number_unders
+                    @finished_lot_ids
+                    @over_lot_ids
+                    @under_lot_ids
                     @voided
 
         ~record model='ir.actions.act_window' #action_inhouse_product_out

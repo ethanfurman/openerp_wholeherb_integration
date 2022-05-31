@@ -15,7 +15,7 @@ _logger = logging.getLogger(__name__)
 CONFIG_ERROR = "Cannot sync products until  Settings --> Configuration --> FIS Integration --> %s  has been specified."
 
 lose_digits = translator(delete='0123456789')
-valid_lot = re.compile('^M?\d{1,6}(F|HT|S|ST|)?$')
+valid_lot = re.compile('^(A|F|M|P|R)?\d{4,6}(F|HT|Q|R|S|ST|STP|U)?$')
 
 def warehouses(rec):
     return rec[P.warehouse] in ('0SON','0PRO','0QAH','0INP','0EXW','0GLD')
@@ -407,7 +407,7 @@ class product_lot(osv.Model):
             ),
         'lot_no_valid': fields.function(
             _validate_lot_no,
-            help='lot number matches pattern "^M?\d{1,6}(F|HT|S|ST|)?$"',
+            help='lot number matches pattern "^(A|F|M|P|R)?\d{4,6}(F|HT|Q|R|S|ST|STP|U)?$"',
             type='boolean',
             string='Valid lot number?',
             store={
