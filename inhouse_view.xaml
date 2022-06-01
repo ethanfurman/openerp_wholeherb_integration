@@ -35,9 +35,13 @@
                                     @equip_to_use
                                     @screen_size
                                 ~group
-                                    @customer
+                                    @partner_id
+                                    @description
                                 ~group
                                     @lot_ids
+                                        ~tree
+                                            @lot_no
+                                            @product_id
                                     @net_weight_in
                                     @designated_pack
                                     @alcohol_wash
@@ -62,7 +66,7 @@
                     @product_id
                     @process
                     @equip_to_use
-                    @customer
+                    @partner_id
                     @voided
 
         ~record model='ir.ui.view' #inhouse_product_in_search
@@ -76,7 +80,7 @@
                     @equip_to_use
                     @product_id
                     @lot_ids
-                    @customer
+                    @partner_id
                     @voided
 
         ~record model='ir.actions.act_window' #action_inhouse_product_in
@@ -100,20 +104,26 @@
                             @process_number_id
                             @product_id
                             @lot_in_ids
+                                ~tree
+                                    @lot_no
+                                    @product_id
                             @lot_out_ids
+                                ~tree
+                                    @lot_no
+                                    @product_id
                         ~group
                             @equipment_prep_time
                             @stage_product_time
                             @packaging_time
                             @wt_check_time
                             @qc_check_time
-                            @run_man_hours
                             @machine_run_time
                             @equip_disassembly_time
                             @equip_clean_time
                             @area_clean_time
                             @other_time
-                            @total_man_hours
+                            ~hr colspan='2'
+                            @total_hours
 
 
         ~record model='ir.ui.view' #inhouse_job_time_tree
@@ -123,10 +133,8 @@
             @arch type='xml'
                 ~tree string='Job Time'
                     @process_number_id
-                    @lot_in_ids
-                    @lot_out_ids
                     @product_id
-                    @total_man_hours
+                    @total_hours
 
         ~record model='ir.ui.view' #inhouse_job_time_search
             @name: inhouse.job_time.view.search
@@ -165,6 +173,9 @@
                             @released_for_sale
                         ~group
                             @finished_lot_ids
+                                ~tree
+                                    @lot_no
+                                    @product_id
                             @finished_lbs
                             @finished_pack
                             @treatment
@@ -173,11 +184,17 @@
                         ~group
                             @overs
                             @over_lot_ids
+                                ~tree
+                                    @lot_no
+                                    @product_id
                             @overs_lbs
                             @overs_pack
                         ~group
                             @unders
                             @under_lot_ids
+                                ~tree
+                                    @lot_no
+                                    @product_id
                             @unders_lbs
                             @unders_pack
                         ~group
@@ -194,9 +211,6 @@
                 ~tree string='Finished Product'
                     @process_number_id
                     @product_id
-                    @finished_lot_ids
-                    @over_lot_ids
-                    @under_lot_ids
                     @voided
 
         ~record model='ir.ui.view' #inhouse_product_out_search
