@@ -62,8 +62,8 @@ class Product_In_Info(osv.Model):
                 ),
         'process_number' : fields.integer('Process Number', help=''),
         'date_in' : fields.datetime('Date In', help=''),
-        'process' : fields.selection(_select_process, string='Process', oldname='process_id', help='Process to be done', size=-1),
-        'equip_to_use' : fields.selection(_select_equip_to_use, string='Equip To Use', oldname='equip_to_use_id', help='Machine to use for job', size=-1),
+        'process' : fields.many2one('inhouse.selection.process', string='Process', oldname='process_id', help='Process to be done', size=-1),
+        'equip_to_use' : fields.many2one('inhouse.selection.equip_to_use', string='Equip To Use', oldname='equip_to_use_id', help='Machine to use for job', size=-1),
         'product_id' : fields.many2one(
                 'product.product',
                 string='Product Description',
@@ -90,15 +90,17 @@ class Product_In_Info(osv.Model):
         'comment' : fields.text('Comment', help=''),
         'treatment' : fields.char('Treatment', size=64, help='Type of bacteria reduction treatment after processing & lbs to go'),
         'voided' : fields.boolean('Voided Job', help=''),
-        'job_time_process_number_ids' : fields.one2many(
+        'job_time_ids' : fields.one2many(
                 'inhouse.job_time', 'process_number_id',
                 string='Job Time',
                 help='',
+                oldname='job_time_process_number_ids',
                 ),
-        'product_out_process_number_ids' : fields.one2many(
+        'product_out_ids' : fields.one2many(
                 'inhouse.product_out', 'process_number_id',
-                string='Finished Product Info',
+                string='Finished Product',
                 help='',
+                oldname='product_out_process_number_ids',
                 ),
         }
 
@@ -123,30 +125,9 @@ class Job_Time(osv.Model):
             hours = 0
             for time in (
                     'equipment_prep_time', 'stage_product_time', 'packaging_time', 'wt_check_time', 'qc_check_time',
-                    'machine_run_time', 'equip_disassembly_time', 'equip_clean_time', 'area_clean_time', 'other_time',
+                    'equip_disassembly_time', 'equip_clean_time', 'area_clean_time', 'other_time', 'machine_run_time',
                 ):
                 hours += rec[time]
-            # hours, minutes = divmod(hours, 1)
-            # minutes = minutes * 60
-            # if minutes < 5:
-            #     minutes = 0.0
-            # elif minutes < 10:
-            #     minutes = 0.15
-            # elif minutes < 16:
-            #     minutes = 0.25
-            # elif minutes < 25:
-            #     minutes = 0.40
-            # elif minutes <= 31:
-            #     minutes = 0.50
-            # elif minutes < 37:
-            #     minutes = 0.60
-            # elif minutes < 46:
-            #     minutes = 0.75
-            # elif minutes < 52:
-            #     minutes = 0.85
-            # else:
-            #     minutes = 1
-            # res[rec.id] = hours + minutes
             res[rec.id] = hours
         return res
 
@@ -189,7 +170,7 @@ class Job_Time(osv.Model):
                 ),
         'product_id' : fields.many2one(
                 'product.product',
-                string='Finished Product Desc',
+                string='Finished Product',
                 help='',
                 ),
         'equipment_prep_time' : fields.float('Equipment Prep Time', digits=(10,2), help=''),
@@ -197,15 +178,15 @@ class Job_Time(osv.Model):
         'packaging_time' : fields.float('Packaging Time', digits=(10,2), help='Man hours to assemble packaging'),
         'wt_check_time' : fields.float('Wt Check Time', digits=(10,2), help='Man hours to check weights'),
         'qc_check_time' : fields.float('QC Check Time', digits=(10,2), help='Man hours to obtain QA approval of initial run'),
-        'machine_run_time' : fields.float('Machine Run Time', digits=(10,2), help='Time machine actually ran'),
         'equip_disassembly_time' : fields.float('Equip Disassembly Time', digits=(10,2), help=''),
         'equip_clean_time' : fields.float('Equip Clean Time', digits=(10,2), help=''),
         'area_clean_time' : fields.float('Area Clean Time', digits=(10,2), help=''),
         'other_time' : fields.float('Other Time', digits=(10,2), help='Misc. time associated with the job'),
+        'machine_run_time' : fields.float('Machine Run Time', digits=(10,2), help='Time machine actually ran'),
         'total_hours' : fields.function(
                 _calc_time,
                 type='float',
-                string='Total Hours',
+                string='Total Man Hours',
                 digits=(10,2),
                 help='Total hours billed to job',
                 oldname='total_man_hours',
@@ -251,6 +232,7 @@ class Finished_Product_Info(osv.Model):
                 string='Process Number',
                 help='',
                 ),
+        'date_in': fields.date('Date In'),
         'date_finished' : fields.date('Date Finished', help='Date job was completed'),
         'released_for_sale' : fields.boolean('Released For Sale', help='Has the product been released for shipment to customers?'),
         'product_id' : fields.many2one(
@@ -261,7 +243,7 @@ class Finished_Product_Info(osv.Model):
         'finished_lot_ids' : fields.many2many(
                 'wholeherb_integration.product_lot',
                 'inhouse_product_out_finished_id', 'product_out_id', 'lot_id',
-                string='Lot# Finished1',
+                string='Lot# Finished',
                 help='Lot# of primary finished product',
                 ),
         'finished_lbs' : fields.char('Finished LBS', size=64, help='Pounds of primary finished product produced'),

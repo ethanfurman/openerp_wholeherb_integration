@@ -50,9 +50,9 @@
                             ~label for='comment' $Comments
                             @comment
                         ~page string='Job Time'
-                            @job_time_process_number_ids nolabel='1'
-                        ~page string='Finished Product Info'
-                            @product_out_process_number_ids nolabel='1'
+                            @job_time_ids nolabel='1'
+                        ~page string='Finished Product'
+                            @product_out_ids nolabel='1'
 
 
         ~record model='ir.ui.view' #inhouse_product_in_tree
@@ -106,22 +106,20 @@
                             @lot_in_ids
                                 ~tree
                                     @lot_no
-                                    @product_id
                             @lot_out_ids
                                 ~tree
                                     @lot_no
-                                    @product_id
                         ~group
                             @equipment_prep_time
                             @stage_product_time
                             @packaging_time
                             @wt_check_time
                             @qc_check_time
-                            @machine_run_time
                             @equip_disassembly_time
                             @equip_clean_time
                             @area_clean_time
                             @other_time
+                            @machine_run_time
                             ~hr colspan='2'
                             @total_hours
 
@@ -171,34 +169,33 @@
                             @product_id
                             @date_finished
                             @released_for_sale
+                            @total_liners_used
                         ~group
                             @finished_lot_ids
                                 ~tree
                                     @lot_no
-                                    @product_id
                             @finished_lbs
                             @finished_pack
                             @treatment
                             @magnetic_lbs
                             @waste_lbs
                         ~group
-                            @overs
-                            @over_lot_ids
-                                ~tree
-                                    @lot_no
-                                    @product_id
-                            @overs_lbs
-                            @overs_pack
-                        ~group
+                            ~hr colspan='2'
                             @unders
                             @under_lot_ids
                                 ~tree
                                     @lot_no
-                                    @product_id
                             @unders_lbs
                             @unders_pack
                         ~group
-                            @total_liners_used
+                            ~hr colspan='2'
+                            @overs
+                            @over_lot_ids
+                                ~tree
+                                    @lot_no
+                            @overs_lbs
+                            @overs_pack
+                    ~hr colspan='4'
                     ~label for='comments' $Comment
                     @comments
 
@@ -234,3 +231,6 @@
             @view_id ref='inhouse_product_out_tree'
 
         ~menuitem $Finished_Product #whc_inhouse_product_out_menu parent='inhouse_main_menu' action='action_inhouse_product_out'
+
+        ~report model='inhouse.product_out' name='inhouse.product_out.costing_report' header='True' auto='True' multi='False' xml='wholeherb_integration/report/inhouse-costing.xml' xsl='wholeherb_integration/report/inhouse-costing.xsl' $Processing_Costing #report_wholeherb_integration_process_costing
+        
