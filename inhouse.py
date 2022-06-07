@@ -104,6 +104,14 @@ class Product_In_Info(osv.Model):
                 oldname='product_out_process_number_ids',
                 ),
         }
+    #
+    _defaults = {
+            'process_number': lambda s, cr, uid, c: int(s.pool.get('ir.sequence').next_by_code(cr, uid, 'inhouse.product_in', context=c))
+            }
+    #
+    _sql_constraints = [
+            ('number_unique', 'unique(process_number)', 'Process # already exists.'),
+            ]
 
 
 class Job_Time(osv.Model):

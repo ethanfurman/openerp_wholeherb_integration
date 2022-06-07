@@ -12,5 +12,5 @@
         ~record #seq_inhouse_product_in model='ir.sequence'
             @name: In-House Product In Processing Number
             @code: inhouse.product_in
-            @number_next eval='20'
+            @number_next eval='2000'
 

@@ -20,6 +20,7 @@
     #    ],
     'data': [
 	    'inhouse_view.xaml',
+	    'inhouse_sequence.xaml',
             'res_config_view.xaml',
             'res_partner_view.xaml',
             'product_view.xaml',
