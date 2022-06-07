@@ -28,6 +28,7 @@ class Product_In_Info(osv.Model):
     _name = 'inhouse.product_in'
     _description = 'Product In Info'
     _rec_name = 'name'
+    _order = 'process_number desc'
     #
     def _calc_name(self, cr, uid, ids, field_name, args, context=None):
         # name from own non-string field
@@ -62,8 +63,8 @@ class Product_In_Info(osv.Model):
                 ),
         'process_number' : fields.integer('Process Number', help=''),
         'date_in' : fields.datetime('Date In', help=''),
-        'process' : fields.many2one('inhouse.selection.process', string='Process', oldname='process_id', help='Process to be done', size=-1),
-        'equip_to_use' : fields.many2one('inhouse.selection.equip_to_use', string='Equip To Use', oldname='equip_to_use_id', help='Machine to use for job', size=-1),
+        'process_id' : fields.many2one('inhouse.selection.process', string='Process', oldname='process', help='Process to be done'),
+        'equip_to_use_id' : fields.many2one('inhouse.selection.equip_to_use', string='Equip To Use', oldname='equip_to_use', help='Machine to use for job'),
         'product_id' : fields.many2one(
                 'product.product',
                 string='Product Description',

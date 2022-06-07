@@ -30,9 +30,9 @@
                         ~page string='General Info'
                             ~group
                                 ~group
-                                    @process
+                                    @process_id
                                     @reason
-                                    @equip_to_use
+                                    @equip_to_use_id
                                     @screen_size
                                 ~group
                                     @partner_id
@@ -64,8 +64,8 @@
                     @process_number
                     @date_in
                     @product_id
-                    @process
-                    @equip_to_use
+                    @process_id
+                    @equip_to_use_id
                     @partner_id
                     @voided
 
@@ -76,8 +76,8 @@
             @arch type='xml'
                 ~search string='Product In'
                     @process_number
-                    @process
-                    @equip_to_use
+                    @process_id
+                    @equip_to_use_id
                     @product_id
                     @lot_ids
                     @partner_id
