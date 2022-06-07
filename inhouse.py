@@ -105,13 +105,14 @@ class Product_In_Info(osv.Model):
                 ),
         }
     #
-    _defaults = {
-            'process_number': lambda s, cr, uid, c: int(s.pool.get('ir.sequence').next_by_code(cr, uid, 'inhouse.product_in', context=c))
-            }
-    #
     _sql_constraints = [
             ('number_unique', 'unique(process_number)', 'Process # already exists.'),
             ]
+    #
+    def create(self, cr, uid, values, context=None):
+        if 'process_number' not in values or not values['process_number']:
+            values['process_number'] = int(self.pool.get('ir.sequence').next_by_code(cr, uid, 'inhouse.product_in', context=context))
+        return super(Product_In_Info, self).create(cr, uid, values, context)
 
 
 class Job_Time(osv.Model):

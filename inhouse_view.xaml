@@ -20,12 +20,12 @@
                 ~form string='Product In' version='7.0'
                     ~header
                         @voided .oe_highlight .oe_right .oe_bold attrs="{'invisible': [('voided','=',False)], 'readonly':True}"
-                    ~group col='6'
+                    ~group col='8'
                         ~group colspan='2'
-                            @process_number
+                            @process_number placeholder='next available number will be used if blank'
                         ~group colspan='2'
                             @date_in
-                        ~group colspan='2'
+                        ~group colspan='4'
                             @product_id
                     ~notebook colspan='4'
                         ~page string='General Info'
