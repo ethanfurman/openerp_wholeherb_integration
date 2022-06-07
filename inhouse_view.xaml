@@ -22,7 +22,7 @@
                         @voided .oe_highlight .oe_right .oe_bold attrs="{'invisible': [('voided','=',False)], 'readonly':True}"
                     ~group col='8'
                         ~group colspan='2'
-                            @process_number placeholder='next available number will be used if blank'
+                            @process_number
                         ~group colspan='2'
                             @date_in
                         ~group colspan='4'
