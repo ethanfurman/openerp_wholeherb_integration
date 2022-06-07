@@ -1,0 +1,226 @@
+!!! xml1.0
+~lines
+    ~report
+        ~title type='eval' expr="'In-House Processing Costing Report'"
+        ~date type='function' @today format='%A, %B %d, %Y'
+    ~detail type='fields' @id
+        ~process-number type='field' name='process_number_id.process_number'
+        ~process type='field' name='process_number_id.process_id.name'
+        ~raw-product type='field' name='process_number_id.product_id.name'
+        ~raw-lot-no type='field' name='process_number_id.lot_ids.lot_no'
+        ~net-weight-in type='field' name='process_number_id.net_weight_in'
+        ~date-in type='field' name='process_number_id.date_in' format='%Y-%m-%d'
+        ~date-finished type='field' @date_finished
+        ~finished-product type='field' name='product_id.name'
+        ~finished-lots type='field' name='finished_lot_ids.lot_no'
+        ~finished-pack type='field' @finished_pack
+        ~finished-lbs type='field' @finished_lbs
+        ~total-liners type='field' @total_liners_used
+        ~over-lbs type='field' @overs_lbs
+        ~under-lbs type='field' @unders_lbs
+        ~magnetic-lbs type='field' @magnetic_lbs
+        ~waste-lbs type='field' @waste_lbs
+        ~total-hours type='field' name='process_number_id.job_time_ids.man_hours_subtotal'
+        ~machine-run-time type='field' name='process_number_id.job_time_ids.machine_run_time'
+
+!!! xsl1.0
+~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+
+    ~xsl:template match='/'
+        ~xsl:apply-templates select='lines'
+
+    ~xsl:template match='lines'
+        ~document
+            ~template author='OpenERP:InHouse' title='In-House Processing Costing Report' pageSize='us_letter'
+                ~pageTemplate id='first_page'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='first_page_frames'
+                ~pageTemplate id='other_pages'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='other_pages_frames'
+            ~stylesheet
+
+                ~blockTableStyle id='title'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockFont name='Helvetica' size='14'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='container'
+                    ~blockFont name='Helvetica' size='12'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='free-float'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockFont name='Helvetica' size='12'
+                    ~blockValign value='TOP'
+
+                ~paraStyle name='bi' fontName='Helvetica-BoldOblique' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='b' fontName='Helvetica-Bold' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='normal' fontName='Helvetica' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emphbi' fontName='Helvetica-BoldOblique' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emphb' fontName='Helvetica-Bold' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emph' fontName='Helvetica' fontSize='12' spaceAfter='0' spaceBefore='0'
+            ~story
+                ~setNextTemplate name='other_pages'
+                ~xsl:apply-templates match='report' mode='story'
+                ~xsl:apply-templates select='detail'
+
+    ~xsl:template name='first_page_frames'
+        ~frame id='col1' x1='1.0in' y1='1.0in' width='6.5in' height='9.0in'
+
+    ~xsl:template name='other_pages_frames'
+        ~frame id='col2' x1='1.0in' y1='1.0in' width='6.5in' height='9.0in'
+
+    ~xsl:template match='report'
+        ~setFont name='Helvetica-BoldOblique' size='20'
+        ~drawCentredString x='4.25in' y='10.25in'
+            ~xsl:text: In-House Processing Costing Report
+        ~setFont name='Helvetica' size='9'
+        ~drawString x='1.0in' y='1.3in'
+            ~xsl:text: __ Forward copy of costing sheet to purchasing if marked.
+        ~drawString x='1.0in' y='1.0in'
+            ~xsl:value-of select='date'
+
+    ~xsl:template match='detail'
+        ~hr
+        ~blockTable colWidths='144, 324' style='container'
+            ~tr
+                ~td
+                    ~para style='emphbi'
+                        ~xsl:text: Process Number
+                ~td
+                    ~para style='emph'
+                        ~xsl:value-of select='process-number'
+        ~blockTable colWidths='144, 100, 44, 100, 80' style='free-float'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Date In
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='date-in'
+                ~td
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Date Finished
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='date-finished'
+        ~blockTable colWidths='144, 324' style='container'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Process
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='process'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Raw Product
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='raw-product'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Raw Lot#
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='raw-lot-no'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Net Weight In
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='net-weight-in'
+        ~hr
+        ~blockTable colWidths='144, 324' style='container'
+            ~tr
+                ~td
+                    ~para style='emphbi'
+                        ~xsl:text: Finished Product
+                ~td
+                    ~para style='emphb'
+                        ~xsl:value-of select='finished-product'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Lot# Finished
+                ~td
+                    ~para style='b'
+                        ~xsl:value-of select='finished-lots'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Finished Pack
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='finished-pack'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Total Liners Used
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='total-liners'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Finished LBS
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='finished-lbs'
+        ~hr
+        ~blockTable colWidths='144, 324' style='container'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Overs LBS
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='over-lbs'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Under LBS
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='under-lbs'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Magnetic LBS
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='magnetic-lbs'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Waste LBS
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='waste-lbs'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Machine Run Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='machine-run-time'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Total Man Hours
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='total-hours'
+
+
