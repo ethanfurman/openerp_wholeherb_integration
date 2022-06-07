@@ -110,7 +110,7 @@ class Job_Time(osv.Model):
     _name = 'inhouse.job_time'
     _description = 'Job Time'
     _rec_name = 'name'
-    _order = 'desc'
+    _order = 'name desc'
     #
     def _calc_name(self, cr, uid, ids, field_name, args, context=None):
         # name from multiple (fk) fields
@@ -200,7 +200,7 @@ class Finished_Product_Info(osv.Model):
     _name = 'inhouse.product_out'
     _description = 'Finished Product Info'
     _rec_name = 'name'
-    _order = 'desc'
+    _order = 'name desc'
     #
     def _calc_name(self, cr, uid, ids, field_name, args, context=None):
         # name from multiple (fk) fields

@@ -6,8 +6,9 @@
         // top menu item
         ~menuitem name='InHouse' #inhouse_root_menu sequence='47'
 
-        // first menu item
+        // first menu item and config menu item
         ~menuitem name='InHouse' #inhouse_main_menu parent='inhouse_root_menu' sequence='10'
+        ~menuitem name='Configuration' #inhouse_config_menu parent='inhouse_root_menu' sequence='90'
 
 
         // Product In Info views
@@ -30,9 +31,9 @@
                         ~page string='General Info'
                             ~group
                                 ~group
-                                    @process_id
+                                    @process_id options="{'limit':15, 'create':False, 'create_edit':False, 'no_open': True}"
                                     @reason
-                                    @equip_to_use_id
+                                    @equip_to_use_id options="{'limit':15, 'create':False, 'create_edit':False, 'no_open': True}"
                                     @screen_size
                                 ~group
                                     @partner_id
@@ -231,6 +232,83 @@
             @view_id ref='inhouse_product_out_tree'
 
         ~menuitem $Finished_Product #whc_inhouse_product_out_menu parent='inhouse_main_menu' action='action_inhouse_product_out'
+
+        // Selection views
+
+        ~record model='ir.ui.view' #inhouse_selection_process_form
+            @name: inhouse.selection.process.view.form
+            @model: inhouse.selection.process
+            @type: form
+            @arch type='xml'
+                ~form string='In-House Processes' version='7.0'
+                    ~group
+                        @name
+                        @active
+
+        ~record model='ir.ui.view' #inhouse_selection_process_tree
+            @name: inhouse.selection.process.view.tree
+            @model: inhouse.selection.process
+            @type: tree
+            @arch type='xml'
+                ~tree string='In-House Processes'
+                        @name
+                        @active
+
+        ~record model='ir.ui.view' #inhouse_selection_process_search
+            @name: inhouse.selection.process.view.search
+            @model: inhouse.selection.process
+            @type: search
+            @arch type='xml'
+                ~search string='In-House Processes'
+                        @name
+                        @active
+
+        ~record model='ir.actions.act_window' #action_inhouse_selection_process
+            @name: Processes
+            @res_model: inhouse.selection.process
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='inhouse_selection_process_tree'
+
+        ~menuitem $Processes #whc_inhouse_selection_process_menu parent='inhouse_config_menu' action='action_inhouse_selection_process'
+
+
+        ~record model='ir.ui.view' #inhouse_selection_equipment_form
+            @name: inhouse.selection.equip_to_use.view.form
+            @model: inhouse.selection.equip_to_use
+            @type: form
+            @arch type='xml'
+                ~form string='In-House Equipment' version='7.0'
+                    ~group
+                        @name
+                        @active
+
+        ~record model='ir.ui.view' #inhouse_selection_equipment_tree
+            @name: inhouse.selection.equip_to_use.view.tree
+            @model: inhouse.selection.equip_to_use
+            @type: tree
+            @arch type='xml'
+                ~tree string='In-House Equipment'
+                        @name
+                        @active
+
+        ~record model='ir.ui.view' #inhouse_selection_equipment_search
+            @name: inhouse.selection.equip_to_use.view.search
+            @model: inhouse.selection.equip_to_use
+            @type: search
+            @arch type='xml'
+                ~search string='In-House Equipment'
+                        @name
+                        @active
+
+        ~record model='ir.actions.act_window' #action_inhouse_selection_equipment
+            @name: Equipment
+            @res_model: inhouse.selection.equip_to_use
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='inhouse_selection_equipment_tree'
+
+        ~menuitem $Equipment #whc_inhouse_selection_equipment_menu parent='inhouse_config_menu' action='action_inhouse_selection_equipment'
 
         ~report model='inhouse.product_out' name='inhouse.product_out.costing_report' header='True' auto='True' multi='False' xml='wholeherb_integration/report/inhouse-costing.xml' xsl='wholeherb_integration/report/inhouse-costing.xsl' $Processing_Costing #report_wholeherb_integration_process_costing
         
