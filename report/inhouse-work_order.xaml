@@ -1,0 +1,173 @@
+!!! xml1.0
+~lines
+    ~report
+        ~title type='eval' expr="'In-House Processing Work Order'"
+        ~date type='function' @today format='%A, %B %d, %Y'
+    ~detail type='fields' @id
+        ~name type='field' name='name'
+        ~date-issued type='field' name='date_in' format='%m/%d/%Y'
+        ~process type='field' name='process_id.name'
+        ~equip-to-use type='field' name='equip_to_use_id.name'
+        ~product type='field' name='product_id.name'
+        ~lots type='field' name='lot_ids.lot_no'
+        ~net-weight type='field' name='net_weight_in'
+        ~customer type='field' name='partner_id.name'
+        ~description type='field' name='description'
+        ~screen-size type='field' name='screen_size'
+        ~designated-pack type='field' name='designated_pack'
+        ~alcohol-wash type='field' name='alcohol_wash' format=',✓'
+        ~comments type='field' name='comment'
+        ~treatment type='field' name='treatment'
+
+!!! xsl1.0
+~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+
+    ~xsl:template match='/'
+        ~xsl:apply-templates select='lines'
+
+    ~xsl:template match='lines'
+        ~document
+            ~template author='OpenERP:InHouse' title='In-House Processing Work Order' pageSize='us_letter'
+                ~pageTemplate id='first_page'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='first_page_comment'
+                ~pageTemplate id='other_pages'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='other_pages_comment'
+            ~stylesheet
+
+                ~blockTableStyle id='title'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockFont name='Helvetica' size='14'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='container'
+                    ~blockFont name='Helvetica' size='12'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='free-float'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockFont name='Helvetica' size='12'
+                    ~blockValign value='TOP'
+
+                ~paraStyle name='bi' fontName='Helvetica-BoldOblique' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='b' fontName='Helvetica-Bold' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='normal' fontName='Helvetica' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emphbi' fontName='Helvetica-BoldOblique' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emphb' fontName='Helvetica-Bold' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emph' fontName='Helvetica' fontSize='12' spaceAfter='0' spaceBefore='0'
+            ~story
+                ~setNextTemplate name='other_pages'
+                ~xsl:apply-templates select='report' mode='story'
+                ~xsl:apply-templates select='detail'
+
+    ~xsl:template name='first_page_comment'
+        ~frame id='col1' x1='0.75in' y1='1.0in' width='7.0in' height='1.9in'
+
+    ~xsl:template name='other_pages_comment'
+        ~frame id='col2' x1='0.75in' y1='1.0in' width='7.0in' height='1.9in'
+
+    ~xsl:template match='report'
+        ~drawLine x1='0.75in' y1='10.25in' x2='7.75in' y2='10.25in'
+        ~drawLine x1='0.75in' y1='9.625in' x2='7.75in' y2='9.625in'
+        ~setFont name='Helvetica-BoldOblique' size='20'
+        ~drawCenteredString x='4.25in' y='10in'
+            ~xsl:text: Whole Herb Company
+        ~setFont name='Helvetica-Bold' size='18'
+        ~drawCenteredString x='4.25in' y='9.68in'
+            ~xsl:text: WORK ORDER
+        ~setFont name='Helvetica-Bold' size='9'
+        ~drawString x='0.75in' y='0.5in'
+            ~xsl:value-of select='date'
+        ~setFont name='Helvetica' size='8'
+        ~drawRightString x='7.75in' y='0.5in'
+            ~xsl:text: Last Modified: 2022-06-07
+
+    ~xsl:template match='detail'
+        ~setFont name='Helvetica-Oblique' size='10'
+        ~drawString x='0.75in' y='9.25in'
+            ~xsl:text: Process Number
+        ~drawString x='2.5in' y='9.25in'
+            ~xsl:text: Date Work Order Issued
+        ~drawString x='5.0in' y='9.25in'
+            ~xsl:text: Equipment to Use
+        ~drawString x='2.5in' y='8.75in'
+            ~xsl:text: Alcohol Wash Required
+        ~drawBox x='4.05in' y='8.74in' height='0.125in' width='0.125in'
+        ~drawString x='5.0in' y='8.75in'
+            ~xsl:text: Screen Size
+        ~drawString x='0.75in' y='8.0in'
+            ~xsl:text: Product In
+        ~drawBox x='1.8in' y='7.9in' width='5.95in' height='0.35in'
+        ~drawString x='0.75in' y='7.5in'
+            ~xsl:text: Lot Number(s)
+        ~drawBox x='1.8in' y='7.4in' width='5.95in' height='0.35in'
+        ~drawString x='0.75in' y='7.0in'
+            ~xsl:text: Total Net Weight In
+        ~drawBox x='2.05in' y='6.9in' width='5.7in' height='0.35in'
+        ~drawString x='2.0in' y='6.625in'
+            ~xsl:text: Piece Count
+        ~drawBox x='2.0in' y='6.125in' width='1.2in' height='0.45in'
+        ~drawBox x='2.0in' y='5.625in' width='1.2in' height='0.45in'
+        ~drawBox x='2.0in' y='5.125in' width='1.2in' height='0.45in'
+        ~drawString x='3.25in' y='6.625in'
+            ~xsl:text: P.C Type
+        ~drawBox x='3.25in' y='6.125in' width='1.2in' height='0.45in'
+        ~drawBox x='3.25in' y='5.625in' width='1.2in' height='0.45in'
+        ~drawBox x='3.25in' y='5.125in' width='1.2in' height='0.45in'
+        ~drawString x='4.5in' y='6.625in'
+            ~xsl:text: Weight Each Piece (G/N)
+        ~drawBox x='4.5in' y='6.125in' width='2.25in' height='0.45in'
+        ~drawBox x='4.5in' y='5.625in' width='2.25in' height='0.45in'
+        ~drawBox x='4.5in' y='5.125in' width='2.25in' height='0.45in'
+        ~drawString x='0.75in' y='4.9in'
+            ~xsl:text: Designated Pack Type and Size
+        ~drawBox x='0.75in' y='4.5in' width='7.0in' height='0.35in'
+        ~drawString x='0.75in' y='4.25in'
+            ~xsl:text: Post Process Treatment
+        ~drawBox x='0.75in' y='3.85in' width='7.0in' height='0.35in'
+        ~drawString x='0.75in' y='3.6in'
+            ~xsl:text: Customer
+        ~drawBox x='0.75in' y='3.2in' width='7.0in' height='0.35in'
+        ~drawString x='0.75in' y='2.95in'
+            ~xsl:text: Comments
+        ~drawBox x='0.75in' y='1.0in' width='7.0in' height='1.9in'
+
+        ~setFont name='Helvetica-Bold' size='16'
+        ~drawString x='0.875in' y='9.65in'
+            ~xsl:value-of select='process'
+        ~drawRightString x='1.75in' y='9.0in'
+            ~xsl:value-of select='name'
+        ~setFont name='Helvetica' size='12'
+        ~drawCenteredString x='3.25in' y='9.0in'
+            ~xsl:value-of select='date-issued'
+        ~drawString x='5.125in' y='9.0in'
+            ~xsl:value-of select='equip_to_use'
+        ~drawString x='4.06in' y='8.75in'
+            ~xsl:value-of select='alcohol-wash'
+        ~drawString x='5.125in' y='8.5in'
+            ~xsl:value-of select='screen-size'
+        ~drawString x='1.9in' y='8.0in'
+            ~xsl:value-of select='product'
+        ~drawString x='1.9in' y='7.5in'
+            ~xsl:value-of select='lots'
+        ~drawString x='2.15in' y='7.0in'
+            ~xsl:value-of select='net-weight'
+        ~drawString x='0.85in' y='4.6in'
+            ~xsl:value-of select='designated-pack'
+        ~drawString x='0.85in' y='3.95in'
+            ~xsl:value-of select='treatment'
+        ~drawString x='0.85in' y='3.3in'
+            ~xsl:choose
+                ~xsl:when test='string-length(customer)'
+                    ~xsl:value-of select='customer'
+                ~xsl:otherwise
+                    ~xsl:value-of select='description'
+        ~para style='normal'
+            ~xsl:value-of select='comments'

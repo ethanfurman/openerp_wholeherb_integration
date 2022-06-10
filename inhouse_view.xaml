@@ -311,4 +311,5 @@
         ~menuitem $Equipment #whc_inhouse_selection_equipment_menu parent='inhouse_config_menu' action='action_inhouse_selection_equipment'
 
         ~report model='inhouse.product_out' name='inhouse.product_out.costing_report' header='True' auto='True' multi='False' xml='wholeherb_integration/report/inhouse-costing.xml' xsl='wholeherb_integration/report/inhouse-costing.xsl' $Processing_Costing #report_wholeherb_integration_process_costing
+        ~report model='inhouse.product_in' name='inhouse.product_out.work_order' header='True' auto='True' multi='False' xml='wholeherb_integration/report/inhouse-work_order.xml' xsl='wholeherb_integration/report/inhouse-work_order.xsl' $Work_Order #report_wholeherb_integration_process_work_order
         
