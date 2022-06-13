@@ -51,9 +51,9 @@
                             ~label for='comment' $Comments
                             @comment
                         ~page string='Job Time'
-                            @job_time_ids nolabel='1'
+                            @job_time_ids nolabel='1' options="{'create':False}"
                         ~page string='Finished Product'
-                            @product_out_ids nolabel='1'
+                            @product_out_ids nolabel='1' options="{'create':False}"
 
 
         ~record model='ir.ui.view' #inhouse_product_in_tree
@@ -102,7 +102,7 @@
                 ~form string='Job Time' version='7.0'
                     ~group
                         ~group
-                            @process_number_id
+                            @process_number_id options="{'create':False}"
                             @product_id
                             @lot_in_ids
                                 ~tree
@@ -166,7 +166,7 @@
                         @voided .oe_highlight .oe_right .oe_bold attrs="{'invisible': [('voided','=',False)], 'readonly':True}"
                     ~group
                         ~group
-                            @process_number_id
+                            @process_number_id options="{'create':False}"
                             @product_id
                             @date_finished
                             @released_for_sale
