@@ -20,7 +20,7 @@
         ~under-lbs type='field' @unders_lbs
         ~magnetic-lbs type='field' @magnetic_lbs
         ~waste-lbs type='field' @waste_lbs
-        ~total-hours type='field' name='process_number_id.job_time_ids.man_hours_subtotal'
+        ~total-hours type='field' name='process_number_id.job_time_ids.total_hours'
         ~machine-run-time type='field' name='process_number_id.job_time_ids.machine_run_time'
 
 !!! xsl1.0
