@@ -2,11 +2,8 @@
 from __future__ import print_function
 
 from antipathy import Path
-from math import floor
-from openerplib import get_connection, get_records
-from pwd import getpwnam
+from openerplib import get_connection #, get_records
 from scription import *
-from time import time
 
 import os
 import sys
@@ -26,6 +23,8 @@ else:
     USER = settings.openerp.user
     DB = settings.openerp.db
     PW = settings.openerp.pw
+
+errors = []
 
 @Script(
         host=('host where OpenERP instance is running', OPTION, None),
@@ -73,11 +72,10 @@ def sync(src, dst):
 
 @Command(
         path=Spec('location of pdfs to sort and import', type=Path),
-        progress=Spec('show progress visually', FLAG),
         id=Spec('id pattern to match', OPTION, type=unicode.upper),
         max_copies=Spec('how many archival copies to keep [default: no limit]', OPTION, type=int),
         )
-def c_of_a(path, progress, id, max_copies):
+def c_of_a(path, id, max_copies):
     '''
     copy, move, and sort source pdfs into fnxfs file structure according to
     settings found in product.prodect
@@ -90,100 +88,24 @@ def c_of_a(path, progress, id, max_copies):
         print('looking in %s for files matching %s' % (path, file_id))
     else:
         print('looking in %s' % (path, ))
-    product = OE.get_model('product.product')
-    xml_ids = dict([
-        (p['xml_id'], p['id'])
-        for p in get_records(
-            product,
-            domain=[('xml_id','!=',False)],
-            fields=['id','xml_id'],
-            )])
-    target_paths = dict([
-        (p['id'], p['c_of_a'])
-        for p in product.fnxfs_get_paths(
-            ids=xml_ids.values(),
-            fields=['c_of_a'],
-            )])
     files = path.listdir()
-    if progress:
-        pb = ProgressBar(len(files), message="copying %d files..." % len(files))
-    for file in files:
-        print()
-        if progress:
-            pb.tick()
-        if file.ext.lower() != '.pdf':
-            if not file_id:
-                print('skipping non-pdf: %r' % file)
+    for file in ViewProgress(files):
+        if file_id and file_id not in file:
             continue
-        base = cofa_primary_level.get(file[0].lower())
-        if base is None:
-            if not file_id:
-                print('skipping invalid name: %r  (unable to find base)' % file)
+        if file.ext.lower() != '.pdf':
+            print('skipping non-pdf: %r' % file, verbose=2)
             continue
         if not file[:3].isalpha() or not file[3:8].isdigit() or file[8] not in ' .':
             if not file_id:
-                print('skipping invalid name: %s  (bad chars)' % file)
+                print('skipping invalid name: %s  (bad chars)' % file, verbose=2)
             continue
-        sub = file[:8].upper()
-        if file_id and file_id not in sub:
-            continue
-        elif file_id:
-            print('processing %s' % file)
-        id = xml_ids.get(sub)
-        if id is None:
-            error('product %r does not exist in OpenERP' % (sub, ))
-            continue
-        target_path = Path(target_paths[id])
-        if not target_path.exists():
-            print('creating folder %s' % target_path)
-            target_path.mkdir()
-            target_path.chown(*OPENERP_IDS)
-            target_path.chmod(0775)
-        file = file.replace('/','%2f')
-        target = target_path/file.base.upper() + file.ext.lower()
+        xml_id = file[:8]
+        target_path = 'product.product/xml_id=%s/c_of_a' % xml_id
+        target_file = file.stem.upper() + file.ext.lower()
+        target = Path(target_path, target_file)
         source = path/file
-        print('copying %s to %s' % (source, target), verbose=2)
-        options = ('--force', '-v')
-        if max_copies:
-            options += ('--max-copies', '%s' % max_copies)
-        _run('cp', source, target, *options)
+        _run('cp', source, target)
 
-
-fnx_root = Path('%s/var/openerp/fnxfs/' % os.environ['VIRTUAL_ENV'])
-doc_root = Path('Documents')
-sds_root = doc_root/'Safety Data Sheets'
-cofa_root = doc_root/'Certificates of Analysis'
-
-cofa_primary_level = {
-        'a': cofa_root/'ABC',
-        'b': cofa_root/'ABC',
-        'c': cofa_root/'ABC',
-        'd': cofa_root/'DEF',
-        'e': cofa_root/'DEF',
-        'f': cofa_root/'DEF',
-        'g': cofa_root/'GHIJ',
-        'h': cofa_root/'GHIJ',
-        'i': cofa_root/'GHIJ',
-        'j': cofa_root/'GHIJ',
-        'k': cofa_root/'KLM',
-        'l': cofa_root/'KLM',
-        'm': cofa_root/'KLM',
-        'n': cofa_root/'NOP',
-        'o': cofa_root/'NOP',
-        'p': cofa_root/'NOP',
-        'q': cofa_root/'QRS',
-        'r': cofa_root/'QRS',
-        's': cofa_root/'QRS',
-        't': cofa_root/'TUV',
-        'u': cofa_root/'TUV',
-        'v': cofa_root/'TUV',
-        'w': cofa_root/'WXYZ',
-        'x': cofa_root/'WXYZ',
-        'y': cofa_root/'WXYZ',
-        'z': cofa_root/'WXYZ',
-        }
-
-OPENERP_IDS = getpwnam('openerp')[2:4]
 
 #-----------------
 # private commands
@@ -191,8 +113,8 @@ OPENERP_IDS = getpwnam('openerp')[2:4]
 
 def _run(*command):
     command = list(command)
-    params = ['/usr/local/sbin/fnxfs', ] + command #+ ['-v'] * script_verbosity
-    print(' '.join(params), end='\n\n')
+    params = ['/usr/local/bin/fnxfs', ] + command #+ ['-v'] * script_verbosity
+    print(' '.join(params), end='\n\n', verbose=2)
     try:
         exc = None
         dst = stdout
@@ -202,62 +124,18 @@ def _run(*command):
         exc = sys.exc_info()[1]
         dst = stderr
         attempt = exc.process
-        returncode = -1
         print(exc, 'output from command:', sep='\n', file=stderr)
-    if attempt.stdout:
-        print(attempt.stdout, file=dst)
-    if attempt.stderr:
-        print(attempt.stderr, file=stderr)
         raise SystemExit(returncode)
+    if attempt.stdout:
+        print(attempt.stdout, file=dst, verbose=2)
+    if attempt.stderr:
+        errors.append(attempt.stderr)
+        # print(attempt.stderr, file=stderr)
+        # raise SystemExit(returncode)
 
-class ProgressBar(object):
-    symbols = '\\|/-'
-    def __init__(yo, finalcount, block_char='.', message=None):
-        yo.instant = time()
-        yo.symbol_index = 0
-        yo.current_count = 0
-        yo.finalcount = finalcount
-        yo.blockcount = 0
-        yo.block = block_char
-        yo.f = sys.stdout
-        if not yo.finalcount:
-            return
-        if message is not None:
-            yo.f.write('\n\n%s\n' % message)
-        yo.f.write('\n-------------------- % Progress ---------------- 1\n')
-        yo.f.write('    1    2    3    4    5    6    7    8    9    0\n')
-        yo.f.write('    0    0    0    0    0    0    0    0    0    0\n')
-        yo.f.write('-')
-    def progress(yo, count):
-        yo.current_count = count
-        count = min(count, yo.finalcount)
-        if yo.finalcount:
-            percentcomplete = int(floor(100.0*count/yo.finalcount))
-        else:
-            percentcomplete = 100
-        blockcount = int(percentcomplete//2)
-        now = time()
-        if now - yo.instant > 0.05:
-            symbol = yo.symbols[yo.symbol_index]
-            yo.symbol_index += 1
-            if yo.symbol_index >= len(yo.symbols):
-                yo.symbol_index = 0
-            yo.f.write('' + symbol)
-            yo.f.flush()
-            yo.instant = now
-        if blockcount <= yo.blockcount:
-            return
-        yo.f.write('')
-        for i in range(yo.blockcount, blockcount):
-            yo.f.write(yo.block)
-        yo.f.write(yo.symbols[yo.symbol_index])
-        yo.f.flush()
-        yo.blockcount = blockcount
-        if percentcomplete == 100:
-            yo.f.write('\n')
-            yo.f.flush()
-    def tick(yo):
-        yo.current_count += 1
-        yo.progress(yo.current_count)
-
-Run()
+try:
+    Run()
+finally:
+    if errors:
+        error(''.join(errors))
+        raise SystemExit(-1)
