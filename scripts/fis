@@ -414,7 +414,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
         }
     print('looking for', search_key)
     active_salesinq_customers = get_active_salesinq_customers()
-    customer_codes = get_xml_id_map(model='res.partner', module='csms')
+    customer_codes = get_xml_id_map(model='res.partner', fis_module='csms')
     customer_last_write = dict([
         (d.id, d.write_date)
         for d in get_records(
@@ -423,7 +423,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
             fields=['write_date'],
             context={'active_test':False},
             )])
-    customer_ship_tos = get_xml_id_map(model='res.partner', module='csmsbs')
+    customer_ship_tos = get_xml_id_map(model='res.partner', fis_module='csmsbs')
     customers = fd.fisData('CSMS', keymatch='10%s ')
     print('%d customers in CSMS' % len(customers))
     ship_tos = fd.fisData('CSMSB', subset='10%s1')
@@ -624,7 +624,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
 
 
 def update_suppliers(contacts, state_recs, country_recs_name ):
-    supplier_codes = get_xml_id_map(model='res.partner', module='posm')
+    supplier_codes = get_xml_id_map(model='res.partner', fis_module='posm')
     posm = fd.fisData('POSM', keymatch=partner_key)
     context = {'mail_create_nosubscribe': True}
     print('processing %d POSM records' % len(posm))
@@ -688,7 +688,7 @@ def update_suppliers(contacts, state_recs, country_recs_name ):
             supplier_codes[key] = id
 
 def update_vendors(contacts, state_recs, country_recs_name ):
-    vendor_codes = get_xml_id_map(model='res.partner', module='vnms')
+    vendor_codes = get_xml_id_map(model='res.partner', fis_module='vnms')
     vnms = fd.fisData('VNMS', keymatch=partner_key)
     context = {'mail_create_nosubscribe': True}
     for ven_rec in vnms:
@@ -751,7 +751,7 @@ def update_vendors(contacts, state_recs, country_recs_name ):
             vendor_codes[key] = id
 
 def update_carriers(contacts, state_recs, country_recs_name ):
-    carrier_codes = get_xml_id_map(model='res.partner', module='F27')
+    carrier_codes = get_xml_id_map(model='res.partner', fis_module='F27')
     carrier = fd.fisData(27, keymatch='SV10%s')
     context = {'mail_create_nosubscribe': True}
     for carrier_rec in carrier:
@@ -814,7 +814,7 @@ def update_carriers(contacts, state_recs, country_recs_name ):
             carrier_codes[key] = id
 
 def update_employees(contacts, state_recs, country_recs_name ):
-    employee_codes = get_xml_id_map(model='res.partner', module='F74')
+    employee_codes = get_xml_id_map(model='res.partner', fis_module='F74')
     emp1 = fd.fisData('EMP1', keymatch='10%s')
     context = {'mail_create_nosubscribe': True}
     for emp_rec in emp1:
@@ -876,9 +876,33 @@ def update_employees(contacts, state_recs, country_recs_name ):
             id = res_partner.create(result, context=context)
             employee_codes[key] = id
 
+def update_product_categories():
+    context = {'mail_create_nosubscribe': True}
+    category_codes = self.get_xml_id_map(model='product.category', fis_module='CNVZc')
+    # category_recs = dict((r.id, r) for r in self.browse(cr, uid, xml_id_map.values()))
+    # category_codes = {}
+    cnvz = fisData('CNVZc', keymatch='c10%s')
+    for category_rec in cnvz:
+        result = {}
+        result['xml_id'] = key = category_rec[F116.code]
+        name = category_rec[F116.desc].title()
+        result['name'] = name
+        result['module'] = 'CNVZc'
+        if key in category_codes:
+            result['parent_id'] = category_codes[key]['parent_id']['id']
+            self.write(cr, uid, category_codes[key]['id'], result)
+        else:
+            result['parent_id'] = 2
+            new_id = self.create(cr, uid, result)
+            category_codes[key] = dict(name=result['name'], id=new_id, parent_id=result['parent_id'])
+    _logger.info(self._name +  " done!")
+    return True
+
+
+
 def update_products():
     context = {'mail_create_nosubscribe': True}
-    product_codes = get_xml_id_map(model='product.product', module='nvty')
+    product_codes = get_xml_id_map(model='product.product', fis_module='nvty')
     default_product_codes = get_records(oe, model='product.product', domain=[('xml_id','=',False),('default_code','!=',False)])
     nvty = fd.fisData('NVTY', keymatch='10%s')
     for item in nvty:
@@ -906,7 +930,7 @@ def update_products():
 def update_lots():
     context = {'mail_create_nosubscribe': True}
     print('getting products from OpenERP')
-    product_codes = get_xml_id_map('product.product', module='nvty')
+    product_codes = get_xml_id_map('product.product', fis_module='nvty')
     print('getting default product codes from OpenERP')
     default_product_codes = dict([
         (p.default_code, p.id)
@@ -1166,19 +1190,19 @@ def guess_date(text):
     else:
         return False
 
-def get_xml_id_map(model, module, ids=None):
+def get_xml_id_map(model, fis_module, ids=None):
     "return {xml_id: id} for all xml_ids in module"
     imd = oe.get_model('ir.model.data')
-    model = model.replace('.','_')
-    module = module.replace('.','_')
+    # model = model.replace('.','_')
     result = {}
+    # domain=[('module','=','whc'),('model','=',model),('name','=ilike','%s_%%'%fis_module)],
     for rec in get_records(
             imd,
-            domain=[('model','=',model),('name','=ilike','%s%%%s'%(module,model))],
+            domain=[('module','=','whc'),('model','=',model),('name','=ilike','%s_%%'%fis_module)],
             skip_fields=['is_salesinq_able', 'salesinq_data', 'image', 'image_small', 'image_medium'],
             ):
         if ids is None or rec.res_id in ids:
-            name = rec.name[len(module):-len(model)][1:-1]
+            name = rec.name[len(fis_module):-len(model)][1:-1]
             result[name] = rec.res_id
     return result
 
@@ -1313,6 +1337,11 @@ class F74(FISenum):
 class F97(FISenum):
     "Inventory Availablility Code"
     code = 'An$(5,1)'
+    desc = 'Bn$'
+
+class F116(FISenum):
+    'Inventory Category Code'
+    code = 'An$(4,1)'
     desc = 'Bn$'
 
 class F135(FISenum):
