@@ -407,6 +407,8 @@ table_keys = {
 
 invalid_lot = re.compile('^new|po', re.I)
 
+SALABLE = 2
+
 def update_customers(contacts, state_recs, country_recs_name, search_key):
     context = {
         'mail_create_nosubscribe': True,
@@ -883,35 +885,41 @@ def update_product_categories():
     # category_codes = {}
     cnvz = fisData('CNVZc', keymatch='c10%s')
     for category_rec in cnvz:
-        result = {}
-        result['xml_id'] = key = category_rec[F116.code]
+        key = category_rec[F116.code]
         name = category_rec[F116.desc].title()
-        result['name'] = name
-        result['module'] = 'CNVZc'
+        values = {
+                'xml_id': key,
+                'name': name,
+                'module': 'CNVZc',
+                'parent_id': SALABLE,
+                }
         if key in category_codes:
-            result['parent_id'] = category_codes[key]['parent_id']['id']
-            self.write(cr, uid, category_codes[key]['id'], result)
+            # update
+            id = category_codes[key]
+            product_category.write(id, values, context=context)
         else:
-            result['parent_id'] = 2
-            new_id = self.create(cr, uid, result)
-            category_codes[key] = dict(name=result['name'], id=new_id, parent_id=result['parent_id'])
-    _logger.info(self._name +  " done!")
-    return True
+            # create
+            new_id = self.create(values, context=context)
+        category_codes[key] = new_id
 
 
 
 def update_products():
     context = {'mail_create_nosubscribe': True}
     product_codes = get_xml_id_map(model='product.product', fis_module='nvty')
+    category_codes = self.get_xml_id_map(model='product.category', fis_module='CNVZc')
     default_product_codes = get_records(oe, model='product.product', domain=[('xml_id','=',False),('default_code','!=',False)])
     nvty = fd.fisData('NVTY', keymatch='10%s')
     for item in nvty:
-        values = {}
-        values['xml_id'] = values['default_code'] = key = item[F135.item_id]
-        values['module'] = 'NVTY'
-        values['name'] = NameCase(name_chars(' - '.join(item[F135.name].split('\x10'))))
-        print('name:', values['name'])
-        values['latin'] = item[F135.latin_name]
+        key = item[F135.item_id]
+        name = NameCase(name_chars(' - '.join(item[F135.name].split('\x10'))))
+        values = {
+                'xml_id': key,
+                'module': 'NVTY',
+                'name': name,
+                'latin': item[F135.latin_name],
+                'categ_id': category_codes.get(item[F135.category_code], SALABLE)
+                }
         if key in product_codes:
             # update existing FIS record
             id = product_codes[key]
@@ -1165,7 +1173,7 @@ uncommon = {
     }
 
 def connect_oe(database, connection=[]):
-    global res_partner, product
+    global res_partner, product, product_category
     if not connection:
         print('using %r and %r to connect to %r:%r' % ('fis_daemon', config.openerp.pw, config.openerp.host, database))
         connection.append(
@@ -1177,6 +1185,7 @@ def connect_oe(database, connection=[]):
                     ))
     res_partner = connection[0].get_model('res.partner')
     product = connection[0].get_model('product.product')
+    product_category = connection[0].get_model('product.category')
     return connection[0]
 
 def guess_date(text):
