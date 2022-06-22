@@ -155,19 +155,20 @@ def dedupe(table, selection, dupe, prefer, use_empty, dry_run):
     integral records will be excluded from the dedupe process.
     """
     global OERec, OERel, mail_message, DRY_RUN
-    domain = literal_eval(selection)
-    DRY_RUN = dry_run
-    OERec = NamedTuple(
-            'OERec',
-            list(dupe) + list(prefer) + [
-                'model', 'id', 'create_uid', 'create_date', 'write_uid', 'write_date',
-                'xmlid', 'tertiary',
-                ])
-    OERel = NamedTuple('OERel', ['model', 'field'])
     try:
         main_table = oe.get_model(table)
     except MissingTable:
         abort("table '%s' does not exist" % table)
+    inheriting_fields = [v for k,v in main_table._inherits]
+    domain = literal_eval(selection)
+    DRY_RUN = dry_run
+    OERec = NamedTuple(
+            'OERec',
+            list(dupe) + list(prefer) + inheriting_fields + [
+                'model', 'id', 'create_uid', 'create_date', 'write_uid', 'write_date',
+                'xmlid', 'tertiary',
+                ])
+    OERel = NamedTuple('OERel', ['model', 'field'])
     upstream, downstream, inherited = get_relations(table)
     records = get_main_records(main_table, domain, dupe, prefer, use_empty)
     valid_records = []
