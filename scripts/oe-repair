@@ -1,0 +1,390 @@
+#!/usr/local/bin/suid-python --virtualenv
+"""
+Ensure data integrity by removing duplicates, linking records, and adjusting
+ir.model.data names
+"""
+
+# imports
+
+from __future__ import print_function
+from scription import *
+from scription import split_text
+from aenum import NamedTuple
+from antipathy import Path
+from ast import literal_eval
+from openerplib import get_connection, MissingTable, Many2One
+from os import environ
+
+import re
+
+try:
+    import __builtin__ as builtins
+except ImportError:
+    pass
+
+# globals
+
+virtual_env = environ['VIRTUAL_ENV']
+config = '%s/config/fnx.ini' % virtual_env
+
+ALL = [(1,'=',1)]
+
+
+# API
+@Script(
+        )
+def main():
+    global oe, cfg, fis_tables, imd, imf#, admin_user#, fis_user
+    cfg = OrmFile(config, types={'_path':Path})
+    oe = get_connection(
+            hostname=cfg.openerp.host,
+            database=cfg.openerp.db,
+            login=cfg.openerp.user,
+            password=cfg.openerp.pw,
+            )
+    imd = oe.get_model('ir.model.data')
+    imf = oe.get_model('ir.model.fields')
+    # admin_user = 1
+    # fis_user = (imd.read(
+    #         [('model','=','res.users'),('name','=','user_fis_daemon')],
+    #         fields=['res_id'])
+    #         [0]['res_id']
+    #         )
+    fis_tables = {}
+
+def _module_name(text):
+    module, name = text.split('.')
+    return module, name
+
+def table(name):
+    if name.isdigit():
+        name = int(name)
+    try:
+        return fis_tables[name.lower()]
+    except KeyError:
+        abort('unable to find %r' % (name, ))
+
+@Command(
+        table=Spec('table to process names for', type=table),
+        )
+def add_imd(table):
+    "ensure eligible records have a link in ir.model.data"
+    # instanciate the table, retrieve all existing ir.model.data records, then
+    # get any records that should have an imd link but don't
+    table = table(oe, cfg)
+    updated, skipped = table.update_imd()
+    print('%d records added to ir.model.data' % updated)
+    print('%d duplicates' % skipped)
+    if script_command_name != 'add_imd':
+        return table
+    else:
+        return skipped
+
+
+@Command(
+        )
+@Alias('192')
+def cnvzo1():
+    "ensure all transmitter numbers have an ir.model.data entry; update user logins"
+    cnvzo1 = add_imd(table('CNVZO1'))
+    #
+    # imd.get_object_reference('portal','group_portal')
+    # ['res.groups', 229]
+    #
+    portal_group_id = imd.get_object_reference('portal','group_portal')[1]
+    res_users = oe.get_model('res.users')
+    fis_transmitter_code = oe.get_model('fis.transmitter_code')
+    users = get_main_records(
+            res_users,
+            domain=[('groups_id','=',portal_group_id)],
+            fields=['id','login','name','fis_partner_id','fis_transmitter_id'],
+            )
+    for user in users:
+        print('user: ', user)
+        if heb(user.login):
+            transmitter_no = '150' + heb.data
+            print('  HEB: ', transmitter_no)
+        elif other(user.name):
+            transmitter_no = other.data
+            print('  other: ', transmitter_no)
+        else:
+            error("unable to extract transmitter from", user.login)
+            transmitter_no = None
+            continue
+        transmitter_m2o = user.fis_transmitter_id
+        if transmitter_m2o:
+            transmitter = fis_transmitter_code.read(transmitter_m2o.id)
+            if transmitter_no == transmitter.transmitter_no:
+                # nothing needed
+                continue
+        # fis_transmitter_id=Many2One(
+        #           id=66168,
+        #           name='Staff of Life - Bakery',
+        #           model='fis.transmitter_code',
+        #           ),
+        # let OpenERP do the work for us
+        transmitters = cnvzo1.model.read([('transmitter_no','=',transmitter_no)])
+        if len(transmitters) != 1:
+            error('too many/too few transmitters for %r:  %s' % (transmitter_no, transmitters))
+            continue
+        transmitter ,= transmitters
+        print('transmitter:', transmitter)
+        values = res_users.onchange_fis_transmitter([user.id], transmitter.id, False, False)['value']
+        values['fis_transmitter_id'] = transmitter.id
+        print('saving %s' % values)
+        res_users.write(user.id, values)
+
+
+@Command(
+        table=Spec('Which table to update', ),
+        selection=Spec('an OpenERP domain to determine record selection', ),
+        dupe=Spec('fields to consider for duplicates', MULTIREQ),
+        prefer=Spec('which non-empty fields have priority in picking winning record', MULTI),
+        use_empty=Spec('consider empty fields as duplicates?', FLAG),
+        dry_run=Spec('Do not affect changes, merely report what they would be', FLAG),
+        )
+def dedupe(table, selection, dupe, prefer, use_empty, dry_run):
+    """
+    Remove duplicate records according to criteria.
+
+    Updates records pointing to the to-be-deleted one to point instead to the
+    one that will be kept.
+
+    Some tables are actually a mid-point of a logical record -- for example, res.partner can
+    be both a logical record on its own, or an integral port of a res.users record.  Such
+    integral records will be excluded from the dedupe process.
+    """
+    global OERec, OERel, mail_message, DRY_RUN
+    domain = literal_eval(selection)
+    DRY_RUN = dry_run
+    OERec = NamedTuple(
+            'OERec',
+            list(dupe) + list(prefer) + [
+                'model', 'id', 'create_uid', 'create_date', 'write_uid', 'write_date',
+                'xmlid', 'tertiary',
+                ])
+    OERel = NamedTuple('OERel', ['model', 'field'])
+    try:
+        main_table = oe.get_model(table)
+    except MissingTable:
+        abort("table '%s' does not exist" % table)
+    upstream, downstream, inherited = get_relations(table)
+    records = get_main_records(main_table, domain, dupe, prefer, use_empty)
+    valid_records = []
+    dupes = {}
+    mixed = {}
+    key = lambda rec: rec[:len(dupe)]
+    # keep the following as some empty fields are not returned as False
+    valid = lambda rec: all(f for f in rec[:len(dupe)])
+    for rec in ViewProgress(records, "validating $total records"):
+        if valid(rec):
+            valid_records.append(rec)
+    records = enhance_and_filter(valid_records, upstream, inherited, dupe+prefer)
+    for rec in ViewProgress(records, 'sorting $total records'):
+        mixed.setdefault(key(rec), []).append(rec)
+    total = 0
+    for key, records in ViewProgress(mixed.items(), 'checking $total keys'):
+        if len(records) > 1:
+            dupes[key] = records
+            total += len(records)
+    for key, records in ViewProgress(dupes.items(), "removing duplicates from $total sets"):
+        primary, secondary = pick_one(records, prefer)
+        merge(main_table, dupe, primary, secondary)
+
+
+# helpers
+
+heb = Var(lambda s: check_code('HE(\d\d\d)', s))
+other = Var(lambda s: check_code('(\d\d\d\d\d\d) ', s))
+
+def enhance_and_filter(records, upstream, inherited, fields):
+    kept_records = []
+    relations = set()
+    for rec in ViewProgress(records, 'filtering $total records'):
+        for action, relation in (('discard', inherited), ('keep', upstream)):
+            for rel in relation:
+                try:
+                    u_table = oe.get_model(rel.model)
+                except MissingTable:
+                    continue
+                if not u_table._auto:
+                    # abstract table
+                    continue
+                if rel.field not in u_table._all_columns or rel.field in u_table._x2many_fields or not is_searchable(rel.model, rel.field):
+                    continue
+                try:
+                    u_records = u_table.read([(rel.field,'=',rec.id)], fields=[rel.field])
+                except Exception:
+                    continue
+                if not u_records:
+                    continue
+                u_ids = [t.id for t in u_records] 
+                if u_ids:
+                    if action == 'discard':
+                        break
+                    rec.tertiary[rel] = u_ids
+                    relations.add(rel)
+            else:
+                # no break encountered, try next relation
+                continue
+            # we hit a break, so break again
+            break
+        else:
+            # get through all the discards without a match, keep the record
+            kept_records.append(rec)
+    if relations and script_verbosity > 1:
+        relations = list(relations)
+        header = [kept_records[0].model] + list(fields) # + list(kept_records[0][:-8])
+        for r in relations:
+            models = [p.strip() for p in r.model.split('.')] + [r.field]
+            header.append('.\n'.join(models))
+        rows = [header, None]
+        for rec in kept_records:
+            row = ['%s\n%s' % (rec.id, rec.xmlid)]
+            # print('ROW', row)
+            # print('TERTIARY', rec.tertiary.keys())
+            for f in fields:
+                v = getattr(rec, f)
+                if isinstance(v, Many2One):
+                    v = '/\n'.join(t.strip() for t in str(v).split('/'))
+                row.append(v)
+            for rel in relations:
+                row.append(
+                        '\n'.join(
+                            split_text(
+                                ', '.join(str(id) for id in rec.tertiary.get(rel, [])),
+                                30,
+                                )))
+            rows.append(row)
+            rows.append(None)
+        echo(rows, border='table')
+    return kept_records
+
+def check_code(pattern, string):
+    res = re.match(pattern, string)
+    return res and res.groups()[0]
+
+def get_main_records(table, domain, fields, extra, use_blanks=False):
+    if not use_blanks:
+        for f in fields:
+            domain.append((f,'!=',False))
+    records = table.read(domain, fields=fields+extra)
+    # add the metadata
+    meta = dict(
+            (r['id'], r)
+            for r in table.meta_read([rec.id for rec in records], details=True)
+            )
+    for i, rec in enumerate(records):
+        rec.update(meta[rec.id])
+        records[i] = OERec(model=table.model_name, tertiary={}, **rec)
+    return records
+
+def get_relations(table):
+    """
+    get tables that link to TABLE and that TABLE links to via _id fields
+
+    upstream  -->      table    --> downstream
+    inherits  --^
+    ( res.user      res.partner                )
+    ( sample.memo                  res.country )
+
+    `downstream` are tables pointed to by `table`'s fields
+    `upstream` are tables that point to `table`
+    `inheriting` are any `upstream` tables that form a logical record with `table`, and
+                 should not be updated to point to winning record
+    """
+    ir_model_fields = oe.get_model('ir.model.fields')
+    oe.get_model(table)
+    upstream = [
+            OERel(r.model, r.name)
+            for r in ir_model_fields.read(
+                [('relation','=',table)],
+                fields=['model','name']
+                )
+            if r.model != 'product.available_at'
+            ]
+    downstream = [
+            OERel(r.relation, r.name)
+            for r in ir_model_fields.read(
+                [('model','=',table),('relation','!=','')],
+                fields=['relation','name']
+                )
+            if r.relation != 'product.available_at'
+            ]
+    # inheriting lists any tables in `upstream` that logically create a record with `table`
+    # inheriting tables are removed from upstream
+    inheriting = set()
+    for rel in upstream:
+        try:
+            model = oe.get_model(rel.model)
+        except MissingTable:
+            continue
+        except Exception:
+            echo(rel)
+            raise
+        else:
+            for table_name, field in model._inherits:
+                if table_name == table:
+                    inh_rel = OERel(rel.model, field)
+                    if inh_rel in upstream:
+                        inheriting.add(inh_rel)
+    upstream = list(set(upstream) - inheriting)
+    return upstream, downstream, inheriting
+
+def is_searchable(table, field):
+    desc = imf.read([('model','=',table),('name','=',field)], fields=['selectable'])
+    return desc[0]['selectable']
+
+def issubclass(target, allowed):
+    if not isinstance(allowed, tuple):
+        allowed = (allowed, )
+    try:
+        return builtins.issubclass(target, allowed)
+    except TypeError:
+        return False
+
+def merge(main_model, selection, primary, duplicates):
+    # make the tertiary ids from the duplicate records point to the primary record instead.
+    # TODO: special case mail.message create entries: leave them on their original records
+    # echo('merging with %s' % (primary, ), border='flag')
+    for rec in duplicates:
+        for rel, ids in rec.tertiary.items():
+            model = oe.get_model(rel.model)
+            if DRY_RUN:
+                echo('\n\n')
+                echo("would assign %s to %s - %s" % (primary.id, model, ids))
+            else:
+                model.write(ids, {rel.field: primary.id})
+        if DRY_RUN:
+            echo("would delete %s" % (rec, ))
+            echo('\n\n')
+        else:
+            print("  deleting", rec, verbose=2)
+            main_model.unlink(rec.id)
+
+def pick_one(records, prefer):
+    # given a group of records picks the one:
+    # - has an xmlid in the fis namespace
+    # - created by fis
+    # - created by admin
+    # - created earliest
+    if len(records) < 2:
+        abort('only one record!!')
+    def key(record):
+        # { rel1: ids1, res2: ids2, ...}
+        count = 0
+        for ids in record.tertiary.values():
+            count += len(ids)
+        if record.xmlid and record.xmlid.startswith(('fis.','whc.')):
+            is_fis = 0  # 0 means yes (sorts before 1
+        else:
+            is_fis = 1  # 1 means no (sorts after 0)
+        preferred = sum([1 for p in prefer if getattr(record, p, None)])
+        return is_fis, -preferred, -count, record.create_date
+    records.sort(key=lambda r: key(r), reverse=True)
+    primary = records.pop()
+    return primary, records
+
+
+Main()
+
