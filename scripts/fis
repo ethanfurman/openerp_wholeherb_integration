@@ -338,11 +338,12 @@ def tables():
         employees=('', FLAG, None),
         contacts=('include contacts', FLAG, None),
         products=('', FLAG, None),
+        product_categories=('', FLAG, None),
         lots=('', FLAG, None),
         salesinq=('', FLAG, None),
         key=('only process key', OPTION, None)
         )
-def update_openerp(customers, suppliers, vendors, carriers, employees, contacts, products, lots, salesinq, key):
+def update_openerp(customers, suppliers, vendors, carriers, employees, contacts, products, product_categories, lots, salesinq, key):
     "update OpenERP from FIS data"
     database = config.openerp.db
     global oe, partner_key
@@ -364,6 +365,8 @@ def update_openerp(customers, suppliers, vendors, carriers, employees, contacts,
         update_carriers(state_recs, country_recs_name)
     if employees:
         update_employees(state_recs, country_recs_name)
+    if product_categories:
+        update_product_categories()
     if products:
         update_products()
     if lots:
@@ -880,10 +883,8 @@ def update_employees(contacts, state_recs, country_recs_name ):
 
 def update_product_categories():
     context = {'mail_create_nosubscribe': True}
-    category_codes = self.get_xml_id_map(model='product.category', fis_module='CNVZc')
-    # category_recs = dict((r.id, r) for r in self.browse(cr, uid, xml_id_map.values()))
-    # category_codes = {}
-    cnvz = fisData('CNVZc', keymatch='c10%s')
+    category_codes = get_xml_id_map(model='product.category', fis_module='CNVZc')
+    cnvz = fd.fisData('CNVZc', keymatch='c10%s')
     for category_rec in cnvz:
         key = category_rec[F116.code]
         name = category_rec[F116.desc].title()
@@ -899,15 +900,13 @@ def update_product_categories():
             product_category.write(id, values, context=context)
         else:
             # create
-            new_id = self.create(values, context=context)
-        category_codes[key] = new_id
-
-
+            new_id = product_category.create(values, context=context)
+            category_codes[key] = new_id
 
 def update_products():
     context = {'mail_create_nosubscribe': True}
     product_codes = get_xml_id_map(model='product.product', fis_module='nvty')
-    category_codes = self.get_xml_id_map(model='product.category', fis_module='CNVZc')
+    category_codes = get_xml_id_map(model='product.category', fis_module='CNVZc')
     default_product_codes = get_records(oe, model='product.product', domain=[('xml_id','=',False),('default_code','!=',False)])
     nvty = fd.fisData('NVTY', keymatch='10%s')
     for item in nvty:
@@ -918,7 +917,7 @@ def update_products():
                 'module': 'NVTY',
                 'name': name,
                 'latin': item[F135.latin_name],
-                'categ_id': category_codes.get(item[F135.category_code], SALABLE)
+                'categ_id': category_codes.get(item[F135.product_category], SALABLE)
                 }
         if key in product_codes:
             # update existing FIS record
