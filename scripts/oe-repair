@@ -154,12 +154,12 @@ def dedupe(table, selection, dupe, prefer, use_empty, dry_run):
     be both a logical record on its own, or an integral port of a res.users record.  Such
     integral records will be excluded from the dedupe process.
     """
-    global OERec, OERel, mail_message, DRY_RUN
+    global OERec, OERel, DRY_RUN
     try:
-        main_table = oe.get_model(table)
+        main_model = oe.get_model(table)
     except MissingTable:
         abort("table '%s' does not exist" % table)
-    inheriting_fields = [v for k,v in main_table._inherits]
+    inheriting_fields = [v for k,v in main_model._inherits]
     domain = literal_eval(selection)
     DRY_RUN = dry_run
     OERec = NamedTuple(
@@ -170,7 +170,7 @@ def dedupe(table, selection, dupe, prefer, use_empty, dry_run):
                 ])
     OERel = NamedTuple('OERel', ['model', 'field'])
     upstream, downstream, inherited = get_relations(table)
-    records = get_main_records(main_table, domain, dupe, prefer, use_empty)
+    records = get_main_records(main_model, domain, dupe, prefer+tuple(inheriting_fields), use_empty)
     valid_records = []
     dupes = {}
     mixed = {}
@@ -190,13 +190,92 @@ def dedupe(table, selection, dupe, prefer, use_empty, dry_run):
             total += len(records)
     for key, records in ViewProgress(dupes.items(), "removing duplicates from $total sets"):
         primary, secondary = pick_one(records, prefer)
-        merge(main_table, dupe, primary, secondary)
+        merge(main_model, dupe, primary, secondary)
+
+@Command(
+        table=Spec('Which table to update', ),
+        selection=Spec('an OpenERP domain to determine record selection', ),
+        dry_run=Spec('Do not affect changes, merely report what they would be', FLAG),
+        )
+def fix_fis_id(table, selection, dry_run):
+    try:
+        main_model = oe.get_model(table)
+    except MissingTable:
+        abort("table '%s' does not exist" % table)
+    name_field = main_model._rec_name
+    domain = literal_eval(selection) + [('xml_id','=','')]
+    fields = [l[0] for l in domain if (isinstance(l, tuple) and not isinstance(l[0], int))]
+    if name_field not in fields:
+        fields.append(name_field)
+    for rec in main_model.read(domain, fields=fields):
+        if fis_id(rec[name_field]):
+            values = {}
+            values['xml_id'] = xml_id = fis_id()
+            name = rec[name_field].replace(xml_id,'').strip('- /')
+            values[name_field] = name or xml_id
+            if dry_run:
+                echo('%r: %r' % (rec[name_field], values))
+            else:
+                main_model.write(rec.id, values)
+
+@Command(
+        table=Spec('Which table to update', ),
+        selection=Spec('an OpenERP domain to determine record selection', ),
+        dry_run=Spec('Do not affect changes, merely report what they would be', FLAG),
+        )
+def fix_name(table, selection, dry_run):
+    try:
+        main_model = oe.get_model(table)
+    except MissingTable:
+        abort("table '%s' does not exist" % table)
+    name_field = main_model._rec_name
+    domain = literal_eval(selection) + [(name_field,'=','')]
+    fields = [l[0] for l in domain if (isinstance(l, tuple) and not isinstance(l[0], int))]
+    if name_field not in fields:
+        fields.append(name_field)
+    if 'xml_id' not in fields:
+        fields.append('xml_id')
+    for rec in main_model.read(domain, fields=fields):
+        if not rec.xml_id:
+            continue
+        if dry_run:
+            echo(rec)
+        else:
+            main_model.write(rec.id, {name_field: rec.xml_id})
+
+
+@Command(
+        table=Spec('Which table to update', ),
+        selection=Spec('an OpenERP domain to determine record selection', ),
+        fields=Spec('other fields to display', MULTIREQ, force_default=()),
+        )
+def map_record(table, selection, fields):
+    global OERec, OERel, script_verbosity
+    try:
+        main_model = oe.get_model(table)
+    except MissingTable:
+        abort("table '%s' does not exist" % table)
+    domain = literal_eval(selection)
+    fields = [l[0] for l in domain if (isinstance(l, tuple) and not isinstance(l[0], int))] + list(fields)
+    inheriting_fields = [v for k,v in main_model._inherits]
+    OERec = NamedTuple(
+            'OERec',
+            fields + inheriting_fields + [
+                'model', 'id', 'create_uid', 'create_date', 'write_uid', 'write_date',
+                'xmlid', 'tertiary',
+                ])
+    OERel = NamedTuple('OERel', ['model', 'field'])
+    upstream, downstream, inherited = get_relations(table)
+    records = get_main_records(main_model, domain, fields, inheriting_fields, use_blanks=True)
+    script_verbosity = script_verbosity or 2
+    records = enhance_and_filter(records, upstream, inherited, fields)
 
 
 # helpers
 
 heb = Var(lambda s: check_code('HE(\d\d\d)', s))
 other = Var(lambda s: check_code('(\d\d\d\d\d\d) ', s))
+fis_id = Var(lambda s: check_code('(\w{3}\d{5,})', s))
 
 def enhance_and_filter(records, upstream, inherited, fields):
     kept_records = []
@@ -265,19 +344,22 @@ def check_code(pattern, string):
     res = re.match(pattern, string)
     return res and res.groups()[0]
 
-def get_main_records(table, domain, fields, extra, use_blanks=False):
+def get_main_records(model, domain, fields, extra=[], use_blanks=False):
     if not use_blanks:
         for f in fields:
-            domain.append((f,'!=',False))
-    records = table.read(domain, fields=fields+extra)
+            if f in model._text_fields or f in model._html_fields:
+                domain.append((f,'!=',''))
+            else:
+                domain.append((f,'!=',False))
+    records = model.read(domain, fields=fields+extra)
     # add the metadata
     meta = dict(
             (r['id'], r)
-            for r in table.meta_read([rec.id for rec in records], details=True)
+            for r in model.meta_read([rec.id for rec in records], details=True)
             )
     for i, rec in enumerate(records):
         rec.update(meta[rec.id])
-        records[i] = OERec(model=table.model_name, tertiary={}, **rec)
+        records[i] = OERec(model=model.model_name, tertiary={}, **rec)
     return records
 
 def get_relations(table):
