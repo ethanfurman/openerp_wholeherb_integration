@@ -216,7 +216,7 @@ def fix_fis_id(table, selection, dry_run):
             if dry_run:
                 echo('%r: %r' % (rec[name_field], values))
             else:
-                main_model.write(rec.id, values)
+                main_model.write(rec.id, values, context={'fis_maintenance':True})
 
 @Command(
         table=Spec('Which table to update', ),
@@ -241,7 +241,7 @@ def fix_name(table, selection, dry_run):
         if dry_run:
             echo(rec)
         else:
-            main_model.write(rec.id, {name_field: rec.xml_id})
+            main_model.write(rec.id, {name_field: rec.xml_id}, context={'fis_maintenance':True})
 
 
 @Command(
@@ -437,7 +437,7 @@ def merge(main_model, selection, primary, duplicates):
                 echo('\n\n')
                 echo("would assign %s to %s - %s" % (primary.id, model, ids))
             else:
-                model.write(ids, {rel.field: primary.id})
+                model.write(ids, {rel.field: primary.id}, context={'fis_maintenance':True})
         if DRY_RUN:
             echo("would delete %s" % (rec, ))
             echo('\n\n')
