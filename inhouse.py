@@ -82,7 +82,7 @@ class Product_In_Info(osv.Model):
         'partner_id': fields.many2one(
                 'res.partner',
                 string='Customer',
-                domain=[('customer','=',1),('company','=',1)],
+                domain=[('customer','=',1),('is_company','=',1)],
                 help='Customer(s) that finished product is commited to',
                 ),
         'description' : fields.char('Description', size=128),
