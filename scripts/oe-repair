@@ -184,7 +184,6 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
             else:
                 keys.append(value)
         return tuple(keys)
-    echo('use-empty is', use_empty)
     if use_empty:
         valid_records = records
     else:
@@ -463,7 +462,7 @@ def merge(main_model, selection, primary, duplicates):
             model = oe.get_model(rel.model)
             if DRY_RUN:
                 echo('\n\n')
-                echo("would assign %s to %s - %s" % (primary.id, model, ids))
+                echo("would assign %s to %s ids %s" % (primary.id, model.model_name, ', '.join([str(i) for i in ids])))
             else:
                 try:
                     model.write(ids, {rel.field: primary.id}, context={'fis_maintenance':True})
@@ -493,13 +492,13 @@ def pick_one(records, prefer):
         for ids in record.tertiary.values():
             count += len(ids)
         if record.xmlid and record.xmlid.startswith(('fis.','whc.')):
-            is_fis = 0  # 0 means yes (sorts before 1
+            is_fis = 1  # 1 means yes (sorts after 0)
         else:
-            is_fis = 1  # 1 means no (sorts after 0)
+            is_fis = 0  # 0 means no (sorts before 1)
         preferred = sum([1 for p in prefer if getattr(record, p, None)])
-        return is_fis, -preferred, -count, record.create_date
-    records.sort(key=lambda r: key(r), reverse=True)
-    primary = records.pop()
+        return -is_fis, -preferred, -count, record.create_date
+    records.sort(key=lambda r: key(r))
+    primary = records.pop(0)
     return primary, records
 
 
