@@ -12,6 +12,7 @@
             "crm",
             "product",
             "fnx",
+            "fnx_fs",
             "resource",
             "sample",
             ],
