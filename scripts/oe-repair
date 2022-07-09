@@ -214,6 +214,9 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
         dry_run=Spec('Do not affect changes, merely report what they would be', FLAG),
         )
 def fix_fis_id(table, selection, dry_run):
+    """
+    update empty xml_id with xml_id found in name field
+    """
     try:
         main_model = oe.get_model(table)
     except MissingTable:
@@ -246,6 +249,9 @@ def fix_fis_id(table, selection, dry_run):
         dry_run=Spec('Do not affect changes, merely report what they would be', FLAG),
         )
 def fix_name(table, selection, dry_run):
+    """
+    update empty name fields with xml_id
+    """
     global script_verbosity
     try:
         main_model = oe.get_model(table)
@@ -294,6 +300,50 @@ def map_record(table, selection, fields):
     records = get_main_records(main_model, domain, fields, inheriting_fields, use_blanks=True)
     script_verbosity = script_verbosity or 2
     records = enhance_and_filter(records, upstream, inherited, fields)
+
+
+@Command(
+        )
+def fix_csms_links():
+    """
+    ensure all ship-to and contact records link to a customer
+    """
+    global script_verbosity
+    res_partner = oe.get_model('res.partner')
+    ship_tos = []
+    contacts = []
+    main = {}
+    ship_to_count = 0
+    contact_count = 0
+    for rec in ViewProgress(
+            res_partner.read(
+                [('module','ilike','csms')],
+                fields=['module','xml_id','name','parent_id','ship_to_parent_id'],
+                ),
+            "processing $total records",
+        ):
+        if rec.module.lower() == 'csms' and rec.xml_id.startswith('cntct_'):
+            contacts.append(rec)
+        elif rec.module.lower() == 'csms':
+            main[rec.xml_id] = rec
+        elif rec.module.lower() == 'csmsbs':
+            ship_tos.append(rec)
+        else:
+            abort('unknown module %r' % rec.module)
+    for rec in ViewProgress(ship_tos, "processing $total ship-tos"):
+        if not rec.ship_to_parent_id:
+            parent_xml_id = rec.xml_id.split('_')[1].split('-')[0]
+            parent_id = main[parent_xml_id].id
+            res_partner.write(rec.id, {'ship_to_parent_id': parent_id})
+            ship_to_count += 1
+    echo("%d ship-tos updated" % ship_to_count)
+    for rec in ViewProgress(contacts, "processing $total ship-tos"):
+        if not rec.parent_id:
+            parent_xml_id = rec.xml_id.split('_')[1]
+            parent_id = main[parent_xml_id].id
+            res_partner.write(rec.id, {'parent_id': parent_id})
+            contact_count += 1
+    echo("%d contacts updated" % contact_count)
 
 
 # helpers
