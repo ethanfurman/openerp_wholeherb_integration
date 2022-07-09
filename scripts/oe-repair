@@ -337,7 +337,7 @@ def fix_csms_links():
             res_partner.write(rec.id, {'ship_to_parent_id': parent_id})
             ship_to_count += 1
     echo("%d ship-tos updated" % ship_to_count)
-    for rec in ViewProgress(contacts, "processing $total ship-tos"):
+    for rec in ViewProgress(contacts, "processing $total contacts"):
         if not rec.parent_id:
             parent_xml_id = rec.xml_id.split('_')[1]
             parent_id = main[parent_xml_id].id
