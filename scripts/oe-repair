@@ -12,7 +12,7 @@ from scription import split_text
 from aenum import NamedTuple
 from antipathy import Path
 from ast import literal_eval
-from openerplib import get_connection, MissingTable, Many2One
+from openerplib import get_connection, MissingTable, Many2One, XidRec, CSV
 from os import environ
 
 import re
@@ -68,8 +68,8 @@ def table(name):
 @Command(
         table=Spec('table to process names for', type=table),
         )
-def add_imd(table):
-    "ensure eligible records have a link in ir.model.data"
+def fix_imd(table):
+    "ensure eligible records have correct link in ir.model.data"
     # instanciate the table, retrieve all existing ir.model.data records, then
     # get any records that should have an imd link but don't
     table = table(oe, cfg)
@@ -84,7 +84,9 @@ def add_imd(table):
 
 @Command(
         )
-@Alias('192')
+@Alias(
+        '192'
+        )
 def cnvzo1():
     "ensure all transmitter numbers have an ir.model.data entry; update user logins"
     cnvzo1 = add_imd(table('CNVZO1'))
@@ -346,6 +348,264 @@ def fix_csms_links():
     echo("%d contacts updated" % contact_count)
 
 
+@Command(
+        )
+def export_csms():
+    """
+    export all csms and csmsbs records to csms.csv
+    """
+    res_partner = oe.get_model('res.partner')
+    created = 0
+    changed = 0
+    partner_fields = get_fields(res_partner)
+    partner_fields.pop(partner_fields.index('xml_id'))
+    partner_fields.pop(partner_fields.index('module'))
+    partner_fields = ['module','xml_id'] + partner_fields
+    partners = res_partner.read([('module','ilike','CSMS')], fields=partner_fields)
+    for i, partner in ViewProgress(
+            enumerate(partners),
+            "verifying $total partners for ir.model.data compliance",
+            total=len(partners),
+        ):
+        imd_records = imd.search_read([
+                ('model','=','res.partner'),
+                ('res_id','=',partner.id)],
+                )
+        if not imd_records:
+            # create one
+            imd_data = {
+                    'module': 'whc',
+                    'model': 'res.partner',
+                    'res_id': partner.id,
+                    'name': '%s_%s_res_partner' % (partner.module, partner.xml_id),
+                    }
+            imd.create(imd_data)
+            created += 1
+        elif len(imd_records) == 1:
+            # correct if necessary
+            [imd_rec] = imd_records
+            if imd_rec.module != 'whc':
+                imd_data = {
+                        'module': 'whc',
+                        'name': '%s_%s_res_partner' % (partner.module, partner.xml_id),
+                        }
+                imd.write(imd_rec.id, imd_data)
+                imd_data['model'] = imd_rec.model
+                imd_data['res_id'] = imd_rec.res_id
+                changed += 1
+            else:
+                imd_data = {
+                        'module': imd_rec.module,
+                        'model': imd_rec.model,
+                        'res_id': imd_rec.res_id,
+                        'name': imd_rec.name
+                        }
+        else:
+            raise ValueError("record %r has ir.model.data records:\n%s" % '\n'.join(
+                    ['%s.%s' % (r.module, r.name) for r in imd_records]
+                    ))
+        partners[i] = XidRec.fromdict(partner, imd=imd_data)
+    #
+    for partner in ViewProgress(
+            partners,
+            "verifying links for ir.model.data compliance",
+        ):
+        for m2o_field in res_partner._x2one_fields:
+            if m2o_field in ('create_uid', 'write_uid'):
+                continue
+            if partner[m2o_field]:
+                link = partner[m2o_field]
+                imd_records = imd.search_read([
+                        ('model','=',link.model),
+                        ('res_id','=',link.id)],
+                        )
+                if m2o_field in ('parent_id', 'ship_to_parent_id'):
+                    if len(imd_records) != 1:
+                        raise ValueError("Partner %r field %r has invalid ir.model.records: %r"
+                                % (partner.xml_id, m2o_field, imd_records))
+                    partner[m2o_field] = imd_records[0].name
+    with CSV('csms.csv', 'w') as csv:
+        csv.header = partner_fields
+        for partner in ViewProgress(
+                partners,
+                "writing data to csms.csv",
+            ):
+            csv.append([partner[f] for f in partner_fields])
+    print('%d records created' % created)
+    print('%d records updated' % changed)
+    print('%d records saved to csv' % len(partners))
+
+
+@Command(
+        )
+def import_csms():
+    """
+    import all csms and csmsbs records to csms.csv
+    """
+    res_partner = oe.get_model('res.partner')
+    created = 0
+    changed = 0
+    csv = CSV('csms.csv')
+    partner_fields = get_fields(res_partner)
+    if set(csv.header) != set(partner_fields):
+        abort('different fields: %r' % (set(csv.header) - set(partner_fields)))
+    partner_fields.pop(partner_fields.index('xml_id'))
+    partner_fields.pop(partner_fields.index('module'))
+    partner_fields = ['module','xml_id'] + partner_fields
+    partners = res_partner.read([('module','ilike','CSMS')], fields=partner_fields)
+    for i, partner in ViewProgress(
+            enumerate(partners),
+            "verifying $total partners for ir.model.data compliance",
+            total=len(partners),
+        ):
+        imd_records = imd.search_read([
+                ('model','=','res.partner'),
+                ('res_id','=',partner.id)],
+                )
+        if not imd_records:
+            # create one
+            imd_data = {
+                    'module': 'whc',
+                    'model': 'res.partner',
+                    'res_id': partner.id,
+                    'name': '%s_%s_res_partner' % (partner.module, partner.xml_id),
+                    }
+            imd.create(imd_data)
+            created += 1
+        elif len(imd_records) == 1:
+            # correct if necessary
+            [imd_rec] = imd_records
+            if imd_rec.module != 'whc':
+                imd_data = {
+                        'module': 'whc',
+                        'name': '%s_%s_res_partner' % (partner.module, partner.xml_id),
+                        }
+                imd.write(imd_rec.id, imd_data)
+                imd_data['model'] = imd_rec.model
+                imd_data['res_id'] = imd_rec.res_id
+                changed += 1
+            else:
+                imd_data = {
+                        'module': imd_rec.module,
+                        'model': imd_rec.model,
+                        'res_id': imd_rec.res_id,
+                        'name': imd_rec.name
+                        }
+        else:
+            raise ValueError("record %r has ir.model.data records:\n%s" % '\n'.join(
+                    ['%s.%s' % (r.module, r.name) for r in imd_records]
+                    ))
+        partners[i] = XidRec.fromdict(partner, imd=imd_data)
+    print("ir.model.data records:  created - %d  | updated - %d" % (created, changed))
+    #
+    for partner in ViewProgress(
+            partners,
+            "verifying links for ir.model.data compliance",
+        ):
+        for m2o_field in res_partner._x2one_fields:
+            if m2o_field in ('create_uid', 'write_uid'):
+                continue
+            if partner[m2o_field]:
+                link = partner[m2o_field]
+                imd_records = imd.search_read([
+                        ('model','=',link.model),
+                        ('res_id','=',link.id)],
+                        )
+                if m2o_field in ('parent_id', 'ship_to_parent_id'):
+                    if len(imd_records) != 1:
+                        raise ValueError("Partner %r field %r has invalid ir.model.records: %r"
+                                % (partner.xml_id, m2o_field, imd_records))
+                    partner[m2o_field] = imd_records[0].name
+    # existing records are in good shape, compare with csv records for changes
+    # partner_map = dict(
+    #         (r.xml_id, r)
+    #         for r in partners
+    #         )
+    partner_map = {}
+    different = 0
+    for p in partners:
+        if p.xml_id in partner_map:
+            error()
+            error(p)
+            error(partner_map[p.xml_id])
+        else:
+            partner_map[p.xml_id] = p
+
+    if len(partner_map) != len(partners):
+        abort('partners has %d duplicates' % (len(partners)-len(partner_map)))
+    partner_missing = {}
+    partner_diffs = {}
+    partner_table = []
+    diff_table = []
+    field_diffs = set()
+    missing = added = 0
+    different = updated = 0
+    try:
+        for csv_rec in csv.iter_map():
+            partner = partner_map.get(csv_rec.xml_id)
+            if partner is None:
+                # need to add partner
+                partner_missing[csv_rec.xml_id] = csv_rec
+                missing += 1
+                continue
+            diffs = {}
+            for f in partner_fields:
+                if f == 'id':
+                    continue
+                old = csv_rec[f]
+                new = partner[f]
+                if isinstance(old, str) or isinstance(new, str):
+                    old = old and old.lower()
+                    new = new and new.lower()
+                if old != new:
+                    field_diffs.add(f)
+                    diffs[f] = old, new
+            if diffs:
+                partner_diffs[partner.xml_id] = diffs
+                different += 1
+        if partner_missing:
+            partner_table = [('xml_id','name'), None]
+            for partner in partner_missing.values():
+                del partner.id
+                partner.parent_id = partner.parent_id and get_id_from_name('CSMS', partner.parent_id, 'res.partner')
+                partner.ship_to_parent_id = partner.ship_to_parent_id and get_id_from_name('CSMS', partner.ship_to_parent_id, 'res.partner')
+                partner_table.append((partner.xml_id, partner.name))
+                res_partner.create(partner)
+                added += 1
+        if partner_diffs:
+            field_diffs = list(field_diffs)
+            diff_table = [['partner'] + field_diffs, None]
+            for xml_id, diffs in partner_diffs.items():
+                row = [xml_id]
+                partner = partner_map[xml_id]
+                original_values = {}
+                for f in field_diffs:
+                    diff = diffs.get(f, None)
+                    if diff is None:
+                        row.append('')
+                    else:
+                        row.append('%r\n%r' % diff)
+                diff_table.append(row)
+                # create values for oe
+                values = dict(
+                        (k, v[0])
+                        for k, v in diffs.items()
+                        )
+                if 'parent_id' in diffs:
+                    diffs['parent_id'] = get_id_from_name('CSMS', diffs['parent_id'], 'res.partner')
+                if 'ship_to_parent_id' in diffs:
+                    diffs['ship_to_parent_id'] = get_id_from_name('CSMS', diffs['ship_to_parent_id'], 'res.partner')
+                res_partner.write(partner.id, values)
+                updated += 1
+    finally:
+        if partner_table:
+            echo(partner_table, border='table')
+        if diff_table:
+            echo(diff_table, border='table')
+        echo('%d/%d records added' % (added, missing))
+        echo('%d/%d records updated' % (updated, different))
+
+
 # helpers
 
 heb = Var(lambda s: check_code('HE(\d\d\d)', s))
@@ -419,6 +679,22 @@ def check_code(pattern, string):
     res = re.match(pattern, string)
     return res and res.groups()[0]
 
+def get_fields(model):
+    """
+    return non-image and non-x2m fields
+    """
+    result = (
+            set(model._all_columns)
+            - model._binary_fields
+            - model._x2many_fields
+            - model._html_fields
+            - set(['contact_address', 'create_uid', 'create_date', 'write_uid', 'write_date'])
+            )
+    for name in model._binary_fields:
+        if 'image' not in name:
+            result.add(name)
+    return list(result)
+
 def get_main_records(model, domain, fields, extra=[], use_blanks=False):
     if not use_blanks:
         for f in fields:
@@ -436,6 +712,16 @@ def get_main_records(model, domain, fields, extra=[], use_blanks=False):
         rec.update(meta[rec.id])
         records[i] = OERec(model=model.model_name, tertiary={}, **rec)
     return records
+
+def get_id_from_name(fis_module, name, table):
+    imd_name = ('%s_%s_%s' % (fis_module, name, table)).replace('.','_')
+    found = imd.read([('name','=ilike',name)], fields=['module','model','res_id'])
+    if len(found) > 1:
+        abort('too many records found for %r:\n%s' % (name, '\n'.join('%s %s:%s' % (f.module, f.model, f.res_id) for f in found)))
+    elif not found:
+        abort('no record found for %r' % name)
+    else:
+        return found[0].res_id
 
 def get_relations(table):
     """
