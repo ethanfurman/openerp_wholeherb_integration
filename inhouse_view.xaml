@@ -233,6 +233,11 @@
 
         ~menuitem $Finished_Product #whc_inhouse_product_out_menu parent='inhouse_main_menu' action='action_inhouse_product_out'
 
+
+        // links to Lots
+
+        ~menuitem @Lots #inhouse_product_lot parent='inhouse_main_menu' action='action_wholeherb_integration_product_lot' groups='base.group_user'
+
         // Selection views
 
         ~record model='ir.ui.view' #inhouse_selection_process_form

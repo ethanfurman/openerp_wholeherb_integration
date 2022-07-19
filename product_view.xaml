@@ -205,7 +205,21 @@
                 ~tree $product_lots
                     @lot_no
                     @product_id
+                    @supplier_id
                     @qty_remain
+
+        ~record #wholeherb_integration_product_lot_search model=view
+            @name: wholeherb_integraton_product_lot_search
+            @model: wholeherb_integration.product_lot
+            @arch type='xml'
+                ~search $Search_Lots
+                    @lot_no $Lot_Number
+                    @product_id $Product
+                    @supplier_id $Supplier
+                    ~separator
+                    ~group expand='0' string='Group by...'
+                        ~filter $Product domain='[]' context="{'group_by': 'product_id'}"
+                        ~filter $Supplier domain='[]' context="{'group_by': 'supplier_id'}"
 
         ~record #action_wholeherb_integration_product_lot model=act_window
             @name: Product Lots

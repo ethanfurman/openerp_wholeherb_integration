@@ -20,14 +20,14 @@
     #        'security/ir.model.access.csv',
     #    ],
     'data': [
-	    'inhouse_view.xaml',
-	    'inhouse_sequence.xaml',
             'res_config_view.xaml',
             'res_partner_view.xaml',
             'product_view.xaml',
             'purchasing_view.xaml',
             'sample_view.xaml',
             'sample_request_view.xaml',
+            'inhouse_view.xaml',                # must go after product_view as it depends on those views
+            'inhouse_sequence.xaml',
             'security/ir.model.access.csv',
         ],
     'test': [],
