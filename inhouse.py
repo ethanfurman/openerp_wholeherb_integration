@@ -159,8 +159,9 @@ class Job_Time(osv.Model):
                 _calc_name,
                 string='Name', type='char', size=128,
                 store={
+                    'inhouse.job_time': (self_ids, ['process_number_id','product_id'], 10),
                     'inhouse.product_in': (_convert_product_in_ids, ['process_number'], 10),
-                    'product.product': (_convert_product_product_ids, ['product'], 10),
+                    'product.product': (_convert_product_product_ids, ['name'], 10),
                     },
                 ),
         'lot_in_ids' : fields.many2many(
@@ -238,8 +239,9 @@ class Finished_Product_Info(osv.Model):
                 _calc_name,
                 string='Name', type='char', size=128,
                 store={
+                    'inhouse.product_out': (self_ids, ['process_number_id','product_id'], 10),
                     'inhouse.product_in': (_convert_product_in_ids, ['process_number'], 10),
-                    'product.product': (_convert_product_product_ids, ['product'], 10),
+                    'product.product': (_convert_product_product_ids, ['name'], 10),
                     },
                 ),
         'process_number_id' : fields.many2one(
