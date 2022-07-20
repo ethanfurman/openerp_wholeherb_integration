@@ -606,6 +606,21 @@ def import_csms():
         echo('%d/%d records updated' % (updated, different))
 
 
+@Command(
+        table=Spec('table to use', ),
+        field=Spec('field(s) to update', ),
+        )
+def update_calc(table, field):
+    """
+    read and rewrite values for fields causing dependent calced fields to update
+    """
+    model = oe.get_model(table)
+    records = model.read([(1,'=',1)], fields=[field])
+    for rec in records:
+        model.write(rec.id, {field: rec[field]})
+    echo('%d source records processed' % len(records))
+
+
 # helpers
 
 heb = Var(lambda s: check_code('HE(\d\d\d)', s))
