@@ -1,0 +1,217 @@
+!!! xml1.0
+~lines
+    ~report
+        ~title type='eval' expr="'In-House Job Time Report'"
+        ~date type='function' @today format='%A, %B %d, %Y'
+    ~detail type='fields' @id
+        ~process-number type='field' name='process_number_id.process_number'
+        ~product-code type='field' name='product_id.xml_id'
+        ~product-name type='field' name='product_id.name'
+        ~raw-lots type='field' name='lot_in_ids.lot_no'
+        ~finished-lots type='field' name='lot_out_ids.lot_no'
+        ~equip-prep type='field' name='equipment_prep_time'
+        ~equip-disassembly type='field' name='equip_disassembly_time'
+        ~equip-clean type='field' name='equip_clean_time'
+        ~staging type='field' name='stage_product_time'
+        ~packaging type='field' name='packaging_time'
+        ~weight-check type='field' name='wt_check_time'
+        ~qc-check type='field' name='qc_check_time'
+        ~area-clean type='field' name='area_clean_time'
+        ~other type='field' name='other_time'
+        ~machine type='field' name='machine_run_time'
+        ~total-hours type='field' name='total_hours'
+
+!!! xsl1.0
+~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+
+    ~xsl:template match='/'
+        ~xsl:apply-templates select='lines'
+
+    ~xsl:template match='lines'
+        ~document
+            ~template author='OpenERP:InHouse' title='In-House Processing Costing Report' pageSize='us_letter'
+                ~pageTemplate id='first_page'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='first_page_frames'
+                ~pageTemplate id='other_pages'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='other_pages_frames'
+            ~stylesheet
+
+                ~blockTableStyle id='title'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockFont name='Helvetica' size='14'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='container'
+                    ~blockFont name='Helvetica' size='12'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='free-float'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockFont name='Helvetica' size='12'
+                    ~blockValign value='TOP'
+
+                ~paraStyle name='bi' fontName='Helvetica-BoldOblique' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='b' fontName='Helvetica-Bold' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='normal' fontName='Helvetica' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emphbi' fontName='Helvetica-BoldOblique' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emphb' fontName='Helvetica-Bold' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emph' fontName='Helvetica' fontSize='12' spaceAfter='0' spaceBefore='0'
+            ~story
+                ~setNextTemplate name='other_pages'
+                ~xsl:apply-templates match='report' mode='story'
+                ~xsl:apply-templates select='detail'
+
+    ~xsl:template name='first_page_frames'
+        ~frame id='col1' x1='1.0in' y1='1.0in' width='6.5in' height='9.0in'
+
+    ~xsl:template name='other_pages_frames'
+        ~frame id='col2' x1='1.0in' y1='1.0in' width='6.5in' height='9.0in'
+
+    ~xsl:template match='report'
+        ~setFont name='Helvetica-BoldOblique' size='20'
+        ~drawCentredString x='4.25in' y='10.25in'
+            ~xsl:text: In-House Job Time Report
+        ~setFont name='Helvetica' size='9'
+        ~drawString x='1.0in' y='1.3in'
+            ~xsl:text: __ Forward copy of costing sheet to purchasing if marked.
+        ~drawString x='1.0in' y='1.0in'
+            ~xsl:value-of select='date'
+
+    ~xsl:template match='detail'
+        ~hr
+        ~blockTable colWidths='112, 356' style='container'
+            ~tr
+                ~td
+                    ~para style='emphbi'
+                        ~xsl:text: Process Number
+                ~td
+                    ~para style='emph'
+                        ~xsl:value-of select='process-number'
+            ~tr
+                ~td
+                    ~para style='emphbi'
+                        ~xsl:text: Finished Product
+                ~td
+                    ~para style='emph'
+                        ~xsl:value-of select='product-code'
+                        ~xsl: : /
+                        ~xsl:value-of select='product-name'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Lot# Raw
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='raw-lots'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Lot# Finished
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='finished-lots'
+        ~hr
+        ~blockTable colWidths='176, 292' style='container'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Equipment Prep Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='equip_prep'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Stage Product Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='staging'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Packaging Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='packaging'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Wt Check Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='weight-check'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: QC Check Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='qc_check'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Equip Disassembly Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='equip_disassembly'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Equip Clean Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='equip-clean'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Area Clean Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='area-clean'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Other Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='other'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Machine Run Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='machine-run'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Waste LBS
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='waste-lbs'
+            ~tr
+                ~td
+                    ~para style='bi'
+                        ~xsl:text: Machine Run Time
+                ~td
+                    ~para style='normal'
+                        ~xsl:value-of select='machine'
+        ~hr
+        ~blockTable colWidths='176, 292' style='container'
+            ~tr
+                ~td
+                    ~para style='emphbi'
+                        ~xsl:text: Total Man Hours
+                ~td
+                    ~para style='emph'
+                        ~xsl:value-of select='total-hours'
+
+
