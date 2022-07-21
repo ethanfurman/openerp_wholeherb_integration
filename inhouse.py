@@ -68,6 +68,7 @@ class Product_In_Info(osv.Model):
         'product_id' : fields.many2one(
                 'product.product',
                 string='Product Description',
+                required=True,
                 help='Item Code & Description of product going into process',
                 ),
         'lot_ids' : fields.many2many(
@@ -113,7 +114,11 @@ class Product_In_Info(osv.Model):
     def create(self, cr, uid, values, context=None):
         if 'process_number' not in values or not values['process_number']:
             values['process_number'] = int(self.pool.get('ir.sequence').next_by_code(cr, uid, 'inhouse.product_in', context=context))
-        return super(Product_In_Info, self).create(cr, uid, values, context)
+        process_in_id = super(Product_In_Info, self).create(cr, uid, values, context)
+        # now create matching job time and product out entries
+        self.pool.get('inhouse.job_time').create(cr, uid, {'process_number_id':process_in_id, 'product_id':values['product_id']}, context=context)
+        self.pool.get('inhouse.product_out').create(cr, uid, {'process_number_id':process_in_id, 'product_id':values['product_id']}, context=context)
+        return process_in_id
 
 
 class Job_Time(osv.Model):
