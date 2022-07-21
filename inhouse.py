@@ -186,11 +186,13 @@ class Job_Time(osv.Model):
         'process_number_id' : fields.many2one(
                 'inhouse.product_in',
                 string='Process Number',
+                required=True,
                 help='',
                 ),
         'product_id' : fields.many2one(
                 'product.product',
                 string='Finished Product',
+                required=True,
                 help='',
                 ),
         'equipment_prep_time' : fields.float('Equipment Prep Time', digits=(10,2), help=''),
@@ -252,6 +254,7 @@ class Finished_Product_Info(osv.Model):
         'process_number_id' : fields.many2one(
                 'inhouse.product_in',
                 string='Process Number',
+                required=True,
                 help='',
                 ),
         'date_in': fields.date('Date In'),
@@ -260,6 +263,7 @@ class Finished_Product_Info(osv.Model):
         'product_id' : fields.many2one(
                 'product.product',
                 string='Finished Product',
+                required=True,
                 help='Item Code & Description of primary finished product',
                 ),
         'finished_lot_ids' : fields.many2many(

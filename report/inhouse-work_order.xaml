@@ -88,7 +88,7 @@
             ~xsl:value-of select='date'
         ~setFont name='Helvetica' size='8'
         ~drawRightString x='7.75in' y='0.5in'
-            ~xsl:text: Last Modified: 2022-06-07
+            ~xsl:text: Last Modified: 2022-07-21
 
     ~xsl:template match='detail'
         ~setFont name='Helvetica-Oblique' size='10'
@@ -105,7 +105,7 @@
             ~xsl:text: Screen Size
         ~drawString x='0.75in' y='8.0in'
             ~xsl:text: Product In
-        ~drawBox x='1.8in' y='7.9in' width='5.95in' height='0.35in'
+        ~drawBox x='1.55in' y='7.9in' width='6.2in' height='0.35in'
         ~drawString x='0.75in' y='7.5in'
             ~xsl:text: Lot Number(s)
         ~drawBox x='1.8in' y='7.4in' width='5.95in' height='0.35in'
@@ -141,7 +141,7 @@
         ~drawBox x='0.75in' y='1.0in' width='7.0in' height='1.9in'
 
         ~setFont name='Helvetica-Bold' size='16'
-        ~drawString x='0.875in' y='9.65in'
+        ~drawString x='0.875in' y='9.70in'
             ~xsl:value-of select='process'
         ~drawRightString x='1.75in' y='9.0in'
             ~xsl:value-of select='name'
@@ -154,7 +154,7 @@
             ~xsl:value-of select='alcohol-wash'
         ~drawString x='5.125in' y='8.5in'
             ~xsl:value-of select='screen-size'
-        ~drawString x='1.9in' y='8.0in'
+        ~drawString x='1.65in' y='8.0in'
             ~xsl:value-of select='product-code'
             ~xsl:text: : /
             ~xsl:value-of select='product'
