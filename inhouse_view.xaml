@@ -39,7 +39,7 @@
                                     @partner_id
                                     @description
                                 ~group
-                                    @lot_ids
+                                    @raw_lot_ids
                                         ~tree
                                             @lot_no
                                             @product_id
@@ -80,7 +80,7 @@
                     @process_id
                     @equip_to_use_id
                     @product_id
-                    @lot_ids
+                    @raw_lot_ids
                     @partner_id
                     @voided
 
