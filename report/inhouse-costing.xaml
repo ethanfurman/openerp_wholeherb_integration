@@ -7,7 +7,7 @@
         ~process-number type='field' name='process_number_id.process_number'
         ~process type='field' name='process_number_id.process_id.name'
         ~raw-product type='field' name='process_number_id.product_id.name'
-        ~raw-lot-no type='field' name='process_number_id.lot_ids.lot_no'
+        ~raw-lot-no type='field' name='process_number_id.raw_lot_ids.lot_no'
         ~net-weight-in type='field' name='process_number_id.net_weight_in'
         ~date-in type='field' name='process_number_id.date_in' format='%Y-%m-%d'
         ~date-finished type='field' @date_finished

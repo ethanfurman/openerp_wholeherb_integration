@@ -10,7 +10,7 @@
         ~equip-to-use type='field' name='equip_to_use_id.name'
         ~product-code type='field' name='product_id.xml_id'
         ~product type='field' name='product_id.name'
-        ~lots type='field' name='lot_ids.lot_no'
+        ~lots type='field' name='raw_lot_ids.lot_no'
         ~net-weight type='field' name='net_weight_in'
         ~customer type='field' name='partner_id.name'
         ~description type='field' name='description'
