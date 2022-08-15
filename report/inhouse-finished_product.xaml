@@ -1,0 +1,222 @@
+!!! xml1.0
+~lines
+    ~report
+        ~title type='eval' expr="'In-House Finished Product Information'"
+        ~date type='function' @today format='%m/%d/%Y'
+    ~detail type='fields' @id
+        ~process-number type='field' name='process_number_id.process_number'
+        ~process type='field' name='process_number_id.process_id.name'
+        ~raw-product type='field' name='process_number_id.product_id.name'
+        ~raw-lot-no type='field' name='process_number_id.raw_lot_ids.lot_no'
+        ~net-weight-in type='field' name='process_number_id.net_weight_in'
+        ~date-in type='field' name='process_number_id.date_in' format='%Y-%m-%d'
+        ~date-finished type='field' @date_finished format='%m/%d/%Y'
+        ~finished-product type='field' name='product_id.name'
+        ~finished-lots type='field' name='finished_lot_ids.lot_no'
+        ~finished-pack type='field' @finished_pack
+        ~finished-lbs type='field' @finished_lbs
+        ~total-liners type='field' @total_liners_used
+        ~overs type='field' @overs
+        ~over_lots type='field' name='over_lot_ids.lot_no'
+        ~over-lbs type='field' @overs_lbs
+        ~over-pack type='field' @overs_pack
+        ~unders type='field' @unders
+        ~under_lots type='field' name='under_lot_ids.lot_no'
+        ~under-lbs type='field' @unders_lbs
+        ~uner_pack type='field' @unders_pack
+        ~magnetic-lbs type='field' @magnetic_lbs
+        ~waste-lbs type='field' @waste_lbs
+        ~total-hours type='field' name='process_number_id.job_time_ids.total_hours'
+        ~machine-run-time type='field' name='process_number_id.job_time_ids.machine_run_time'
+
+!!! xsl1.0
+~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+
+    ~xsl:template match='/'
+        ~xsl:apply-templates select='lines'
+
+    ~xsl:template match='lines'
+        ~document
+            ~template author='OpenERP:InHouse' title='In-House Finished Product Information' pageSize='us_letter'
+                ~pageTemplate id='first_page'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='first_page_frames'
+                ~pageTemplate id='other_pages'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='other_pages_frames'
+            ~stylesheet
+
+                ~blockTableStyle id='title'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockFont name='Helvetica' size='14'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='container'
+                    ~blockFont name='Helvetica' size='12'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='free-float'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockFont name='Helvetica' size='12'
+                    ~blockValign value='TOP'
+
+                ~paraStyle name='bi' fontName='Helvetica-BoldOblique' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='b' fontName='Helvetica-Bold' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='normal' fontName='Helvetica' fontSize='11' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emphbi' fontName='Helvetica-BoldOblique' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emphb' fontName='Helvetica-Bold' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='emph' fontName='Helvetica' fontSize='12' spaceAfter='0' spaceBefore='0'
+            ~story
+                ~setNextTemplate name='other_pages'
+                ~xsl:apply-templates match='report' mode='story'
+                ~xsl:apply-templates select='detail'
+
+    ~xsl:template name='first_page_frames'
+        ~frame id='col1' x1='1.0in' y1='1.0in' width='6.5in' height='9.0in'
+
+    ~xsl:template name='other_pages_frames'
+        ~frame id='col2' x1='1.0in' y1='1.0in' width='6.5in' height='9.0in'
+
+    ~xsl:template match='report'
+        ~setFont name='Helvetica-Bold' size='16'
+        ~drawCenteredString x='4.25in' y='10.25in'
+            ~xsl:text: WORK ORDER
+        ~drawLine x1='0.5in' y1='10.2in' x2='8.0in' y2='10.2in'
+        ~drawCentredString x='4.25in' y='9.85in'
+            ~xsl:text: FINISHED PRODUCT INFORMATION
+        ~drawLine x1='0.5in' y1='9.7in' x2='8.0in' y2='9.7in'
+        ~setFont name='Helvetica' size='9'
+        ~drawString x='0.5in' y='10.0in'
+            ~xsl:text: Process Number
+
+        ~setFont name='Helvetica-Oblique' size='9'
+
+        ~drawString x='0.5in' y='9.25in'
+            ~xsl:text: Date Finished
+        ~drawBox x='1.5in' y='8.95in' width='2.5in' height='0.45in'
+
+        ~drawString x='0.5in' y='8.75in'
+            ~xsl:text: Finished Product
+        ~drawBox x='1.5in' y='8.45in' width='6.5in' height='0.45in'
+        
+        ~drawString x='0.5in' y='8.25in'
+            ~xsl:text: Lot Number
+        ~drawBox x='1.5in' y='7.95in' width='2.5in' height='0.45in'
+        
+        ~drawString x='0.5in' y='7.75in'
+            ~xsl:text: Total lbs (net)
+        ~drawBox x='1.5in' y='7.45in' width='2.5in' height='0.45in'
+        
+        ~drawString x='0.5in' y='7.25in'
+            ~xsl:text: Packaging
+        ~drawBox x='1.5in' y='6.7in' width='6.5in' height='0.7in'
+        
+        ~drawLine x1='0.5in' y1='6.63in' x2='8.0in' y2='6.63in'
+
+        ~drawString x='0.5in' y='6.4in'
+            ~xsl:text: Overs
+        ~drawBox x='1.5in' y='6.1in' width='6.5in' height='0.45in'
+        
+        ~drawString x='0.5in' y='5.9in'
+            ~xsl:text: Lot Number
+        ~drawBox x='1.5in' y='5.6in' width='2.5in' height='0.45in'
+        
+        ~drawString x='0.5in' y='5.4in'
+            ~xsl:text: Total lbs (net)
+        ~drawBox x='1.5in' y='5.1in' width='2.5in' height='0.45in'
+        
+        ~drawString x='0.5in' y='4.9in'
+            ~xsl:text: Packaging
+        ~drawBox x='1.5in' y='4.35in' width='6.5in' height='0.7in'
+        
+        ~drawLine x1='0.5in' y1='4.28in' x2='8.0in' y2='4.28in'
+
+        ~drawString x='0.5in' y='4.05in'
+            ~xsl:text: Unders
+        ~drawBox x='1.5in' y='3.75in' width='6.5in' height='0.45in'
+        
+        ~drawString x='0.5in' y='3.55in'
+            ~xsl:text: Lot Number
+        ~drawBox x='1.5in' y='3.25in' width='2.5in' height='0.45in'
+        
+        ~drawString x='0.5in' y='3.05in'
+            ~xsl:text: Total lbs (net)
+        ~drawBox x='1.5in' y='2.75in' width='2.5in' height='0.45in'
+        
+        ~drawString x='0.5in' y='2.55in'
+            ~xsl:text: Packaging
+        ~drawBox x='1.5in' y='2.0in' width='6.5in' height='0.7in'
+        
+        ~drawLine x1='0.5in' y1='1.93in' x2='8.0in' y2='1.93in'
+
+        ~drawString x='0.5in' y='1.7in'
+            ~xsl:text: Total Liners Used
+        ~drawBox x='0.5in' y='0.9in' width='2.0in' height='0.7in'
+
+        ~drawString x='2.75in' y='1.7in'
+            ~xsl:text: Magnetic Waste (Net lbs)
+        ~drawBox x='2.75in' y='0.9in' width='2.0in' height='0.7in'
+
+        ~drawString x='5.0in' y='1.7in'
+            ~xsl:text: Floor/Hopper Waste (Net lbs)
+        ~drawBox x='5.0in' y='0.9in' width='3.0in' height='0.7in'
+
+
+        ~setFont name='Helvetica-Bold' size='9'
+        ~drawString x='0.5in' y='0.5in'
+            ~xsl:text: QA Approval __________________________________________
+        ~setFont name='Helvetica' size='9'
+        ~drawString x='4.5in' y='0.5in'
+            ~xsl:text: Supervisor __________________________________________
+
+        ~drawString x='0.5in' y='0.25in'
+            ~xsl:text: Date printed:
+        ~drawString x='1.25in' y='0.25in'
+            ~xsl:value-of select='date'
+        ~drawString x='3.0in' y='0.25in'
+            ~xsl:text: Date form revised: 08/14/2022
+
+    ~xsl:template match='detail'
+        ~setFont name='Helvetica-Bold' size='14'
+        ~drawString x='0.5in' y='10.25in'
+            ~xsl:value-of select='process'
+        ~drawString x='0.75in' y='9.75in'
+            ~xsl:value-of select='process-number'
+        ~drawString x='1.65in' y='9.2in'
+            ~xsl:value-of select='date-finished'
+        ~drawString x='1.65in' y='8.7in'
+            ~xsl:value-of select='finished-product'
+        ~drawString x='1.65in' y='8.2in'
+            ~xsl:value-of select='finished-lots'
+        ~drawString x='1.65in' y='7.7in'
+            ~xsl:value-of select='finished-lbs'
+        ~drawString x='1.65in' y='7.2in'
+            ~xsl:value-of select='finished-pack'
+        ~drawString x='1.65in' y='6.35in'
+            ~xsl:value-of select='overs'
+        ~drawString x='1.65in' y='5.85in'
+            ~xsl:value-of select='over-lots'
+        ~drawString x='1.65in' y='5.35in'
+            ~xsl:value-of select='over-lbs'
+        ~drawString x='1.65in' y='4.85in'
+            ~xsl:value-of select='over-pack'
+        ~drawString x='1.65in' y='4.0in'
+            ~xsl:value-of select='unders'
+        ~drawString x='1.65in' y='3.5in'
+            ~xsl:value-of select='under-lots'
+        ~drawString x='1.65in' y='3.0in'
+            ~xsl:value-of select='under-lbs'
+        ~drawString x='1.65in' y='2.5in'
+            ~xsl:value-of select='under-pack'
+        ~drawString x='0.65in' y='1.35in'
+            ~xsl:value-of select='total-liners'
+        ~drawString x='2.9in' y='1.35in'
+            ~xsl:value-of select='magnetic-lbs'
+        ~drawString x='5.15in' y='1.35in'
+            ~xsl:value-of select='waste-lbs'
