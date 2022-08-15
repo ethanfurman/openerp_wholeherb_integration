@@ -6,11 +6,13 @@
     ~detail type='fields' @id
         ~process-number type='field' name='process_number_id.process_number'
         ~process type='field' name='process_number_id.process_id.name'
+        ~raw-product-code type='field' name='process_number_id.product_id.xml_id'
         ~raw-product type='field' name='process_number_id.product_id.name'
         ~raw-lot-no type='field' name='process_number_id.raw_lot_ids.lot_no'
         ~net-weight-in type='field' name='process_number_id.net_weight_in'
         ~date-in type='field' name='process_number_id.date_in' format='%Y-%m-%d'
         ~date-finished type='field' @date_finished
+        ~finished-product-code type='field' name='product_id.xml_id'
         ~finished-product type='field' name='product_id.name'
         ~finished-lots type='field' name='finished_lot_ids.lot_no'
         ~finished-pack type='field' @finished_pack
@@ -126,6 +128,8 @@
                         ~xsl:text: Raw Product
                 ~td
                     ~para style='normal'
+                        ~xsl:value-of select='raw-product-code'
+                        ~xsl:text: : /
                         ~xsl:value-of select='raw-product'
             ~tr
                 ~td
@@ -149,6 +153,8 @@
                         ~xsl:text: Finished Product
                 ~td
                     ~para style='emphb'
+                        ~xsl:value-of select='finished-product-code'
+                        ~xsl:text: : /
                         ~xsl:value-of select='finished-product'
             ~tr
                 ~td

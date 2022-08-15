@@ -12,18 +12,19 @@
         ~date-in type='field' name='process_number_id.date_in' format='%Y-%m-%d'
         ~date-finished type='field' @date_finished format='%m/%d/%Y'
         ~finished-product type='field' name='product_id.name'
+        ~finished-product-code type='field' name='product_id.xml_id'
         ~finished-lots type='field' name='finished_lot_ids.lot_no'
         ~finished-pack type='field' @finished_pack
         ~finished-lbs type='field' @finished_lbs
         ~total-liners type='field' @total_liners_used
         ~overs type='field' @overs
-        ~over_lots type='field' name='over_lot_ids.lot_no'
+        ~over-lots type='field' name='over_lot_ids.lot_no'
         ~over-lbs type='field' @overs_lbs
         ~over-pack type='field' @overs_pack
         ~unders type='field' @unders
-        ~under_lots type='field' name='under_lot_ids.lot_no'
+        ~under-lots type='field' name='under_lot_ids.lot_no'
         ~under-lbs type='field' @unders_lbs
-        ~uner_pack type='field' @unders_pack
+        ~under-pack type='field' @unders_pack
         ~magnetic-lbs type='field' @magnetic_lbs
         ~waste-lbs type='field' @waste_lbs
         ~total-hours type='field' name='process_number_id.job_time_ids.total_hours'
@@ -191,6 +192,8 @@
         ~drawString x='1.65in' y='9.2in'
             ~xsl:value-of select='date-finished'
         ~drawString x='1.65in' y='8.7in'
+            ~xsl:value-of select='finished-product-code'
+            ~xsl:text: : /
             ~xsl:value-of select='finished-product'
         ~drawString x='1.65in' y='8.2in'
             ~xsl:value-of select='finished-lots'
