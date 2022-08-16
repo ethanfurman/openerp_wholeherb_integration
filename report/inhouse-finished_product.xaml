@@ -29,6 +29,7 @@
         ~waste-lbs type='field' @waste_lbs
         ~total-hours type='field' name='process_number_id.job_time_ids.total_hours'
         ~machine-run-time type='field' name='process_number_id.job_time_ids.machine_run_time'
+        ~void type='field' name='voided' format='__,✓'
 
 !!! xsl1.0
 ~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
@@ -95,6 +96,8 @@
         ~setFont name='Helvetica' size='9'
         ~drawString x='0.5in' y='10.0in'
             ~xsl:text: Process Number
+        ~drawRightString x='7.625in' y='9.75in'
+            ~xsl:text: Void
 
         ~setFont name='Helvetica-Oblique' size='9'
 
@@ -189,6 +192,8 @@
             ~xsl:value-of select='process'
         ~drawString x='0.75in' y='9.75in'
             ~xsl:value-of select='process-number'
+        ~drawString x='7.75in' y='9.75in'
+            ~xsl:value-of select='void'
         ~drawString x='1.65in' y='9.2in'
             ~xsl:value-of select='date-finished'
         ~drawString x='1.65in' y='8.7in'

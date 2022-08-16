@@ -19,7 +19,8 @@
             @arch type='xml'
                 ~form string='Product In' version='7.0'
                     ~header
-                        @voided .oe_highlight .oe_right .oe_bold attrs="{'invisible': [('voided','=',False)], 'readonly':True}"
+                        ~div .oe_highlight .oe_text_center .oe_bold attrs="{'invisible': [('voided','=',False)]}"
+                            V O I D
                     ~group col='8'
                         ~group colspan='2'
                             @process_number
@@ -50,6 +51,8 @@
                                     @treatment
                             ~label for='comment' $Comments
                             @comment
+                            ~label for='voided' $Void
+                            @voided
                         ~page string='Job Time'
                             @job_time_ids nolabel='1' options="{'create':False}"
                         ~page string='Finished Product'
@@ -100,6 +103,9 @@
             @type: form
             @arch type='xml'
                 ~form string='Job Time' version='7.0'
+                    ~header
+                        ~div .oe_highlight .oe_text_center .oe_bold attrs="{'invisible': [('voided','=',False)]}"
+                            V O I D
                     ~group
                         ~group
                             @process_number_id options="{'create':False}"
@@ -123,6 +129,8 @@
                             @machine_run_time
                             ~hr colspan='2'
                             @total_hours
+                    ~label for='voided' $Void
+                    @voided
 
 
         ~record model='ir.ui.view' #inhouse_job_time_tree
@@ -163,7 +171,8 @@
             @arch type='xml'
                 ~form string='Finished Product' version='7.0'
                     ~header
-                        @voided .oe_highlight .oe_right .oe_bold attrs="{'invisible': [('voided','=',False)], 'readonly':True}"
+                        ~div .oe_highlight .oe_text_center .oe_bold attrs="{'invisible': [('voided','=',False)]}"
+                            V O I D
                     ~group
                         ~group
                             @process_number_id options="{'create':False}"
@@ -199,6 +208,8 @@
                     ~hr colspan='4'
                     ~label for='comments' $Comment
                     @comments
+                    ~label for='voided' $Void
+                    @voided
 
 
         ~record model='ir.ui.view' #inhouse_product_out_tree

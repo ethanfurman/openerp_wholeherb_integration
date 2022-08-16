@@ -24,6 +24,7 @@
         ~waste-lbs type='field' @waste_lbs
         ~total-hours type='field' name='process_number_id.job_time_ids.total_hours'
         ~machine-run-time type='field' name='process_number_id.job_time_ids.machine_run_time'
+        ~void type='field' name='voided' format='___,✓'
 
 !!! xsl1.0
 ~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
@@ -91,7 +92,7 @@
 
     ~xsl:template match='detail'
         ~hr
-        ~blockTable colWidths='144, 324' style='container'
+        ~blockTable colWidths='144, 100, 44, 40, 140' style='container'
             ~tr
                 ~td
                     ~para style='emphbi'
@@ -99,6 +100,13 @@
                 ~td
                     ~para style='emph'
                         ~xsl:value-of select='process-number'
+                ~td
+                ~td
+                    ~para style='emphbi'
+                        ~xsl:text: Void
+                ~td
+                    ~para style='emph'
+                        ~xsl:value-of select='void'
         ~blockTable colWidths='144, 100, 44, 100, 80' style='free-float'
             ~tr
                 ~td

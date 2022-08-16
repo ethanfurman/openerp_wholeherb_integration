@@ -228,6 +228,12 @@ class Job_Time(osv.Model):
                 help='Total hours billed to job',
                 oldname='total_man_hours',
                 ),
+        'voided' : fields.related(
+                'process_number_id','voided',
+                string='Voided Job',
+                type='boolean',
+                help='',
+                ),
         }
 
 
@@ -319,7 +325,12 @@ class Finished_Product_Info(osv.Model):
         'treatment' : fields.char('Treatment', size=64, help='Post process treatment required and pounds to go'),
         'comments' : fields.text('Comment', help=''),
         'total_liners_used' : fields.char('Total Liners Used', size=64, help='Total number of poly liners used for job'),
-        'voided' : fields.boolean('Voided Job', help=''),
+        'voided' : fields.related(
+                'process_number_id','voided',
+                string='Voided Job',
+                type='boolean',
+                help='',
+                ),
         }
 
 

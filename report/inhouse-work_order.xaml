@@ -19,6 +19,7 @@
         ~alcohol-wash type='field' name='alcohol_wash' format=',✓'
         ~comments type='field' name='comment'
         ~treatment type='field' name='treatment'
+        ~void type='field' name='voided' format=',✓'
 
 !!! xsl1.0
 ~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
@@ -98,6 +99,9 @@
             ~xsl:text: Date Work Order Issued
         ~drawString x='5.0in' y='9.25in'
             ~xsl:text: Equipment to Use
+        ~drawString x='0.75in' y='8.75in'
+            ~xsl:text: Void
+        ~drawBox x='1.15in' y='8.74in' height='0.125in' width='0.125in'
         ~drawString x='2.5in' y='8.75in'
             ~xsl:text: Alcohol Wash Required
         ~drawBox x='4.05in' y='8.74in' height='0.125in' width='0.125in'
@@ -150,6 +154,8 @@
             ~xsl:value-of select='date-issued'
         ~drawString x='5.125in' y='9.0in'
             ~xsl:value-of select='equip-to-use'
+        ~drawString x='1.165in' y='8.75in'
+            ~xsl:value-of select='void'
         ~drawString x='4.06in' y='8.75in'
             ~xsl:value-of select='alcohol-wash'
         ~drawString x='5.125in' y='8.5in'
