@@ -616,7 +616,7 @@ def update_calc(table, field):
     """
     model = oe.get_model(table)
     records = model.read([(1,'=',1)], fields=[field])
-    for rec in records:
+    for rec in ViewProgress(records):
         model.write(rec.id, {field: rec[field]})
     echo('%d source records processed' % len(records))
 
