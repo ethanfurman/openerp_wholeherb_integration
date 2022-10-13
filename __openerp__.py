@@ -23,6 +23,7 @@
             'res_config_view.xaml',
             'res_partner_view.xaml',
             'product_view.xaml',
+            'production_view.xaml',
             'purchasing_view.xaml',
             'sample_view.xaml',
             'sample_request_view.xaml',

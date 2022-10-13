@@ -13,3 +13,5 @@ access_inhouse_selection_equip_to_use_all,inhouse_selection_equip_to_use_all,mod
 access_inhouse_product_in_all,inhouse_product_in_all,model_inhouse_product_in,base.group_no_one,1,1,1,1
 access_inhouse_job_time_all,inhouse_job_time_all,model_inhouse_job_time,base.group_no_one,1,1,1,1
 access_inhouse_product_out_all,inhouse_product_out_all,model_inhouse_product_out,base.group_no_one,1,1,1,1
+access_production_ingredient,access_production_ingredient,model_production_ingredient,,1,1,1,1
+access_production_order,access_production_order,model_production_order,,1,1,1,1
