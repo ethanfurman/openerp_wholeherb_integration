@@ -4,7 +4,9 @@ from dbf import Date
 from VSS.BBxXlate.fisData import fisData
 from VSS.address import NameCase
 from VSS.utils import translator
-from openerp.tools import SUPERUSER_ID, self_ids
+from openerp.exceptions import ERPError
+from openerp.tools import SUPERUSER_ID, self_ids, any_in
+from osv.orm import browse_record
 from osv import osv, fields
 import enum
 import logging
@@ -170,28 +172,6 @@ class product_product(xmlid, osv.Model):
                 )
         return product_ids
 
-    def _get_item_formula(self, cr, uid, ids, field_name, args, context=None):
-        res = {}.fromkeys(ids)
-        product_map = dict([
-                (p['xml_id'], p['id'])
-                for p in self.read(
-                    cr, SUPERUSER_ID, ids,
-                    fields=['xml_id'],
-                    context=context,
-                    )
-                ])
-        formulae_map = dict([
-                (f['name'], f['id'])
-                for f in self.pool.get('fnx.pd.product.formula').read(
-                    cr, SUPERUSER_ID,
-                    [('name','in',product_map.keys())],
-                    context=context,
-                    )
-                ])
-        for product_name, product_id in product_map.items():
-            res[product_id] = formulae_map.get(product_name, False)
-        return res
-
     # XXX end production routines
 
     def _product_available(self, cr, uid, ids, field_names=None, arg=False, context=None):
@@ -250,71 +230,6 @@ class product_product(xmlid, osv.Model):
         'sds': files('sds', string='Safety Data Sheets'),
         'create_date': fields.datetime('Product created on', readonly=True),
         'create_uid': fields.many2one('res.users', string='Product created by', readonly=True),
-        # orders and order ingredients to make this product
-        'prod_order_ids': fields.one2many(
-            'fnx.pd.order',
-            'item_id',
-            string='Production Orders',
-            domain=[('state','not in',['complete','cancelled'])],
-            order='schedule_date, sequence',
-            help="production orders to make this product",
-            ),
-        # XXX below only tracks active order ingredients -- should we also track non-active
-        #     order ingrediens?
-        'prod_ingredient_ids': fields.one2many(
-            'fnx.pd.ingredient',
-            'item_id',
-            string='Ingredient for',
-            domain=[('order_state','not in',['complete','cancelled'])],
-            help="ingredients from production order formula to make this product",
-            ),
-        'fis_qty_makeable': fields.float(
-            string='Immediately Producible',
-            digits=(15,3),
-            help="How much can be made with current inventory.",
-            ),
-        # default formula to make this product
-        'fnx_pd_formula_id': fields.function(
-            _get_item_formula,
-            type='many2one',
-            relation='fnx.pd.product.formula',
-            string='Formula Link',
-            store={
-                'fnx.pd.product.formula': (_get_formula_update_ids, ['name'], 10,),
-                },
-            help="the default formula to make this item",
-            ),
-        'fnx_pd_formula_name': fields.related(
-            'fnx_pd_formula_id', 'formula',
-            string='Formula',
-            type='char',
-            size=14,
-            help="actually the FIS ID of the product",
-            ),
-        'fnx_pd_formula_ingredient_ids': fields.related(
-            'fnx_pd_formula_id', 'ingredient_ids',
-            string='Formula Ingredients',
-            type='one2many',
-            relation='fnx.pd.product.ingredient',
-            fields_id='formula_id',
-            help="ingredients from the default formula to make this product",
-            ),
-        # coating and allergens are the same for both the default formula
-        # and production order formulas
-        'fnx_pd_formula_coating': fields.related(
-            'fnx_pd_formula_id', 'coating',
-            string='Coating',
-            type='char',
-            size=10,
-            ),
-        'fnx_pd_formula_allergens': fields.related(
-            'fnx_pd_formula_id', 'allergens',
-            string='Allergens',
-            type='char',
-            size=10,
-            ),
-        # miscelleny
-        'fnx_pd_nutrition_files': files('nutrition', string='Nutrition Information'),
         }
 
     def fnxfs_folder_name(self, records):
@@ -429,69 +344,6 @@ class product_product(xmlid, osv.Model):
         sold_by = fis_rec[P.sold_by].strip()
         values['sold_by'] = sold_by
         return values
-
-class product_blend_category(osv.Model):
-    _name = 'wholeherb_integration.blend_category'
-    _description = 'table data for blend categories'
-    _columns = {
-        'name' : fields.char('Blend category name', size=62),
-        'blends_ids' : fields.one2many(
-            'wholeherb_integration.blend',
-            'category_name',
-            'Blends',
-            ),
-        }
-
-class product_blend(osv.Model):
-    _name = 'wholeherb_integration.blend'
-    _description = 'table data for product blends'
-    _columns = {
-        'code' : fields.char('Code', size=8),
-        'name' : fields.char('Name', size=212),
-        'packaging' : fields.char('Packaging', size=112),
-        'special_instructions' : fields.char('Special Instructions', size=267),
-        'category_name' : fields.many2one(
-            'wholeherb_integration.blend_category',
-            'Category ID',
-            ),
-        'amount' : fields.float('Amount'),
-        'uom' : fields.char('UOM', size=62),
-        'batchsize' : fields.float('Batch Size'),
-        'numberbatches' : fields.integer('Number Batches'),
-        'ingredients_ids' : fields.one2many(
-            'wholeherb_integration.blend_ingredient',
-            'blend_id',
-            'Ingredients',
-            ),
-        }
-
-    def name_get(self, cr, uid, ids, context=None):
-        if isinstance(ids, (int, long)):
-            ids = [ids]
-        res = []
-        for record in self.browse(cr, uid, ids, context=context):
-            if record.code:
-                name = '[%s] %s' % (record.code, record.name)
-            else:
-                name = record.name
-            res.append((record.id, name))
-        return res
-
-
-class product_blend_ingredient(osv.Model):
-    _name = 'wholeherb_integration.blend_ingredient'
-    _description = 'table data for product.blend_ingredient'
-    _columns = {
-        'blend_id' : fields.many2one(
-            'wholeherb_integration.blend',
-            'Blend',
-            ),
-        'product_id' : fields.many2one(
-            'product.product',
-            'Product',
-            ),
-        'percentinblend' : fields.float('% in Blend'),
-        }
 
 class product_lot(osv.Model):
     _name = 'wholeherb_integration.product_lot'
