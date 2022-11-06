@@ -3,182 +3,17 @@
 ~openerp
     ~data
 
-        // first menu item
-        ~menuitem name='Production Orders' #menu_production_orders parent='base.menu_base_partner' sequence='40'
-
-        // blends
-
-        ~record #wholeherb_integration_blend_form model='ir.ui.view'
-            @name: wholeherb_integration_blend
-            @model: wholeherb_integration.blend
-            @arch type='xml'
-                ~form $Blends version='7.0'
-                    ~header
-                        ~h3
-                            @invalid_reason .oe_highlight .oe_text_center .oe_bold attrs="{'invisible': [('is_valid','=',True)], 'readonly':True}"
-                    ~sheet
-                        ~group
-                            @is_valid invisible='1'
-                            @code
-                            @name
-                            @category_name
-                        ~notebook colspan='4'
-                            ~page $General
-                                ~group
-                                    ~group
-                                        @packaging
-                                        @amount
-                                        @batchsize
-                                    ~group
-                                        @special_instructions
-                                        @uom
-                                        @numberbatches
-                            ~page $Ingredients
-                                @ingredients_ids nolabel='1'
-                                    ~form
-                                        @product_id
-                                        @percentinblend
-                                    ~tree
-                                        @product_id
-                                        @percentinblend
-                            ~page $Notes
-
-        ~record #wholeherb_integration_blend_tree model='ir.ui.view'
-            @name: wholeherb_integration_blend_tree
-            @model: wholeherb_integration.blend
-            @arch type='xml'
-                ~tree $blends
-                    @code
-                    @name
-                    @category_name
-
-        ~record #action_wholeherb_integration_blend model='ir.actions.act_window'
-            @name: Product Blends
-            @res_model: wholeherb_integration.blend
-            @view_type: form
-            @view_id ref='wholeherb_integration_blend_tree'
-            @view_mode: tree,form
-
-        ~menuitem @Blends #wholeherb_integration_blend parent='menu_production_orders' action='action_wholeherb_integration_blend' groups='base.group_user' sequence='70'
-
-        // order views
-
-        ~record model='ir.ui.view' #production_order_tree
-            @name: production_order_tree
-            @model: production.order
-            @priority eval='10'
-            @arch type='xml'
-                ~tree string='Production'
-                    @order_no
-                    @item_id
-                    @lot_id
-                    @produced_qty
-                    @state
-
-        ~record model='ir.ui.view' #production_order_form
-            @name: production_order_form
-            @model: production.order
-            @priority eval='10'
-            @arch type='xml'
-                ~form $Production_Orders version='7.0'
-                    ~header
-                        @state widget='statusbar'
-                    ~sheet
-                        ~div .oe_left
-                            ~h1
-                                ~label for='order_no' $Order .oe_inline
-                                @order_no .oe_inline
-                            ~h2
-                                ~label for='blend_id' $Blend .oe_inline
-                                @blend_id .oe_inline on_change="onchange_blend_id(blend_id)" options="{'create':False, 'create_edit':False}"
-                        ~group
-                            ~group
-                                @item_id invisible='1'
-                                @batches on_change="onchange_batch(batches, ingredient_ids)" attrs="{'readonly': [('state','in',['complete','cancelled'])]}"
-                                @batch_size viewonly='1'
-                                @total_yield viewonly='1'
-                            ~group
-                                @finish_date
-                                @produced_qty
-                        ~notebook
-                            ~page $Special_Instructions
-                                @special_instructions nolabel='1'
-                            ~page $Ingredients
-                                @ingredient_ids nolabel='1' options="{'create':False, 'create_edit':False}"
-                                    ~tree options="{'create':False, 'create_edit':False}" editable='bottom' colors="red:order_state in ['draft',] and qty_avail<qty_needed;"
-                                        @order_state invisible='1'
-                                        @qty_needed invisible='1'
-                                        @item_lot_ids invisible='1'
-                                        @item_id readonly='1'
-                                        @lot_id on_change="onchange_lot_id(lot_id, item_id)"
-                                        @percent_in_blend readonly='1'
-                                        @qty_needed_desc readonly='1'
-                                        @qty_avail $Available readonly='1'
-
-        ~record model='ir.ui.view' #search_production_orders
-            @name: Production Orders Search
-            @model: production.order
-            @arch type='xml'
-                ~search string='Search Production Orders'
-                    @order_no $Order_Number
-                    @blend_id $Blend
-                    @state $Status
-                    ~separator
-                    ~filter $All_Open @type_open domain="[('state','in',['draft',])]"
-                    ~filter $Closed @type_closed domain="[('state','in',['complete','cancelled'])]"
-                    ~separator
-                    ~filter $New @type_draft domain="[('state','=','draft')]"
-                    ~filter $Complete @type_complete domain="[('state','=','complete')]"
-                    ~filter $Cancelled @type_cancelled domain="[('state','=','cancelled')]"
-
-        ~record model='ir.actions.act_window' #action_production_form_orders
-            @name: Orders
-            @res_model: production.order
-            @view_type: form
-            @view_id ref='production_order_tree'
-            @view_mode: tree,form
-            @search_view_id ref='search_production_orders'
-            @domain: [('state','not in',['complete','cancelled'])]
-            @limit eval='200'
-
-        ~menuitem $Orders #menu_item_production_orders_all parent='menu_production_orders' sequence='20' action='action_production_form_orders'
-
-        ~record model='ir.actions.act_window' #action_production_form_closed_orders
-            @name: Closed/Cancelled Orders
-            @res_model: production.order
-            @view_type: form
-            @view_id ref='production_order_tree'
-            @view_mode: tree,form
-            @context eval="{'search_default_type_closed':1}"
-            @limit eval='200'
-
-        ~menuitem $Closed_Orders #menu_item_production_orders_closed parent='menu_production_orders' sequence='30' action='action_production_form_closed_orders'
-
         // blend categories
 
         ~record #wholeherb_integration_blend_category_form model='ir.ui.view'
-            @name: Product Blend Categories
+            @name: wholeherb_integration_blend_category_form
             @model: wholeherb_integration.blend_category
             @arch type='xml'
                 ~form $Blend_Category
                     @name
                     ~notebook colspan='4'
-                        ~page $General_Info
-                        ~page $Blends
-                            @blends_ids nolabel='1'
-                                ~form
-                                    @code
-                                    @name
-                                    @packaging
-                                    @special_instructions
-                                    @amount
-                                    @uom
-                                    @batchsize
-                                    @numberbatches
-                                ~tree
-                                    @code
-                                    @name
                         ~page $Notes
+                            @notes
 
         ~record #wholeherb_integration_blend_category_tree model='ir.ui.view'
             @name: product_blend_category
@@ -194,5 +29,149 @@
             @view_id ref='wholeherb_integration_blend_category_tree'
             @view_mode: tree,form
 
-        ~menuitem name='Blend Categories' #product_blend_categories parent='base.menu_base_config' action='action_wholeherb_integration_blend_category' groups='base.group_user'
+        ~menuitem name='Blend Categories' #product_blend_categories parent='product.prod_config_main' action='action_wholeherb_integration_blend_category' groups='base.group_user' sequence='70'
+
+        // Formula
+
+        ~record #wholeherb_integration_formula_form model='ir.ui.view'
+            @name: wholeherb_integration_formula_form
+            @model: wholeherb_integration.formula
+            @arch type='xml'
+                ~form $Blend_Formulas version='7.0'
+                    ~header
+                        ~h3
+                            @invalid_reason .oe_highlight .oe_text_center .oe_bold attrs="{'invisible': [('is_valid','=',True)], 'readonly':True}"
+                    ~sheet
+                        ~group
+                            @is_valid invisible='1'
+                            @code
+                            @name
+                            @category_id
+                        ~notebook colspan='4'
+                            ~page $General
+                                ~group
+                                    ~group
+                                        @packaging
+                                        @amount
+                                        @batch_size
+                                    ~group
+                                        @special_instructions
+                                        @uom
+                                        @number_batches
+                            ~page $Ingredients
+                                @ingredient_ids nolabel='1'
+                                    ~form
+                                        @product_id
+                                        @percent_in_blend
+                                    ~tree
+                                        @product_id
+                                        @percent_in_blend
+                            ~page $Notes
+
+        ~record #wholeherb_integration_formula_tree model='ir.ui.view'
+            @name: wholeherb_integration_formula_tree
+            @model: wholeherb_integration.formula
+            @arch type='xml'
+                ~tree $Blend_Formulas
+                    @code
+                    @name
+                    @category_id
+
+        ~record #action_wholeherb_integration_formula model='ir.actions.act_window'
+            @name: Blend Formulas
+            @res_model: wholeherb_integration.formula
+            @view_type: form
+            @view_id ref='wholeherb_integration_formula_tree'
+            @view_mode: tree,form
+
+        ~menuitem name='Blend Formulas' #wholeherb_integration_formula_menu parent='product.prod_config_main' action='action_wholeherb_integration_formula' groups='base.group_user' sequence='80'
+
+        // blend manufacturing
+
+        ~record model='ir.ui.view' #wholeherb_integration_blend_tree
+            @name: wholeherb_integration_blend_tree
+            @model: wholeherb_integration.blend
+            @priority eval='10'
+            @arch type='xml'
+                ~tree string='Blends'
+                    @code
+                    @name
+                    @lot_number
+
+        ~record model='ir.ui.view' #wholeherb_integration_blend_form
+            @name: wholeherb_integration_blend_form
+            @model: wholeherb_integration.blend
+            @priority eval='10'
+            @arch type='xml'
+                ~form $Blend_Ticket version='7.0'
+                    ~sheet
+                        ~div .oe_left
+                            ~h2
+                                ~label for='formula_id' $Blend .oe_inline
+                                @formula_id .oe_inline on_change="onchange_blend_id(formula_id)" options="{'create':False, 'create_edit':False}"
+                        ~group
+                            ~group
+                                @number_batches on_change="onchange_batch(number_batches, batch_size, ingredient_ids)"
+                                @batch_size on_change="onchange_batch(number_batches, batch_size, ingredient_ids)"
+                                @amount readonly='1'
+                            ~group
+                                @lot_number
+                                @finish_date
+                                // @produced_qty
+                        ~notebook
+                            ~page $Special_Instructions
+                                @special_instructions nolabel='1'
+                            ~page $Ingredients
+                                @ingredient_ids nolabel='1' options="{'create':False, 'create_edit':False}"
+                                    ~tree options="{'create':False, 'create_edit':False}" editable='bottom'
+                                        // @order_state invisible='1'
+                                        // @qty_needed invisible='1'
+                                        // @item_lot_ids invisible='1'
+                                        @product_id readonly='0'
+                                        @percent_in_blend readonly='0'
+                                        @batch_qty readonly='1'
+                                        @lot_number readonly='0'
+                                        @blend_qty readonly='1'
+                                        // @qty_needed_desc readonly='1'
+                                        // @qty_avail $Available readonly='1'
+
+        // ~record model='ir.ui.view' #search_wholeherb_integration_blend
+        //     @name: wholeherb_integration_blend_search
+        //     @model: wholeherb_integration.blend
+        //     @arch type='xml'
+        //         ~search string='Blend Ticket Search'
+        //             @order_no $Order_Number
+        //             @formula_id $Formula
+        //             @state $Status
+        //             ~separator
+        //             ~filter $All_Open @type_open domain="[('state','in',['draft',])]"
+        //             ~filter $Closed @type_closed domain="[('state','in',['complete','cancelled'])]"
+        //             ~separator
+        //             ~filter $New @type_draft domain="[('state','=','draft')]"
+        //             ~filter $Complete @type_complete domain="[('state','=','complete')]"
+        //             ~filter $Cancelled @type_cancelled domain="[('state','=','cancelled')]"
+
+        ~record model='ir.actions.act_window' #action_wholeherb_integration_blend
+            @name: Blends
+            @res_model: wholeherb_integration.blend
+            @view_type: form
+            @view_id ref='wholeherb_integration_blend_tree'
+            @view_mode: tree,form
+            // @search_view_id ref='search_wholeherb_integration_blend'
+            // @domain: [('state','not in',['complete','cancelled'])]
+            @domain eval='{}'
+            @limit eval='200'
+
+        ~menuitem $Blends #menu_wholeherb_integration_blend parent='base.menu_product' action='action_wholeherb_integration_blend'
+
+        // ~record model='ir.actions.act_window' #action_wholeherb_integration_finished_blend
+        //     @name: Closed/Cancelled Orders
+        //     @res_model: wholeherb_integration.blend
+        //     @view_type: form
+        //     @view_id ref='wholeherb_integration_blend_tree'
+        //     @view_mode: tree,form
+        //     @context eval="{'search_default_type_closed':1}"
+        //     @limit eval='200'
+
+        // ~menuitem $Closed_Orders #menu_wholeherb_integration_blends_closed parent='menu_wholeherb_integration_blends' sequence='30' action='action_production_form_closed_orders'
 

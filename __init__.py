@@ -1,7 +1,7 @@
 import company
 import inhouse
 import product
-import production
+import blends
 import res_config
 import res_partner
 import purchasing
@@ -13,9 +13,9 @@ __all__ = [
         'company',
         'inhouse',
         'product',
+        'blends',
         'res_config',
         'res_partner',
-        'production',
         'purchasing',
         'sample',
         'sample_request',
