@@ -2,7 +2,7 @@
 ~blend
     ~report
         ~title type='eval' expr="'Blend Worksheet'"
-        ~date type='function' @today format='%d-%b-%y'
+        ~date type='function' @today format='%d-%b-%Y'
     ~detail type='fields' @id
         ~code type='field' @code
         ~name type='field' @name
