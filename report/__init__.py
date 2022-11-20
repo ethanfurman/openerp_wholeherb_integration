@@ -10,6 +10,7 @@ for report in (
         'inhouse-job_time.xaml',
         'inhouse-work_order.xaml',
         'inhouse-finished_product.xaml',
+	'blends-worksheet.xaml',
     ):
     report_name = base_dir / report
     if not report_name.exists():

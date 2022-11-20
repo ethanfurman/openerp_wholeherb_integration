@@ -1,0 +1,219 @@
+!!! xml1.0
+~blend
+    ~report
+        ~title type='eval' expr="'Blend Worksheet'"
+        ~date type='function' @today format='%d-%b-%y'
+    ~detail type='fields' @id
+        ~code type='field' @code
+        ~name type='field' @name
+        ~start-date type='field' @start_date format='%m-%d-%Y'
+        ~finish-date type='field' @finish_date
+        ~packaging type='field' @packaging
+        ~instructions type='field' @special_instructions
+        ~category_id type='field' @category_id
+        ~amount type='field' @amount
+        ~uom type='field' @uom
+        ~batch-size type='field' @batch_size
+        ~number-batches type='field' @number_batches
+        ~lot type='field' @lot_number
+        ~ingredients type='zoom' @ingredient_ids
+            ~ingred-code type='field' @product_id.name
+            ~ingred-percent type='field' @percent_in_blend
+            ~ingred-qty type='field' @batch_qty
+            ~ingred-lot type='field' @lot_number
+            ~ingred-total type='field' @blend_qty
+        ~total-amount type='field' @total_amount
+        ~total-batch type='field' @total_batch
+        ~total-percent type='field' @total_percent
+
+!!! xsl1.0
+~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+
+    ~xsl:template match='/'
+        ~xsl:apply-templates select='blend'
+
+    ~xsl:template match='blend'
+        ~document
+
+            ~template author='OpenERP:Blends' title='Blend Worksheet' pageSize='us_letter' leftMargin="0.5in" rightMargin="0.5in" topMargin="0.5in" bottomMargin="0.5in"
+
+                ~pageTemplate id='first_page'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='first_page_frames'
+
+                ~pageTemplate id='other_pages'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='other_pages_frames'
+
+            ~stylesheet
+
+                ~blockTableStyle id='title'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockFont name='Helvetica' size='14'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='container'
+                    ~blockFont name='Helvetica' size='12'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.15in'
+                    ~blockValign value='TOP'
+
+                ~blockTableStyle id='first'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.1in'
+                    ~blockLeftPadding start='0,0' stop='-1,-1' length='0in'
+                    ~blockRightPadding start='0,0' stop='-1,-1' length='0in'
+                    ~blockValign value='BOTTOM'
+                    ~lineStyle kind='LINEBELOW' thickness='1' colorName='black' start='0,0' stop='-1,-1'
+
+                ~blockTableStyle id='lines'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.1in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.1in'
+                    ~blockLeftPadding start='0,0' stop='-1,-1' length='0.0in'
+                    ~blockRightPadding start='0,0' stop='-1,-1' length='0.0in'
+                    ~blockValign value='BOTTOM'
+                    ~lineStyle kind='LINEBELOW' thickness='1' colorName='black' start='0,0' stop='-1,-1'
+
+                ~blockTableStyle id='top-lines'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.1in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.1in'
+                    ~blockLeftPadding start='0,0' stop='-1,-1' length='0.0in'
+                    ~blockRightPadding start='0,0' stop='-1,-1' length='0.0in'
+                    ~blockValign value='TOP'
+                    ~lineStyle kind='LINEBELOW' thickness='1' colorName='black' start='0,0' stop='-1,-1'
+
+                ~blockTableStyle id='free-float'
+                    ~blockFont name='Helvetica-Bold' size='10'
+                    ~blockValign value='BOTTOM'
+
+                ~blockTableStyle id='item-table'
+                    ~blockFont name='Helvetica' size='8' start='0,0' end='0,-1'
+                    ~blockFont name='Helvetica' size='11' start='1,0' end='1,-1'
+                    ~blockFont name='Helvetica' size='11' start='2,0' end='2,-1'
+                    ~blockValign value='TOP'
+                    ~blockAlignment value='RIGHT' start='0,0' end='0,-1'
+                    ~blockAlignment value='LEFT' start='1,0' end='1,-1'
+                    ~blockAlignment value='RIGHT' start='2,0' end='-1,-1'
+                    ~blockLeftPadding start='1,0' end='1,-1' length='15'
+                    ~lineStyle kind='LINEBELOW' thickness='0.5' colorName='black' start='0,0' stop='-1,-1'
+                    ~lineStyle kind='BOX' thickness='0.5' colorName='black' start='-1,0' stop='-1,-1'
+
+                ~blockTableStyle id='item-total'
+                    ~blockFont name='Helvetica' size='8'
+                    ~blockValign value='BOTTOM'
+                    ~blockAlignment value='RIGHT' start='0,0' end='0,-1'
+                    ~blockAlignment value='LEFT' start='1,0' end='1,-1'
+                    ~blockAlignment value='RIGHT' start='2,0' end='-1,-1'
+
+                ~paraStyle name='14b' fontName='Helvetica-Bold' fontSize='14' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='13n' fontName='Helvetica' fontSize='13' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='13b' fontName='Helvetica-Bold' fontSize='13' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='12i' fontName='Helvetica-Oblique' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='12n' fontName='Helvetica' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='10b' fontName='Helvetica-Bold' fontSize='10' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='10i' fontName='Helvetica-Oblique' fontSize='10' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='10n' fontName='Helvetica' fontSize='10' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='9n' fontName='Helvetica' fontSize='9' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='9bi' fontName='Helvetica-BoldOblique' fontSize='9' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='8b' fontName='Helvetica-Bold' fontSize='8' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='8n' fontName='Helvetica' fontSize='8' spaceAfter='0' spaceBefore='0'
+            ~story
+                ~setNextTemplate name='other_pages'
+                ~xsl:apply-templates match='report' mode='story'
+                ~xsl:apply-templates select='detail'
+
+    ~xsl:template name='first_page_frames'
+        ~frame id='col1' x1='0.5in' y1='1.0in' width='7.5in' height='9.0in'
+
+    ~xsl:template name='other_pages_frames'
+        ~frame id='col2' x1='0.5in' y1='1.0in' width='7.5in' height='9.0in'
+
+    ~xsl:template match='report'
+        ~setFont name='Helvetica' size='12'
+        ~drawString x='0.5in' y='10.5in'
+            ~xsl:text: Blend Worksheet
+        ~setFont name='Helvetica' size='8'
+        ~drawString x='7.0in' y='10.5in'
+            ~xsl:text: Printed:
+        ~drawRightString x='8.0in' y='10.5in'
+            ~xsl:value-of select='date'
+        ~drawString x='3.75in' y='0.5in': Page
+        ~drawRightString x='4.18in' y='0.5in': ~pageNumber
+        ~drawString x='4.24in' y='0.5in': of
+        ~drawRightString x='4.44in' y='0.5in': ~pageCount
+
+    ~xsl:template match='detail'
+        // name row
+        ~blockTable colWidths='70, 470' style='first'
+            ~tr
+                ~td: ~para style='10i': ~xsl:text: Blend Name
+                ~td: ~para style='14b': ~xsl:value-of select='name'
+        ~blockTable colWidths='70, 130, 60, 118, 71, 91' style='lines'
+            // code row
+            ~tr
+                ~td: ~para style='10i': ~xsl:text: Item Code
+                ~td: ~para style='13b': ~xsl:value-of select='code'
+                ~td: ~para style='10i': ~xsl:text: Lot Number
+                ~td: ~para style='13b': ~xsl:value-of select='lot'
+                ~td: ~para style='10i': ~xsl:text: Date Started
+                ~td: ~para style='13b' alignment='right': ~xsl:value-of select='start-date'
+            // amount row
+            ~tr
+                ~td: ~para style='10i': ~xsl:text: Amount to Blend
+                ~td: ~para style='13n': ~xsl:value-of select="concat(amount, ' ', uom)"
+                ~td: ~para style='10i': ~xsl:text: Number of Batches
+                ~td: ~para style='13n': ~xsl:value-of select='number-batches'
+                ~td: ~para style='10i': ~xsl:text: Batch Size
+                ~td: ~para style='13n' alignment='right': ~xsl:value-of select="concat(batch-size, ' ', uom)"
+        // packaging row
+        ~blockTable colWidths='90, 130, 1, 70, 249' style='top-lines'
+            ~tr
+                ~td: ~para style='9bi': ~xsl:text: Packaging
+                ~td: ~para style='9n': ~xsl:value-of select='packaging'
+                ~td: ~spacer width='1' height='36'
+                ~td: ~para style='9bi': ~xsl:text: Special Instructions
+                ~td: ~para style='9n': ~xsl:value-of select='instructions'
+        // ingredient header
+        ~blockTable colWidths='44, 244, 72, 60, 60, 60' style='free-float'
+            ~tr
+                ~td: ~para style='8b': ~xsl:text: % in Blend
+                ~td: ~para style='10b': ~xsl:text: Ingredient
+                ~td: ~para style='10b' alignment='center': ~xsl:text: Lot Number Used
+                ~td: ~para style='10b' alignment='center': ~xsl:text: Amount Used
+                ~td: ~para style='10b' alignment='center': ~xsl:text: Total in Blend
+                ~td: ~para style='10b' alignment='center': ~xsl:text: Amount in Batch
+        // ingredient rows
+        ~blockTable colWidths='36, 252, 72, 12, 48, 48, 12, 60'
+            ~xsl:for-each select='ingredients'
+                ~tr style='free-float'
+                ~tr style='item-table'
+                    ~td: ~xsl:value-of select='ingred-percent'
+                    ~td: ~xsl:value-of select='ingred-code'
+                    ~td: ~xsl:value-of select='ingred-lot'
+                    ~td: ~xsl:text
+                    ~td: ~xsl:text
+                    ~td: ~xsl:value-of select='ingred-total'
+                    ~td: ~xsl:text
+                    ~td: ~xsl:value-of select='ingred-qty'
+        // ingredient total
+        ~blockTable colWidths='36, 252, 72, 12, 48, 48, 12, 60'
+            ~tr style='item-total'
+                ~td: ~xsl:value-of select='total-percent'
+                ~td: ~xsl:text: %
+                ~td: ~xsl:text
+                ~td: ~xsl:text
+                ~td: ~xsl:text
+                ~td: ~xsl:value-of select='total-amount'
+                ~td: ~xsl:text
+                ~td: ~xsl:value-of select='total-batch'
+        // packaging
+        ~blockTable colWidths='122, 50, 50, 318'
+            ~tr style='free-float'
+            ~tr style='lines'
+                ~td: ~para style='8b': ~xsl:text: Finished Packaging:
+                ~td: ~para style='8b': ~xsl:text: WH050
+                ~td: ~para style='8b': ~xsl:text: WH100
+                ~td: ~para style='8b': ~xsl:text: Drums

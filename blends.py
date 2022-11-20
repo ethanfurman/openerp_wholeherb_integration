@@ -188,6 +188,19 @@ class Blends(osv.Model):
             res[blend.id] = blend.batch_size * blend.number_batches
         return res
 
+    def _calc_totals(self, cr, uid, ids, field_name, arg, context=None):
+        res = {}
+        for blend in self.browse(cr, uid, ids, context=context):
+            percent = sum([ingred.percent_in_blend for ingred in blend.ingredient_ids], 0.0)
+            batch_total = percent * blend.batch_size / 100.0
+            blend_total = percent * batch_total / 100.0
+            res[blend.id] = {
+                    'total_percent': percent,
+                    'total_batch': batch_total,
+                    'total_amount': blend_total,
+                    }
+        return res
+
     def _get_ids_from_ingredient_ids(blend_ingredient, cr, uid, changed_ids, context=None):
         ids = []
         for rec in blend_ingredient.read(cr, uid, changed_ids, ['blend_id'], context=context):
@@ -230,14 +243,14 @@ class Blends(osv.Model):
                 _calc_amount,
                 string='Amount',
                 type='float',
-                digits=(16, 3),
+                digits=(16, 2),
                 help='Total amount produced.',
                 store={
                         'wholeherb_integration.blend': (self_ids, ['batch_size','number_batches'], 10),
                         },
                 ),
         'uom' : fields.char(u'UOM', size=64, help=u'Unit of measure'),
-        'batch_size' : fields.float(u'Batch Size', help='', oldname='batchsize'),
+        'batch_size' : fields.float(u'Batch Size', help='', digits=(16, 2), oldname='batchsize'),
         'number_batches' : fields.integer(u'Number Batches', help='', oldname='numberbatches'),
         # 'total_yield': fields.float('Total Yield'),
         'lot_number' : fields.char(u'Lot Number', size=64, help=''),
@@ -268,7 +281,32 @@ class Blends(osv.Model):
                     'wholeherb_integration.blend_ingredient': (_get_ids_from_ingredient_ids, ['percent_in_blend'], 10),
                     }
                 ),
-        'finish_date': fields.datetime('Finished'),
+        'finish_date': fields.date('Finished'),
+        'start_date': fields.date('Started'),
+        'total_amount': fields.function(
+                _calc_totals,
+                string='Total in blend',
+                type='float',
+                digits=(16,2),
+                store=False,
+                multi='totals',
+                ),
+        'total_batch': fields.function(
+                _calc_totals,
+                string='Total in batch',
+                type='float',
+                digits=(16,2),
+                store=False,
+                multi='totals',
+                ),
+        'total_percent': fields.function(
+                _calc_totals,
+                string='Total percent',
+                type='float',
+                digits=(16,2),
+                store=False,
+                multi='totals',
+                ),
         }
 
     def onchange_batch(self, cr, uid, ids, number_batches, batch_size, ingredients, context=None):
@@ -332,19 +370,19 @@ class Ingredients(osv.Model):
                 help=u'Same number as in products table',
                 ondelete='restrict',
                 ),
-        'percent_in_blend' : fields.float(u'% in Blend', help=u'% of blend', oldname='percentinblend'),
+        'percent_in_blend' : fields.float(u'% in Blend', help=u'% of blend', digits=(16, 2), oldname='percentinblend'),
         'batch_qty': fields.function(
                 _calc_qty,
                 string='Qty/batch',
                 type='float',
-                digits=(16, 3),
+                digits=(16, 2),
                 multi='qtys',
                 ),
         'blend_qty': fields.function(
                 _calc_qty,
                 string='Total Qty',
                 type='float',
-                digits=(16, 3),
+                digits=(16, 2),
                 multi='qtys',
                 ),
         'lot_number' : fields.char(u'Lot Number', size=64, help=''),
