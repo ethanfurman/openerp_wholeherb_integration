@@ -177,4 +177,5 @@
         // ~menuitem $Closed_Orders #menu_wholeherb_integration_blends_closed parent='menu_wholeherb_integration_blends' sequence='30' action='action_production_form_closed_orders'
 
         ~report model='wholeherb_integration.blend' name='wholeherb_integration.blend.worksheet' header='True' auto='True' multi='False' xml='wholeherb_integration/report/blends-worksheet.xml' xsl='wholeherb_integration/report/blends-worksheet.xsl' $Worksheet #report_wholeherb_integration_blend_worksheet
+        ~report model='wholeherb_integration.blend' name='wholeherb_integration.blend.pull_ticket' header='True' auto='True' multi='False' xml='wholeherb_integration/report/blends-pull_ticket.xml' xsl='wholeherb_integration/report/blends-pull_ticket.xsl' $Pull_Ticket #report_wholeherb_integration_blend_pull_ticket
 

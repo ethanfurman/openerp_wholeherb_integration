@@ -1,0 +1,107 @@
+!!! xml1.0
+~pull-ticket
+    ~report
+        ~title type='eval' expr="'Blend Pull Ticket'"
+        ~date type='function' @today format='%d-%b-%Y'
+    ~detail type='fields' @id
+        ~code type='field' @code
+        ~name type='field' @name
+        ~lot type='field' @lot_number
+        ~ingredients type='zoom' @ingredient_ids
+            ~ingred-name type='field' @name
+            ~ingred-lot type='field' @lot_number
+
+!!! xsl1.0
+~xsl:stylesheet version='1.0' xmlns:fo='http://www.w3.org/1999/XSL/Format' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+
+    ~xsl:template match='/'
+        ~xsl:apply-templates select='pull-ticket'
+
+    ~xsl:template match='pull-ticket'
+        ~document
+
+            ~template author='OpenERP:Blends' title='Blend Pull Ticket' pageSize='us_letter' leftMargin="0.5in" rightMargin="0.5in" topMargin="0.5in" bottomMargin="0.5in"
+
+                ~pageTemplate id='first_page'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='first_page_frames'
+
+                ~pageTemplate id='other_pages'
+                    ~pageGraphics
+                        ~xsl:apply-templates match='report'
+                    ~xsl:call-template name='other_pages_frames'
+
+            ~stylesheet
+
+                ~blockTableStyle id='lines'
+                    ~blockTopPadding start='0,0' stop='-1,-1' length='0.1in'
+                    ~blockBottomPadding start='0,0' stop='-1,-1' length='0.1in'
+                    ~blockLeftPadding start='0,0' stop='-1,-1' length='0.0in'
+                    ~blockRightPadding start='0,0' stop='-1,-1' length='0.0in'
+                    ~blockValign value='BOTTOM'
+                    ~lineStyle kind='LINEBELOW' thickness='1' colorName='black' start='0,0' stop='-1,-1'
+
+                ~blockTableStyle id='free-float'
+                    ~blockFont name='Helvetica-Bold' size='10'
+                    ~blockValign value='BOTTOM'
+
+                ~blockTableStyle id='item-table'
+                    ~blockFont name='Courier' size='12' start='0,0' end='-1,-1'
+                    ~blockValign value='BOTTOM'
+                    ~blockAlignment value='LEFT' start='0,0' end='-1,-1'
+                    ~lineStyle kind='LINEBELOW' thickness='0.5' colorName='black' start='0,0' stop='-1,-1'
+
+                ~paraStyle name='14b' fontName='Helvetica-Bold' fontSize='14' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='13n' fontName='Helvetica' fontSize='13' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='13b' fontName='Helvetica-Bold' fontSize='13' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='12i' fontName='Helvetica-Oblique' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='12n' fontName='Helvetica' fontSize='12' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='10b' fontName='Helvetica-Bold' fontSize='10' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='10i' fontName='Helvetica-Oblique' fontSize='10' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='10n' fontName='Helvetica' fontSize='10' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='9n' fontName='Helvetica' fontSize='9' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='9bi' fontName='Helvetica-BoldOblique' fontSize='9' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='8b' fontName='Helvetica-Bold' fontSize='8' spaceAfter='0' spaceBefore='0'
+                ~paraStyle name='8n' fontName='Helvetica' fontSize='8' spaceAfter='0' spaceBefore='0'
+            ~story
+                ~setNextTemplate name='other_pages'
+                ~xsl:apply-templates match='report' mode='story'
+                ~xsl:apply-templates select='detail'
+
+    ~xsl:template name='first_page_frames'
+        ~frame id='col1' x1='0.5in' y1='2.0in' width='7.5in' height='8.0in'
+
+    ~xsl:template name='other_pages_frames'
+        ~frame id='col2' x1='0.5in' y1='2.0in' width='7.5in' height='8.0in'
+
+    ~xsl:template match='report'
+        ~setFont name='Helvetica' size='16'
+        ~drawCenteredString x='4.25in' y='10.5in'
+            ~xsl:text: Ingredients pulled from WH
+        ~setFont name='Helvetica' size='8'
+        ~drawString x='3.75in' y='0.5in': Page
+        ~drawRightString x='4.18in' y='0.5in': ~pageNumber
+        ~drawString x='4.24in' y='0.5in': of
+        ~drawRightString x='4.44in' y='0.5in': ~pageCount
+
+    ~xsl:template match='detail'
+        ~setFont name='Helvetica-Bold' size='12'
+        ~drawString x='0.5in' y='10.125in': ~xsl:value-of select='code'
+        ~drawString x='2.0in' y='10.125in': ~xsl:value-of select='name'
+        ~drawString x='6.5in' y='10.125in': ~xsl:value-of select='lot'
+        ~drawLine x1='0.5in' x2='8.0in' y1='10.05in' y2='10.05in'
+        ~setFont name='Helvetica-Bold' size='10'
+        ~drawString x='0.5in' y='9.875in': ~xsl:text: Ingredients
+        ~drawString x='4.0in' y='9.875in': ~xsl:text: Lot Number
+        ~drawString x='5.25in' y='9.875in': ~xsl:text: Location
+        ~drawString x='6.0in' y='9.875in': ~xsl:text: # of packages @ Gross/Net Wt.
+        // ingredient rows
+        ~blockTable colWidths='258, 114, 96, 72'
+            ~xsl:for-each select='ingredients'
+                ~tr style='free-float'
+                ~tr style='item-table'
+                    ~td: ~xsl:value-of select='ingred-name'
+                    ~td: ~xsl:value-of select='ingred-lot'
+                    ~td
+                    ~td
