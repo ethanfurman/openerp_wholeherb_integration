@@ -336,7 +336,7 @@ class Ingredients(osv.Model):
         if not ids:
             return res
         for rec in self.browse(cr, uid, ids, context=context):
-            res[rec.id] = '%s: %s' % (rec.blend_id.name, rec.product_id.name)
+            res[rec.id] = '%s %s' % (rec.product_id.xml_id, rec.product_id.name)
         return res
 
     def _convert_blend_ids(blend, cr, uid, ids, context=None):
@@ -354,8 +354,7 @@ class Ingredients(osv.Model):
                 _calc_name,
                 string='Name', type='char', size=128,
                 store={
-                    'wholeherb_integration.blend': (_convert_blend_ids, ['name'], 10),
-                    'product.product': (_convert_product_product_ids, ['product_code'], 10),
+                    'product.product': (_convert_product_product_ids, ['xml_id','name'], 10),
                     },
                 ),
         'blend_id' : fields.many2one(

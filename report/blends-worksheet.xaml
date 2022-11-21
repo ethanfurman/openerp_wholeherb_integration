@@ -17,7 +17,7 @@
         ~number-batches type='field' @number_batches
         ~lot type='field' @lot_number
         ~ingredients type='zoom' @ingredient_ids
-            ~ingred-code type='field' @product_id.name
+            ~ingred-name type='field' @name
             ~ingred-percent type='field' @percent_in_blend
             ~ingred-qty type='field' @batch_qty
             ~ingred-lot type='field' @lot_number
@@ -90,9 +90,9 @@
                     ~blockValign value='BOTTOM'
 
                 ~blockTableStyle id='item-table'
-                    ~blockFont name='Helvetica' size='8' start='0,0' end='0,-1'
-                    ~blockFont name='Helvetica' size='11' start='1,0' end='1,-1'
-                    ~blockFont name='Helvetica' size='11' start='2,0' end='2,-1'
+                    ~blockFont name='Courier' size='8' start='0,0' end='0,-1'
+                    ~blockFont name='Courier' size='11' start='1,0' end='1,-1'
+                    ~blockFont name='Courier' size='11' start='2,0' end='2,-1'
                     ~blockValign value='TOP'
                     ~blockAlignment value='RIGHT' start='0,0' end='0,-1'
                     ~blockAlignment value='LEFT' start='1,0' end='1,-1'
@@ -151,7 +151,7 @@
             ~tr
                 ~td: ~para style='10i': ~xsl:text: Blend Name
                 ~td: ~para style='14b': ~xsl:value-of select='name'
-        ~blockTable colWidths='70, 130, 60, 118, 71, 91' style='lines'
+        ~blockTable colWidths='70, 110, 60, 138, 71, 91' style='lines'
             // code row
             ~tr
                 ~td: ~para style='10i': ~xsl:text: Item Code
@@ -191,7 +191,7 @@
                 ~tr style='free-float'
                 ~tr style='item-table'
                     ~td: ~xsl:value-of select='ingred-percent'
-                    ~td: ~xsl:value-of select='ingred-code'
+                    ~td: ~xsl:value-of select='ingred-name'
                     ~td: ~xsl:value-of select='ingred-lot'
                     ~td: ~xsl:text
                     ~td: ~xsl:text
