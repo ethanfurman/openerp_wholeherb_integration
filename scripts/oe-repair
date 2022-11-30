@@ -608,14 +608,19 @@ def import_csms():
 
 @Command(
         table=Spec('table to use', ),
-        field=Spec('field(s) to update', ),
+        field=Spec('field to update', ),
+        selection=Spec('an OpenERP domain to determine record selection', force_default="[(1,'=',1)]"),
         )
-def update_calc(table, field):
+def update_calc(table, field, selection):
     """
     read and rewrite values for fields causing dependent calced fields to update
     """
-    model = oe.get_model(table)
-    records = model.read([(1,'=',1)], fields=[field])
+    try:
+        model = oe.get_model(table)
+    except MissingTable:
+        abort("table %r does not exist" % table)
+    domain = literal_eval(selection)
+    records = model.read(domain, fields=[field])
     for rec in ViewProgress(records):
         model.write(rec.id, {field: rec[field]})
     echo('%d source records processed' % len(records))
