@@ -77,11 +77,24 @@
                     @name
                     @category_id
 
+        ~record model='ir.ui.view' #search_wholeherb_integration_formula
+            @name: wholeherb_integration_formula_search
+            @model: wholeherb_integration.formula
+            @arch type='xml'
+                ~search string='Blend Search'
+                    @code $Blend_Code
+                    @name $Blend_Name
+                    @ingredient_ids $Ingredients
+                    @category_id invisible='1'
+                    ~group expand='0' string='Group by...'
+                        ~filter $Category domain='[]' context="{'group_by': 'category_id'}"
+
         ~record #action_wholeherb_integration_formula model='ir.actions.act_window'
             @name: Blend Formulas
             @res_model: wholeherb_integration.formula
             @view_type: form
             @view_id ref='wholeherb_integration_formula_tree'
+            @search_view_id ref='search_wholeherb_integration_formula'
             @view_mode: tree,form
 
         ~menuitem name='Blend Formulas' #wholeherb_integration_formula_menu parent='product.prod_config_main' action='action_wholeherb_integration_formula' groups='base.group_user' sequence='80'
@@ -97,6 +110,7 @@
                     @code
                     @name
                     @lot_number
+                    @category_id invisible='1'
 
         ~record model='ir.ui.view' #wholeherb_integration_blend_form
             @name: wholeherb_integration_blend_form
@@ -105,15 +119,18 @@
             @arch type='xml'
                 ~form $Blend_Ticket version='7.0'
                     ~sheet
+                        @code attrs="{'invisible': '1'}"
+                        @name attrs="{'invisible': '1'}"
                         ~div .oe_left
                             ~h2
+                                @category_id attrs="{'viewonly':'1'}" options="{'no_open': True}"
                                 ~label for='formula_id' $Blend .oe_inline
                                 @formula_id .oe_inline on_change="onchange_blend_id(formula_id)" options="{'create':False, 'create_edit':False}"
                         ~group
                             ~group
                                 @number_batches on_change="onchange_batch(number_batches, batch_size, ingredient_ids)"
                                 @batch_size on_change="onchange_batch(number_batches, batch_size, ingredient_ids)"
-                                @amount readonly='1'
+                                @amount
                             ~group
                                 @lot_number
                                 @start_date
@@ -136,21 +153,17 @@
                                         // @qty_needed_desc readonly='1'
                                         // @qty_avail $Available readonly='1'
 
-        // ~record model='ir.ui.view' #search_wholeherb_integration_blend
-        //     @name: wholeherb_integration_blend_search
-        //     @model: wholeherb_integration.blend
-        //     @arch type='xml'
-        //         ~search string='Blend Ticket Search'
-        //             @order_no $Order_Number
-        //             @formula_id $Formula
-        //             @state $Status
-        //             ~separator
-        //             ~filter $All_Open @type_open domain="[('state','in',['draft',])]"
-        //             ~filter $Closed @type_closed domain="[('state','in',['complete','cancelled'])]"
-        //             ~separator
-        //             ~filter $New @type_draft domain="[('state','=','draft')]"
-        //             ~filter $Complete @type_complete domain="[('state','=','complete')]"
-        //             ~filter $Cancelled @type_cancelled domain="[('state','=','cancelled')]"
+        ~record model='ir.ui.view' #search_wholeherb_integration_blend
+            @name: wholeherb_integration_blend_search
+            @model: wholeherb_integration.blend
+            @arch type='xml'
+                ~search string='Blend Search'
+                    @code $Blend_Code
+                    @name $Blend_Name
+                    @ingredient_ids $Ingredients
+                    @category_id invisible='1'
+                    ~group expand='0' string='Group by...'
+                        ~filter $Category domain='[]' context="{'group_by': 'category_id'}"
 
         ~record model='ir.actions.act_window' #action_wholeherb_integration_blend
             @name: Blends
@@ -158,7 +171,7 @@
             @view_type: form
             @view_id ref='wholeherb_integration_blend_tree'
             @view_mode: tree,form
-            // @search_view_id ref='search_wholeherb_integration_blend'
+            @search_view_id ref='search_wholeherb_integration_blend'
             // @domain: [('state','not in',['complete','cancelled'])]
             @domain eval='{}'
             @limit eval='200'

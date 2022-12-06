@@ -125,7 +125,7 @@ class res_partner(xid.xmlid, osv.Model):
         'create_uid': fields.many2one('res.users', string='Created by', readonly=True),
         'write_date': fields.datetime('Last changed', readonly=True),
         'write_uid': fields.many2one('res.users', string='Last changed by', readonly=True),
-        'order_confirmations': files('order_confs', string='Order Confirmations', style='static_list', sort='newest'),
+        'order_confirmations': files('order_confs', string='Order Confirmations', style='static_list', sort='alpha desc'),
         }
 
     def fnxfs_folder_name(self, records):

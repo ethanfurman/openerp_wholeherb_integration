@@ -122,6 +122,14 @@
                                                 @phone
                                                 @email
 
+        ~record model='ir.ui.view' #view_partners_xml_id_filter
+            @name: res.partner.form.xml_id.filter
+            @model: res.partner
+            @inherit_id ref='base.view_res_partner_filter'
+            @priority eval='14'
+            @arch type='xml'
+                ~search
+                    @xml_id $Account
 
         // add unrestricted view to Settings menu
 

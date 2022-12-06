@@ -193,7 +193,7 @@ class Blends(osv.Model):
         for blend in self.browse(cr, uid, ids, context=context):
             percent = sum([ingred.percent_in_blend for ingred in blend.ingredient_ids], 0.0)
             batch_total = percent * blend.batch_size / 100.0
-            blend_total = percent * batch_total / 100.0
+            blend_total = batch_total * blend.number_batches
             res[blend.id] = {
                     'total_percent': percent,
                     'total_batch': batch_total,
@@ -310,8 +310,20 @@ class Blends(osv.Model):
         }
 
     def onchange_batch(self, cr, uid, ids, number_batches, batch_size, ingredients, context=None):
-        _logger.warning('ingredients: %r', ingredients)
         return {'value': {'amount': number_batches * batch_size}}
+
+    def onchange_blend_id(self, cr, uid, ids, formula_id, context=None):
+        blend_formula = self.pool.get('wholeherb_integration.formula')
+        blend = blend_formula.read(cr, uid, formula_id, context=context)
+        formula_ingredient = self.pool.get('wholeherb_integration.formula_ingredient')
+        ingredients = formula_ingredient.read(cr, uid, blend.pop('ingredient_ids'), context=context)
+        blend['category_id'] = blend.pop('category_id')[0]
+        blend['formula_id'] = blend.pop('id')
+        blend['ingredient_ids'] = new_ingredients = []
+        for ingred in ingredients:
+            new_ingred = {'product_id':ingred['product_id'][0], 'percent_in_blend':ingred['percent_in_blend']}
+            new_ingredients.append((0, 0, new_ingred))
+        return {'value': blend}
 
 
 class Ingredients(osv.Model):
