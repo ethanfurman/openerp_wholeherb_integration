@@ -1,5 +1,5 @@
 from fnx_fs.fields import files
-from fnx.xid import xmlid
+from .xid import xmlid
 from dbf import Date
 from VSS.BBxXlate.fisData import fisData
 from VSS.address import NameCase

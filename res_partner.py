@@ -1,7 +1,7 @@
 import enum
 import logging
+from . import xid
 from dbf import Date
-from fnx import xid
 from fnx_fs.fields import files
 from fnx.oe import check_company_settings
 from VSS.BBxXlate.fisData import fisData

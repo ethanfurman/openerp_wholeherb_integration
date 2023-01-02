@@ -1,5 +1,5 @@
 from collections import defaultdict
-from fnx.xid import xmlid
+from .xid import xmlid
 from VSS.address import NameCase
 from VSS.BBxXlate.fisData import fisData
 from VSS.utils import translator
