@@ -40,11 +40,14 @@
                                 @sp_kosher
                                 @sp_kosher_exp
                     ~xpath expr="//notebook" position='after'
-                        ~div .fnxfs_files
-                            ~hr colspan='4'
-                            ~br
-                            ~label for='order_confirmations' $Order_Confirmations
-                            @order_confirmations nolabel=1
+                        ~br
+                        ~group
+                            ~group
+                                ~label for='order_confirmations' $Order_Confirmations colspan='2'
+                                @order_confirmations nolabel=1 colspan='2' options="{'no_embed':True}"
+                            ~group
+                                ~label for='open_invoices' $Open_Invoices colspan='2'
+                                @open_invoices nolabel=1 colspan='2' options="{'no_embed':True}"
                     ~xpath expr="//page[@string='Internal Notes']" position='inside'
                         ~group
                             ~group
