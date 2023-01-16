@@ -47,7 +47,7 @@ def main():
     formatter = Formatter('%(asctime)s %(funcName)-25s %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.info("running command %r", script_command_name)
+    logger.info("running command %r", ' '.join(sys.argv))
 
 @Command(
         )
