@@ -3,7 +3,6 @@
 Manage FIS order confirmations, open order invoices, and availability in OpenERP.
 """
 
-version = "2022.1.12 [2.243:/opt/openerp/openerp/wholeherb_integtration/scripts/fnx_fis_orders.source]"
 
 # imports & config
 
@@ -12,35 +11,43 @@ from antipathy import Path
 from dbf import Date
 from logging import INFO, getLogger, Formatter, handlers
 from re import match as re_match
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, CellStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-from reportlab.pdfgen import canvas as CANVAS
 from time import ctime
 
 import antipathy, dbf, reportlab, scription
 
 from scription import *
 
-WholeHerbLogo = Path("/home/emile/berje_logo.png")
-if not WholeHerbLogo.exists():
-    WholeHerbLogo = 'berje_logo.png'
+# keep pyflakes happy
+TA_RIGHT, antipathy, dbf, reportlab, scription
 
-logger = getLogger()
-logger.setLevel(INFO)
-_handler = handlers.TimedRotatingFileHandler(
-        '/var/log/fnx_fis_orders.log',
-        when='midnight',
-        backupCount=30,
-        )
-_formatter = Formatter('%(asctime)s %(funcName)-25s %(message)s')
-_handler.setFormatter(_formatter)
-logger.addHandler(_handler)
-del _handler, _formatter
+version = "2022.1.12 [source: 2.243:/opt/openerp/openerp/wholeherb_integtration/scripts/fnx_fis_orders.source]"
 
 
 # API
+
+@Script(
+        )
+def main():
+    global WholeHerbLogo, logger
+    WholeHerbLogo = Path("/home/emile/berje_logo.png")
+    if not WholeHerbLogo.exists():
+        WholeHerbLogo = 'berje_logo.png'
+
+    logger = getLogger()
+    logger.setLevel(INFO)
+    handler = handlers.TimedRotatingFileHandler(
+            '/var/log/fnx_fis_orders.log',
+            when='midnight',
+            backupCount=30,
+            )
+    formatter = Formatter('%(asctime)s %(funcName)-25s %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.info("running command %r", script_command_name)
 
 @Command(
         )
