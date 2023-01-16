@@ -7,6 +7,7 @@ version = "2022.1.12 [2.243:/opt/openerp/openerp/wholeherb_integtration/scripts/
 
 # imports & config
 
+from __future__ import print_function
 from antipathy import Path
 from dbf import Date
 from logging import INFO, getLogger, Formatter, handlers
@@ -72,7 +73,7 @@ def import_invoices():
     add open invoices to OpenERP; remove closed invoices and matching order confirmations
     """
     global _logger
-    _logger = getLogger('import_invocies')
+    _logger = getLogger('import_invoices')
     source = Path('/home/imports/open_invoices')
     archive = source/'archive'
     # if export_invoices finished, check for deleted invoices
@@ -111,14 +112,14 @@ def import_invoices():
             error('unable to parse file name %r' % (fqn.filename, ))
             continue
         nfn = create_invoice_filename(cust, invoice, date, po)
-        _logger.info('adding %s to OpenERP', nfn)
+        _logger.info('adding customer %s invoice %s to OpenERP', cust, nfn)
         cp = Execute('/usr/local/bin/fnxfs cp %s res.partner/xml_id=%s/open_invoices/%s' % (fqn, cust, nfn))
         if cp.returncode:
             _logger.error('unable to copy %s into OpenERP as %s', fqn, nfn)
             _logger.error(cp.stderr)
             error('unable to copy %s into OpenERP as %s' % (fqn, nfn))
-        else:
-            source.move(fqn, archive)
+            continue
+        fqn.move(archive)
         ocfn = create_confirmation_filename(invoice)
         rm = Execute('/usr/local/bin/fnxfs rm res.partner/xml_id=%s/open_invoices/%s' % (cust, ocfn))
         if rm.returncode == Exit.IoError:
@@ -149,12 +150,14 @@ def import_order_confs():
     #     done
     # touch /home/imports/order_confs/archive/lastsweep
     #
+    _logger = getLogger('import_confirmations')
     source = Path('/home/imports/order_confs')
     archive = source/'archive'
     for fqn in source.glob('*.pdf'):
         try:
             cust, invoice = match(order_conf, fqn.filename).groups()
         except TypeError:
+            _logger.error('problem with file name: %r', fqn.filename, )
             error('problem with file name: %r' % (fqn.filename, ))
             continue
         nfn = create_confirmation_filename(invoice)
@@ -164,7 +167,8 @@ def import_order_confs():
             _logger.error(cp.stderr)
             error('unable to copy %s into OpenERP as %s' % (fqn, nfn))
         else:
-            source.move(fqn, archive)
+            fqn.move(archive)
+            _logger.info('customer %r confirmation %r processed', cust, nfn)
 
 @Command(
         order=Spec("order number to process", ),
@@ -286,6 +290,9 @@ def create_confirmation_filename(invoice):
 
 def create_invoice_filename(cust, invoice, date, po):
     date = '%s-%s-%s' % (date[:4], date[4:6], date[6:])
+    if po.startswith('PO'):
+        po = po[2:]
+    po = po.lstrip('-_')
     fn = 'Inv_%s-PO_%s-Date_%s.pdf' % (invoice, po, date)
     return fn
 
