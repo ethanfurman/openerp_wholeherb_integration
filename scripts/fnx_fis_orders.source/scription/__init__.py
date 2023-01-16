@@ -495,7 +495,7 @@ def _func_globals(func):
 def _get_version(from_module, _try_other=True):
     for ver in _version_strings:
         if from_module.get(ver):
-            version = getattr(from_module, ver)
+            version = from_module.get(ver)
             if not isinstance(version, basestring):
                 version = '.'.join([str(x) for x in version])
             break
@@ -507,17 +507,20 @@ def _get_version(from_module, _try_other=True):
             version = 'unknown'
         else:
             if package in sys.modules and any(hasattr(sys.modules[package], v) for v in _version_strings):
-                version = sys.modules[package].version
+                for ver in _version_strings:
+                    version = getattr(sys.modules[package], ver, '')
+                    if version:
+                        break
                 if not isinstance(version, basestring):
                     version = '.'.join([str(x) for x in version])
             elif _try_other:
                 version = ' / '.join(_get_all_versions(from_module, _try_other=False))
             if not version.strip():
                 version = 'unknown'
-    return version + ' running on Python %s' % '.'.join([str(i) for i in sys.version_info])
+    return version
 
 def _get_all_versions(from_module, _try_other=True):
-    versions = []
+    versions = ['%s=%s' % (from_module['module']['script_name'], _get_version(from_module, _try_other=False))]
     for name, module in sys.modules.items():
         fm_obj = from_module.get(name)
         if fm_obj is module:
