@@ -55,6 +55,8 @@ def export_invoices():
     """
     copy open invoice pdfs from 2.2 to 2.243
     """
+    global _logger
+    _logger = getLogger('export_invoices')
     for top_dir, cust_dirs, files in Path('/usr/FIS_Invoices').walk():
         break
     for dir in cust_dirs:
@@ -64,14 +66,17 @@ def export_invoices():
             for fn in files:
                 if match(open_invoice, fn):
                     cust, invoice, date, po_number = match.groups()
+                    _logger.info('processing customer %r, invoice %r, date %r, po 5r', cust, invoice, date, po)
                     try:
                         date = Date.strptime(date, '%Y%m%d')
                     except ValueError:
+                        _logger.error('invalid date %r', date)
                         continue
                     found.append(path/fn)
             if found:
                 Execute('rsync %s 192.168.2.243:/home/imports/open_invoices/' % ' '.join(found))
     Execute('ssh root@192.168.2.243 touch /home/imports/open_invoices/done')
+    _logger.info('done')
 
 @Command(
         )
@@ -114,12 +119,12 @@ def import_invoices():
     for fqn in source.glob('*.pdf'):
         try:
             cust, invoice, date, po = match(open_invoice, fqn.filename).groups()
+            _logger.info('processing customer %r, invoice %r, date %r, po 5r', cust, invoice, date, po)
         except TypeError:
             _logger.error('unable to parse file name %r', fqn.filename)
             error('unable to parse file name %r' % (fqn.filename, ))
             continue
         nfn = create_invoice_filename(cust, invoice, date, po)
-        _logger.info('adding customer %s invoice %s to OpenERP', cust, nfn)
         cp = Execute('/usr/local/bin/fnxfs cp %s res.partner/xml_id=%s/open_invoices/%s' % (fqn, cust, nfn))
         if cp.returncode:
             _logger.error('unable to copy %s into OpenERP as %s', fqn, nfn)
@@ -133,6 +138,7 @@ def import_invoices():
             _logger.error('unable to remove %r from OpenERP', ocfn)
             _logger.error(rm.stderr)
             error('unable to remove %r from OpenERP' % (ocfn, ))
+    _logger.info('done')
 
 @Command(
         )
@@ -157,12 +163,14 @@ def import_order_confs():
     #     done
     # touch /home/imports/order_confs/archive/lastsweep
     #
+    global _logger
     _logger = getLogger('import_confirmations')
     source = Path('/home/imports/order_confs')
     archive = source/'archive'
     for fqn in source.glob('*.pdf'):
         try:
             cust, invoice = match(order_conf, fqn.filename).groups()
+            _logger.info('processing customer %r confirmation %r', cust, invoice)
         except TypeError:
             _logger.error('problem with file name: %r', fqn.filename, )
             error('problem with file name: %r' % (fqn.filename, ))
@@ -175,7 +183,7 @@ def import_order_confs():
             error('unable to copy %s into OpenERP as %s' % (fqn, nfn))
         else:
             fqn.move(archive)
-            _logger.info('customer %r confirmation %r processed', cust, nfn)
+    _logger.info('done')
 
 @Command(
         order=Spec("order number to process", ),
@@ -186,6 +194,9 @@ def create_order_conf(order, source, dest):
     """
     Create pdf version of order confirmation.
     """
+    global _logger
+    _logger = getLogger('create_order_conf')
+    _logger.info('processing %r', order)
     if order == 'test':
         dst = 'test.pdf'
         order_conf = OrderConf(order_conf_test_data[:55])
@@ -245,6 +256,7 @@ def create_order_conf(order, source, dest):
             repeatRows=1,
             ))
     doc.build(flowables, onFirstPage=page_template, onLaterPages=page_template)
+    _logger.info('done')
 
 
 # styles
