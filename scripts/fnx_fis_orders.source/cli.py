@@ -167,6 +167,7 @@ def import_order_confs():
     _logger = getLogger('import_confirmations')
     source = Path('/home/imports/order_confs')
     archive = source/'archive'
+    review = source/'errors'
     for fqn in source.glob('*.pdf'):
         try:
             cust, invoice = match(order_conf, fqn.filename).groups()
@@ -181,6 +182,7 @@ def import_order_confs():
             _logger.error('unable to copy %s into OpenERP as %s', fqn, nfn)
             _logger.error(cp.stderr)
             error('unable to copy %s into OpenERP as %s' % (fqn, nfn))
+	    fqn.move(review)
         else:
             fqn.move(archive)
     _logger.info('done')
