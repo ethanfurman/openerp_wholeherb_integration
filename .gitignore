@@ -1,3 +1,6 @@
+*.bak
+*.old
+*.pdf
 .swp
 .*.sw?
 *.pyc
