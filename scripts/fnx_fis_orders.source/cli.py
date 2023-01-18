@@ -171,7 +171,7 @@ def import_order_confs():
         try:
             cust, invoice = match(order_conf, fqn.filename).groups()
             _logger.info('processing customer %r confirmation %r', cust, invoice)
-        except TypeError:
+        except (TypeError, AttributeError):
             _logger.error('problem with file name: %r', fqn.filename, )
             error('problem with file name: %r' % (fqn.filename, ))
             continue
