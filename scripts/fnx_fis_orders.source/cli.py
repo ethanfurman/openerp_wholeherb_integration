@@ -66,7 +66,7 @@ def export_invoices():
             for fn in files:
                 if match(open_invoice, fn):
                     cust, invoice, date, po_number = match.groups()
-                    _logger.info('processing customer %r, invoice %r, date %r, po 5r', cust, invoice, date, po_number)
+                    _logger.info('processing customer %r, invoice %r, date %r, po %r', cust, invoice, date, po_number)
                     try:
                         date = Date.strptime(date, '%Y%m%d')
                     except ValueError:
@@ -203,7 +203,10 @@ def create_order_conf(order, source, dest):
     else:
         src = source / order + '.dat'
         dst = dest / order + '.pdf'
-        order_conf = OrderConf.from_file(src)
+        try:
+            order_conf = OrderConf.from_file(src)
+        except ValueError:
+            return Exit.DataError
     for line in order_conf.line_items:
         line1, line2 = line[1].split('\n')
         if line2 == '-- continued --':
@@ -357,7 +360,7 @@ class OrderConf(object):
         overflow = 10
         while len(data) > startPos:
             line = data[startPos:startPos+6]
-            print(repr(line))
+            print(repr(line), verbose=2)
             if any(line):
                 count += 1
                 if count == overflow:
@@ -373,12 +376,19 @@ class OrderConf(object):
         self.data = data
 
     @classmethod
-    def from_file(cls, filename):
+    def from_file(cls, path):
+        # validate file name
+        if not path.filename[:6].isdigit() or len(path.filename) != 10:
+            _logger.error('invalid filename %r', path.filename)
+            raise ValueError('invalid filename %r' % path.filename)
         raw_data = [
                 line.replace('"','').strip()
-                for line in open(filename).readlines()
+                for line in open(path).readlines()
                 ]
-        print(repr(raw_data))
+        if len(raw_data) < 13:
+            _logger.error('missing data or empty file')
+            raise ValueError('missing data or empty file')
+        print(repr(raw_data), verbose=2)
         return cls(raw_data)
 
 # reportlab config
