@@ -226,7 +226,7 @@ def create_order_conf(order, source, dest):
             pagesize=(8.5*inch, 11*inch),
             author='FIS',
             title='Whole Herb Order %s' % order,
-            subject='Confirmation Request',
+            subject='Confirmation Request as of %s' % order_conf.date,
             keywords=order_conf.keywords,
             )
     flowables = []
@@ -353,6 +353,7 @@ class OrderConf(object):
         self.bill_to = rise(*data[0:4])
         self.ship_to = rise(*data[4:8])
         self.hdr_info = data[8:13]
+        self.date = data[8]
         keywords = set()
         line_items = []
         startPos = 13
@@ -371,7 +372,7 @@ class OrderConf(object):
                 line[1] = ('%s\n%s' % (line[1].title(), line[5].lower()))
                 line_items.append(line[:5])
             startPos += 6
-        self.keywords = list(keywords)
+        self.keywords = ["per %s:" % self.date] + list(keywords)
         self.line_items = line_items
         self.data = data
 
