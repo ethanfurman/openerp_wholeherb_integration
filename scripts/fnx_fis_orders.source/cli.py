@@ -15,7 +15,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-from sys import argv
 from time import ctime
 
 import antipathy, dbf, reportlab, scription
@@ -48,7 +47,7 @@ def main():
     formatter = Formatter('%(asctime)s %(funcName)-25s %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.info("running command %r", ' '.join(argv))
+    logger.info("running command %r", script_command_line)
 
 @Command(
         )
