@@ -15,6 +15,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from sys import argv
 from time import ctime
 
 import antipathy, dbf, reportlab, scription
@@ -47,7 +48,7 @@ def main():
     formatter = Formatter('%(asctime)s %(funcName)-25s %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.info("running command %r", ' '.join(sys.argv))
+    logger.info("running command %r", ' '.join(argv))
 
 @Command(
         )
@@ -66,7 +67,7 @@ def export_invoices():
             for fn in files:
                 if match(open_invoice, fn):
                     cust, invoice, date, po_number = match.groups()
-                    _logger.info('processing customer %r, invoice %r, date %r, po 5r', cust, invoice, date, po)
+                    _logger.info('processing customer %r, invoice %r, date %r, po 5r', cust, invoice, date, po_number)
                     try:
                         date = Date.strptime(date, '%Y%m%d')
                     except ValueError:
