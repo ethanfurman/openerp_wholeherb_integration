@@ -3,13 +3,7 @@ import logging
 from . import xid
 from dbf import Date
 from fnx_fs.fields import files
-from fnx.oe import check_company_settings
-from VSS.BBxXlate.fisData import fisData
-from VSS.address import cszk, Rise, Sift, AddrCase, NameCase, BsnsCase, normalize_address
-from VSS.utils import fix_phone, fix_date
 from osv import osv, fields
-from openerplib.dates import str_to_datetime, DEFAULT_SERVER_DATETIME_FORMAT as DT_FORMAT
-from openerplib.dates import DEFAULT_SERVER_DATETIME_FORMAT as DT_FORMAT
 from openerplib.dates import DEFAULT_SERVER_DATE_FORMAT as D_FORMAT
 
 
@@ -156,4 +150,3 @@ class res_partner(xid.xmlid, osv.Model):
             self.write(cr, uid, inactive_ids, {'active': False})
         _logger.info('%d records deactivated' % len(inactive_ids))
         return True
-res_partner()
