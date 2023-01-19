@@ -150,3 +150,24 @@ class res_partner(xid.xmlid, osv.Model):
             self.write(cr, uid, inactive_ids, {'active': False})
         _logger.info('%d records deactivated' % len(inactive_ids))
         return True
+
+    def name_get(self, cr, uid, ids, context=None):
+        if isinstance(ids, (int, long)):
+            ids = [ids]
+        res = super(res_partner, self).name_get(cr, uid, ids, context=context)
+        show_fis = (context or {}).get('show_fis')
+        if not show_fis:
+            return res
+        res = dict(res)
+        new_res = []
+        for data in self.read(cr, uid, ids, fields=['id', 'xml_id', 'module', 'user_ids'], context=context):
+            id = data['id']
+            xml_id = data['xml_id']
+            module = data['module']
+            user_ids = data['user_ids']
+            name = res[id]
+            if xml_id:
+                if not user_ids or show_fis:
+                    name = '[%s:%s] %s' % (module.upper(), xml_id, name)
+            new_res.append((id, name))
+        return new_res
