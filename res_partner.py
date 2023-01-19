@@ -168,6 +168,6 @@ class res_partner(xid.xmlid, osv.Model):
             name = res[id]
             if xml_id:
                 if not user_ids or show_fis:
-                    name = '[%s:%s] %s' % (module.upper(), xml_id, name)
+                    name = '[%s] %s' % (xml_id, name)
             new_res.append((id, name))
         return new_res

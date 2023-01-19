@@ -37,7 +37,7 @@
                                     @equip_to_use_id options="{'limit':15, 'create':False, 'create_edit':False, 'no_open': True}"
                                     @screen_size
                                 ~group
-                                    @partner_id
+                                    @partner_id context="{'show_fis': True}"
                                     @description
                                 ~group
                                     @raw_lot_ids
