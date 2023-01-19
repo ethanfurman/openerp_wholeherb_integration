@@ -46,7 +46,7 @@ def main():
     formatter = Formatter('%(asctime)s %(funcName)-25s %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.info("running command %r", script_command_line)
+    logger.info("running command %r", script_command_name)
 
 @Command(
         )
@@ -174,6 +174,7 @@ def import_order_confs():
         except (TypeError, AttributeError):
             _logger.error('problem with file name: %r', fqn.filename, )
             error('problem with file name: %r' % (fqn.filename, ))
+            fqn.move(review)
             continue
         nfn = create_confirmation_filename(invoice)
         cp = Execute('/usr/local/bin/fnxfs cp %s res.partner/xml_id=%s/order_confirmations/%s' % (fqn, cust, nfn))
@@ -181,7 +182,7 @@ def import_order_confs():
             _logger.error('unable to copy %s into OpenERP as %s', fqn, nfn)
             _logger.error(cp.stderr)
             error('unable to copy %s into OpenERP as %s' % (fqn, nfn))
-	    fqn.move(review)
+            fqn.move(review)
         else:
             fqn.move(archive)
     _logger.info('done')
