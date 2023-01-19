@@ -33,7 +33,7 @@ intelligently parses command lines
 from __future__ import print_function
 
 # version
-version = 0, 86, 13
+version = 0, 86, 14, 1
 
 # imports
 import sys
@@ -1239,6 +1239,8 @@ class Alias(object):
             alias_name = alias.replace('_', '-').lower()
             if alias_name in script_module['script_commands']:
                 raise ScriptionError('alias %r already in use as command %r' % (alias_name, alias_name))
+            elif alias_name in script_module['script_aliases']:
+                raise ScriptionError('alias %r already in use for command %r' % (alias_name, script_module['script_aliases'][alias_name]))
             if canonical:
                 script_module['script_commands'][alias_name] = func
                 canonical = False
@@ -1491,6 +1493,7 @@ def Run():
         SYS_ARGS = [arg.decode(LOCALE_ENCODING) for arg in sys.argv]
     else:
         SYS_ARGS = sys.argv[:]
+    script_module['script_command_line'] = SYS_ARGS
     Script = script_module['script_main']
     Command = script_module['script_commands']
     Alias = script_module['script_aliases']
