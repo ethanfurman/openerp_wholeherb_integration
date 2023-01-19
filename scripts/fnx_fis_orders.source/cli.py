@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 """\
 Manage FIS order confirmations, open order invoices, and availability in OpenERP.
 """
