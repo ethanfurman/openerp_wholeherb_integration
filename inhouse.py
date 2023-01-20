@@ -112,6 +112,7 @@ class Product_In_Info(osv.Model):
                 help='',
                 oldname='product_out_process_number_ids',
                 ),
+        'create_date': fields.datetime('Date record created'),
         }
     #
     _sql_constraints = [
