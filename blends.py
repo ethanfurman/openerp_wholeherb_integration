@@ -365,9 +365,7 @@ class Ingredients(osv.Model):
         'name': fields.function(
                 _calc_name,
                 string='Name', type='char', size=128,
-                store={
-                    'product.product': (_convert_product_product_ids, ['xml_id','name'], 10),
-                    },
+                store=False,
                 ),
         'blend_id' : fields.many2one(
                 u'wholeherb_integration.blend',
