@@ -97,11 +97,11 @@
         ~drawString x='5.25in' y='9.875in': ~xsl:text: Location
         ~drawString x='6.0in' y='9.875in': ~xsl:text: # of packages @ Gross/Net Wt.
         // ingredient rows
-        ~blockTable colWidths='258, 114, 96, 72'
+        ~blockTable colWidths='247, 125, 96, 72'
             ~xsl:for-each select='ingredients'
                 ~tr style='free-float'
                 ~tr style='item-table'
-                    ~td: ~xsl:value-of select='ingred-name'
-                    ~td: ~xsl:value-of select='ingred-lot'
+                    ~td: ~para: ~xsl:value-of select='ingred-name'
+                    ~td: ~para: ~xsl:value-of select='ingred-lot'
                     ~td
                     ~td
