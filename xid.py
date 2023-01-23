@@ -65,9 +65,9 @@ class xmlid(object):
             # some FIS records can be created first in OpenERP, so assign
             # the correct module
             if self._name == 'product.product':
-                values['module'] = module = 'NVTY'
+                values['module'] = module = 'nvty'
             elif self._name == 'wholeherb_integration.product_lot':
-                values['module'] = module = 'NVBA'
+                values['module'] = module = 'nvba'
         if xml_id and len(ids) > 1:
             raise ERPError('Error', 'FIS IDs must be unique')
         res = True
@@ -86,16 +86,19 @@ class xmlid(object):
                 imd_name = None
             # get any existing imd record
             imd = self.pool.get('ir.model.data')
-            try:
-                for record in imd.browse(cr, uid, [('model','=',self._name),('res_id','=',rec.id)]):
-                    if imd_name and record.module in ('fis','whc'):
-                        imd.write(cr, uid, record.id, {'name':imd_name}, context=context)
-                    else:
-                        imd.unlink(cr, uid, record.id, context=context)
-            except ValueError:
+            imd_records = imd.browse(cr, uid, [('model','=',self._name),('res_id','=',rec.id),('module','=','whc')])
+            for imd_rec in imd_records:
+                if not imd_name:
+                    imd.unlink(cr, uid, imd_rec.id, context=context)
+                elif imd_name and imd_name != imd_rec.name:
+                    # existing imd.name is different, update
+                    imd.write(cr, uid, imd_rec.id, {'name':imd_name}, context=context)
+                break
+            else:
+                # on match found for id, create imd record if needed
                 if imd_name:
                     imd.create(cr, uid, {'module':'whc', 'name':imd_name, 'model':self._name, 'res_id':rec.id, }, context=context)
-            return res
+        return res
 
     def get_xml_id_map(self, cr, uid, module, ids=None, context=None):
         "return {xml_id: id} for all xml_ids in module"
