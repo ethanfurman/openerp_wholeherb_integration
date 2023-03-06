@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 CONFIG_ERROR = "Cannot sync products until  Settings --> Configuration --> FIS Integration --> %s  has been specified."
 
 lose_digits = translator(delete='0123456789')
-valid_lot = re.compile('^(A|F|M|P|R)?\d{4,6}(F|HT|Q|R|S|ST|STP|U)?$')
+valid_lot = re.compile('^(A|F|M|P|R)?\d{4,6}(F|HT|P|Q|R|S|ST|STP|U)?$')
 
 def warehouses(rec):
     return rec[P.warehouse] in ('0SON','0PRO','0QAH','0INP','0EXW','0GLD')
