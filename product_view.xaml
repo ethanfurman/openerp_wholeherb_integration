@@ -89,10 +89,12 @@
             @model: wholeherb_integration.product_lot
             @arch type='xml'
                 ~form $Product_Lots version='7.0'
+                    @lot_no_valid invisible='1'
                     ~div
-                        ~h3
+                        ~h2
                             ~label for='lot_no' $Lot
-                            @lot_no nolabel='1' class='oe_inline'
+                            @lot_no nolabel='1' class='oe_inline' on_change='onchange_lot_no(lot_no)' .oe_inline
+                            ~span .oe_inline style='color:red;' attrs="{'invisible': [('lot_no_valid','=',True)]}": --invalid lot number--
                             ~separator
                             ~label for='product_id' $Item
                             @product_id nolabel='1' class='oe_inline'
@@ -120,7 +122,8 @@
             @name: wholeherb_integration_product_lot_tree
             @model: wholeherb_integration.product_lot
             @arch type='xml'
-                ~tree $product_lots
+                ~tree $product_lots colors='red:lot_no_valid==False'
+                    @lot_no_valid invisible='1'
                     @lot_no
                     @product_id
                     @supplier_id
@@ -135,6 +138,8 @@
                     @product_id $Product
                     @supplier_id $Supplier
                     ~separator
+                    ~filter $Valid_Lots @type_valid domain="[('lot_no_valid','=',True)]"
+                    ~separator
                     ~group expand='0' string='Group by...'
                         ~filter $Product domain='[]' context="{'group_by': 'product_id'}"
                         ~filter $Supplier domain='[]' context="{'group_by': 'supplier_id'}"
@@ -144,7 +149,8 @@
             @res_model: wholeherb_integration.product_lot
             @view_type: form
             @view_mode: tree,form
-            @domain eval="[('lot_no_valid','=',True),('preship_lot','=',False)]"
+            @context: {'search_default_type_valid': 1}
+            @domain eval="[('preship_lot','=',False),('lot_no_maybe','=',True)]"
 
         ~record #action_wholeherb_integration_product_lot_tree model=act_window_view
             @sequence eval='10'

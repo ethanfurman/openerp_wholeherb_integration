@@ -4,9 +4,7 @@ from dbf import Date
 from VSS.BBxXlate.fisData import fisData
 from VSS.address import NameCase
 from VSS.utils import translator
-from openerp.exceptions import ERPError
-from openerp.tools import SUPERUSER_ID, self_ids, any_in
-from osv.orm import browse_record
+from openerp.tools import SUPERUSER_ID, self_ids
 from osv import osv, fields
 import enum
 import logging
@@ -17,7 +15,7 @@ _logger = logging.getLogger(__name__)
 CONFIG_ERROR = "Cannot sync products until  Settings --> Configuration --> FIS Integration --> %s  has been specified."
 
 lose_digits = translator(delete='0123456789')
-valid_lot = re.compile('^(A|F|M|P|R)?\d{4,6}(F|HT|Q|R|S|ST|STP|U)?$')
+potential_lot = re.compile(r'^[a-z]+\d{4,6}[a-z]*$', re.IGNORECASE)
 
 def warehouses(rec):
     return rec[P.warehouse] in ('0SON','0PRO','0QAH','0INP','0EXW','0GLD')
@@ -351,10 +349,15 @@ class product_lot(osv.Model):
     _rec_name = 'lot_no'
     _order = 'lot_no desc'
 
-    def _validate_lot_no(self, cr, uid, ids, field_name, arg, context=None):
+    def _validate_lot_no(self, cr, uid, ids, field_names, arg, context=None):
         res = {}
+        user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+        valid_lot = re.compile(user.company_id.valid_lot_regex or '!!!!!')
         for rec in self.browse(cr, uid, ids, context=context):
-            res[rec.id] = bool(valid_lot.match(rec.lot_no))
+            res[rec.id] = {
+                    'lot_no_maybe': bool(potential_lot.match(rec.lot_no)),
+                    'lot_no_valid': bool(valid_lot.match(rec.lot_no)),
+                    }
         return res
 
     _columns = {
@@ -384,9 +387,22 @@ class product_lot(osv.Model):
             ),
         'lot_no_valid': fields.function(
             _validate_lot_no,
+            fnct_inv=True,
             help='lot number matches pattern "^(A|F|M|P|R)?\d{4,6}(F|HT|Q|R|S|ST|STP|U)?$"',
             type='boolean',
             string='Valid lot number?',
+            multi='check-lot',
+            store={
+                'wholeherb_integration.product_lot': (self_ids, ['lot_no'], 10),
+                },
+            ),
+        'lot_no_maybe': fields.function(
+            _validate_lot_no,
+            fnct_inv=True,
+            help='lot number might be valid',
+            type='boolean',
+            string='Possibly valid lot number?',
+            multi='check-lot',
             store={
                 'wholeherb_integration.product_lot': (self_ids, ['lot_no'], 10),
                 },
@@ -395,6 +411,11 @@ class product_lot(osv.Model):
         'create_date': fields.datetime('Lot # created on', readonly=True, track_visibility='onchange'),
         'create_uid': fields.many2one('res.users', string='Lot # created by', readonly=True),
         }
+
+    def onchange_lot_no(self, cr, uid, ids, lot_no, context=None):
+        user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+        valid_lot = re.compile(user.company_id.valid_lot_regex or '!!!!!')
+        return {'value': {'lot_no_valid': bool(valid_lot.match(lot_no))}}
 
 
 class product_traffic(osv.Model):

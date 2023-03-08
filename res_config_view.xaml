@@ -8,16 +8,18 @@
             @arch type='xml'
                 ~form $Configure_FIS_Integration version='7.0' .oe_form_configuration
                     ~header
-                        ~button $Apply type='object' @execute .oe_highlight
+                        ~button $Apply_Changes  type='object' @execute .oe_highlight
                         or
                         ~button $Cancel type='object' @cancel .oe_link
                     ~group groups='base.group_multi_company'
                         ~div
                             ~label for='company_id' $Select_Company
                             @company_id widget='selection' on_change='onchange_company_id(company_id, context)' .oe_inline
+                    ~separator $Valid_Lot_Number_Regex
+                    @valid_lot_regex
                     ~separator $Product_Traffic
                     ~group col='4'
-                        ~div
+                        ~div .oe_background_grey
                             ~div
                                 ~label for='traffic_followers'
                                 @traffic_followers

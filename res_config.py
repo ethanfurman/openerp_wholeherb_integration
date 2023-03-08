@@ -11,6 +11,12 @@ class fis_integration_config_settings(osv.osv_memory):
             string='Auto-Followers',
             relation='res.users',
             ),
+        'valid_lot_regex': fields.related(
+            'company_id', 'valid_lot_regex',
+            type='char',
+            size=128,
+            string='Lot No Regex',
+            ),
     }
 
     def create(self, cr, uid, values, context=None):
@@ -39,6 +45,7 @@ class fis_integration_config_settings(osv.osv_memory):
             company = self.pool.get('res.company').browse(cr, uid, company_id, context=context)
             values = {
                 'traffic_followers': [r.id for r in company.traffic_followers_ids],
+                'valid_lot_regex': company.valid_lot_regex,
             }
         return {'value': values}
 
