@@ -208,7 +208,9 @@ def create_order_conf(order, source, dest):
         try:
             order_conf = OrderConf.from_file(src)
         except ValueError:
-            return Exit.DataError
+            abort("problem converting '%s'" % src, Exit.DataError)
+        except OSError:
+            abort("unable to find file '%s'" % src, Exit.DataError)
     for line in order_conf.line_items:
         line1, line2 = line[1].split('\n')
         if line2 == '-- continued --':
