@@ -204,6 +204,7 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
     errors = None
     for key, records in ViewProgress(dupes.items(), "removing duplicates from $total sets / %d records" % total):
         primary, secondary = pick_one(records, prefer)
+        print('keeping: %r\nlosing: %r\n' % (primary, secondary), verbose=2)
         errors = merge(main_model, dupe, primary, secondary)
     if errors:
         errors.insert(0, None)
