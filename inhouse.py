@@ -1,3 +1,106 @@
+"""
+Summary
+=======
+Log work on products tracked by lot numbers.
+
+---
+
+Tables
+======
+
+Main
+----
+
+--> **Product In** [[*inhouse.product_in*]] -- original product
+--| - **Name** [[*name*]] -- name of process (defaults to process number)
+--| - **Process Number** [[*process_number*]] -- assigned number for tracking this product through ***Job Time*** and ***Finished Product***
+--| - **Date In**
+--| - **Process** [[*process_id*]] - which process will be performed (e.g. *Blend*, *Clean*, or *Mill*)
+--| - **Equip to Use** [[*equip_to_use_id*]] -- which equipment will be used (e.g. *V-Blender*, *Box Sifter*, or *Fitz Mill*)
+--| - **Product Description** [[*product_id*]] -- product being used
+--| - **Raw Lot#** [[*raw_lot_ids*]] -- lot numbers of starting product
+--| - **Finished Lot#** [[*finished_lot_ids]] -- lot numbers of final product
+--| - **Net Weight In**
+--| - **Reason** -- reason for process
+--| - **Customer** [[*partner_id*]] -- who finished product is committed to
+--| - **Description**
+--| - **Screen Size**
+--| - **Designated Pack**
+--| - **Alcohol Wash**
+--| - **Comment**
+--| - **Treatment** -- type of bacteria reduction treatment
+--| - **Voided Job** [[*voided*]]
+--| - **Job Time** [[*job_time_ids]] -- associated jobs
+--| - **Finished Product** [[*product_out_ids]] -- associated final products
+
+--> **Job Time** [[inhouse.job_time]] -- jobs performed for a process
+--| - **Name** -- name of job (defaults to process number and finished product id)
+--| - **Process Number** [[*process_number_id*]]
+--| - **Finished Product** [[*product_id*]]
+--| - **Lot # Raw** [[*lot_in_ids*]] -- same as *"Product In"."Raw Lot #"*
+--| - **Lot # Finished** [[*lot_out_ids*]] -- same as *"Product In"."Finished Lot #"*
+--| - **Equipment Prep Time**
+--| - **Stage Product Time**
+--| - **Packaging Time**
+--| - **Wt Check Time**
+--| - **QC Check Time**
+--| - **Equip Disassembly Time**
+--| - **Equip Clean Time**
+--| - **Area Clean Time**
+--| - **Other Time**
+--| - **Machine Run Time**
+--| - **Total Man Hours** [[*total_hours*]] -- calculated from *"Equipment Prep Time"* through *"Machine Run Time"*
+--| - **Voided Job** [[*voided*]] -- same as *"Product In"."Voided Job"*
+
+--> **Finished Product** [[*inhouse.product_out*]] -- finished product info
+--| - **Name** -- (defaults to process number and finished product id)
+--| - **Process Number** [[*process_number_id*]]
+--| - **Date In**
+--| - **Date Finished**
+--| - **Released for Sale**
+--| - **Finished Product** [[*product_id*]]
+--| - **Finished Lot#** [[*finished_lot_ids*]] -- same as *"Product In"."Finished Lot #"*
+--| - **Finished Lbs** -- pounds of primary finished product
+--| - **Finished Pack** -- pack size and type of primary finished product
+--| - **Overs** -- item code and description of overs
+--| - **Lot# Overs** [[*over_lot_ids*]]
+--| - **Overs Lbs** -- pounds of overs produced
+--| - **Overs Pack** -- pack size and type of overs
+--| - **Unders** -- item code and description of unders
+--| - **Lot# Unders** [[*under_lot_ids*]]
+--| - **Unders Lbs** -- pounds of unders produced
+--| - **Unders Pack** -- pack size and type of unders
+--| - **Magnetic Lbs**
+--| - **Waste Lbs**
+--| - **Treatment** -- post-process treatment required
+--| - **Comments**
+--| - **Total Liners Used**
+--| - **Voided Job** [[*voided*]] -- same as *"Product In"."Voided Job"*
+
+--> **Lots** [[*wholeherb_integration.product_lot*]] -- track lot # origins/qty
+--| - **Lot#** [[*lot_no*]]
+--| - **Amount Received** [[*qty_recd*]]
+--| - **Received UoM** (Unit of Measure) [[*qty_recd_uom_id]]
+--| - **Amount Remaining** [[*qty_remain*]]
+--| - **Previous Lot#** [[*prev_lot_no_id*]]
+--| - **Product** [[*product_id*]]
+--| - **Supplier** [[*supplier_id*]]
+--| - **Country of Origin** [[*cofo_ids]]
+--| - **Valid Lot Number** [[*lot_no_valid**]]
+--| - **Possibly Valid Lot Number** [[*lot_no_maybe*]] -- omit obviously invalid product lot numbers (zone/type/platform/etc.)
+--| - **Pre-Ship Lot?**
+
+Configuration
+-------------
+--> **Processes** [[*inhouse.selection.process*]] -- available processes for In-House jobs
+--| - **Name**
+--| - **Active** -- available for selection
+
+--> **Equipment** [[inhouse.selection.equip_to_use*]] -- available equipment for In-House jobs
+--| - **Name**
+--| - **Active** -- available for selection
+"""
+
 from osv import osv, fields
 from openerp.tools import self_ids
 
@@ -324,7 +427,7 @@ class Finished_Product_Info(osv.Model):
         'magnetic_lbs' : fields.char('Magnetic LBS', size=64, help='Pounds of magnetic waste produced'),
         'waste_lbs' : fields.char('Waste LBS', size=64, help='Pounds of other waste produced (hopper, floor, ect.)'),
         'treatment' : fields.char('Treatment', size=64, help='Post process treatment required and pounds to go'),
-        'comments' : fields.text('Comment', help=''),
+        'comments' : fields.text('Comments', help=''),
         'total_liners_used' : fields.char('Total Liners Used', size=64, help='Total number of poly liners used for job'),
         'voided' : fields.related(
                 'process_number_id','voided',
