@@ -146,6 +146,7 @@ def cnvzo1():
         use_empty=Spec('consider empty fields as duplicates?', FLAG),
         ignore_case=Spec('do not consider upper/lower-case as distinct', FLAG),
         dry_run=Spec('Do not affect changes, merely report what they would be', FLAG),
+        identical=Spec('check for identical records', FLAG, target='dupe', default='--all'),
         )
 def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
     """
@@ -163,26 +164,37 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
         main_model = oe.get_model(table)
     except MissingTable:
         abort("table '%s' does not exist" % table)
-    inheriting_fields = [v for k,v in main_model._inherits]
+    if dupe == '--all':
+        dupe = main_model._all_columns.keys()
+        use_empty = True
+    prefer = [p for p in prefer if p not in dupe]
+    inheriting_fields = [v for k,v in main_model._inherits if v not in dupe]
     domain = literal_eval(selection)
     DRY_RUN = dry_run
     OERec = NamedTuple(
             'OERec',
-            list(dupe) + list(prefer) + inheriting_fields + [
-                'model', 'id', 'create_uid', 'create_date', 'write_uid', 'write_date',
-                'xmlid', 'tertiary',
+            list(dupe) + prefer + inheriting_fields + [
+                f
+                for f in (
+                    'model', 'id', 'create_uid', 'create_date', 'write_uid', 'write_date', 'xmlid', 'tertiary',
+                    )
+                if f not in dupe
                 ])
     OERel = NamedTuple('OERel', ['model', 'field'])
     upstream, downstream, inherited = get_relations(table)
-    records = get_main_records(main_model, domain, dupe, prefer+tuple(inheriting_fields), use_empty)
+    records = get_main_records(main_model, domain, dupe, prefer+inheriting_fields, use_empty)
+    if not records:
+        abort('no records found')
     valid_records = []
     dupes = {}
     mixed = {}
     def key(record):
         keys = []
         for value in rec[:len(dupe)]:
-            if isinstance(value, str):
+            if isinstance(value, str) and ignore_case:
                 keys.append(value.upper())
+            elif isinstance(value, list):
+                keys.append(tuple(value))
             else:
                 keys.append(value)
         return tuple(keys)
@@ -579,7 +591,6 @@ def import_csms():
             for xml_id, diffs in partner_diffs.items():
                 row = [xml_id]
                 partner = partner_map[xml_id]
-                original_values = {}
                 for f in field_diffs:
                     diff = diffs.get(f, None)
                     if diff is None:
