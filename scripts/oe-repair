@@ -143,7 +143,7 @@ def cnvzo1():
         selection=Spec('an OpenERP domain to determine record selection', ),
         dupe=Spec('fields to consider for duplicates', MULTIREQ),
         prefer=Spec('which non-empty fields have priority in picking winning record', MULTI),
-        use_empty=Spec('consider empty fields as duplicates?', FLAG),
+        use_empty=Spec('how to handle empty dupe fields', OPTION, choices=['lax','strict']),
         ignore_case=Spec('do not consider upper/lower-case as distinct', FLAG),
         dry_run=Spec('Do not affect changes, merely report what they would be', FLAG),
         identical=Spec('check for identical records', FLAG, target='dupe', default='--all'),
@@ -159,27 +159,43 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
     be both a logical record on its own, or an integral port of a res.users record.  Such
     integral records will be excluded from the dedupe process.
     """
-    global OERec, OERel, DRY_RUN
+    #
+    # use_empty == 'lax' means the final domain element, if empty, will match a non-empty final element
+    # if there is only one such match -- i.e. if there are more than one complete records that match the
+    # incomplete record, the incomplete record is not considered a match.  'lax' should only be used if
+    # the final element should have data.
+    #
+    global OERec, OERel, DRY_RUN, IGNORECASE
     try:
         main_model = oe.get_model(table)
     except MissingTable:
         abort("table '%s' does not exist" % table)
     if dupe == '--all':
         dupe = main_model._all_columns.keys()
-        use_empty = True
+        use_empty = 'strict'
+        # ignore the create_* and write_*, and id meta-fields
+        for fn in ('create_uid', 'create_date', 'write_uid', 'write_date', 'id'):
+            if fn in dupe:
+                dupe.remove(fn)
+    else:
+        dupe = list(dupe)
     prefer = [p for p in prefer if p not in dupe]
     inheriting_fields = [v for k,v in main_model._inherits if v not in dupe]
     domain = literal_eval(selection)
+    IGNORECASE = ignore_case
     DRY_RUN = dry_run
-    OERec = NamedTuple(
+    OERec = OERecTuple(
             'OERec',
             list(dupe) + prefer + inheriting_fields + [
                 f
                 for f in (
-                    'model', 'id', 'create_uid', 'create_date', 'write_uid', 'write_date', 'xmlid', 'tertiary',
+                    'id', 'create_uid', 'create_date', 'write_uid', 'write_date', 'xmlid',
                     )
                 if f not in dupe
-                ])
+                ]
+            + ['_model', '_tertiary', '_key', '_primary']
+            )
+    OERec.key_len = len(dupe)
     OERel = NamedTuple('OERel', ['model', 'field'])
     upstream, downstream, inherited = get_relations(table)
     records = get_main_records(main_model, domain, dupe, prefer+inheriting_fields, use_empty)
@@ -188,16 +204,7 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
     valid_records = []
     dupes = {}
     mixed = {}
-    def key(record):
-        keys = []
-        for value in rec[:len(dupe)]:
-            if isinstance(value, str) and ignore_case:
-                keys.append(value.upper())
-            elif isinstance(value, list):
-                keys.append(tuple(value))
-            else:
-                keys.append(value)
-        return tuple(keys)
+    lax = {}
     if use_empty:
         valid_records = records
     else:
@@ -207,7 +214,25 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
                 valid_records.append(rec)
     records = enhance_and_filter(valid_records, upstream, inherited, dupe+prefer)
     for rec in ViewProgress(records, 'sorting $total records'):
-        mixed.setdefault(key(rec), []).append(rec)
+        mixed.setdefault(rec._key, []).append(rec)
+        lax.setdefault(rec._key[:-1], []).append(rec)
+    if use_empty == 'lax':
+        # sort any partial matches, moving them to appropriate mixed key if eligible
+        for records in lax.values():
+            if len(records) == 1:
+                # no possible match
+                continue
+            canonical = set()
+            possible_dupes = []
+            for rec in records:
+                if rec._primary:
+                    canonical.add(rec._key)
+                    can_key = rec._key
+                else:
+                    possible_dupes.append(rec)
+            # if only one canonical record, move possible_dupes to that record
+            if len(canonical) == 1:
+                mixed[can_key].extend(possible_dupes)
     total = 0
     for key, records in ViewProgress(mixed.items(), 'checking $total keys'):
         if len(records) > 1:
@@ -307,8 +332,8 @@ def map_record(table, selection, fields):
     OERec = NamedTuple(
             'OERec',
             fields + inheriting_fields + [
-                'model', 'id', 'create_uid', 'create_date', 'write_uid', 'write_date',
-                'xmlid', 'tertiary',
+                'id', 'create_uid', 'create_date', 'write_uid', 'write_date',
+                'xmlid', '_model', '_tertiary', '_key', '_primary',
                 ])
     OERel = NamedTuple('OERel', ['model', 'field'])
     upstream, downstream, inherited = get_relations(table)
@@ -669,7 +694,7 @@ def enhance_and_filter(records, upstream, inherited, fields):
                 if u_ids:
                     if action == 'discard':
                         break
-                    rec.tertiary[rel] = u_ids
+                    rec._tertiary[rel] = u_ids
                     relations.add(rel)
             else:
                 # no break encountered, try next relation
@@ -681,7 +706,7 @@ def enhance_and_filter(records, upstream, inherited, fields):
             kept_records.append(rec)
     if script_verbosity > 1:
         relations = list(relations)
-        header = [kept_records[0].model] + list(fields) # + list(kept_records[0][:-8])
+        header = [kept_records[0]._model] + list(fields) # + list(kept_records[0][:-8])
         for r in relations:
             models = [p.strip() for p in r.model.split('.')] + [r.field]
             header.append('.\n'.join(models))
@@ -689,7 +714,7 @@ def enhance_and_filter(records, upstream, inherited, fields):
         for rec in kept_records:
             row = ['%s\n%s' % (rec.id, rec.xmlid)]
             # print('ROW', row)
-            # print('TERTIARY', rec.tertiary.keys())
+            # print('TERTIARY', rec._tertiary.keys())
             for f in fields:
                 v = getattr(rec, f)
                 if isinstance(v, Many2One):
@@ -699,7 +724,7 @@ def enhance_and_filter(records, upstream, inherited, fields):
                 row.append(
                         '\n'.join(
                             split_text(
-                                ', '.join(str(id) for id in rec.tertiary.get(rel, [])),
+                                ', '.join(str(id) for id in rec._tertiary.get(rel, [])),
                                 30,
                                 )))
             rows.append(row)
@@ -727,10 +752,10 @@ def get_fields(model):
             result.add(name)
     return list(result)
 
-def get_main_records(model, domain, fields, extra=[], use_blanks=False):
-    if not use_blanks:
+def get_main_records(model, domain, fields, extra=[], use_blanks=None):
+    if use_blanks is None:
         for f in fields:
-            if f in model._text_fields or f in model._html_fields:
+            if f in model._text_fields:
                 domain.append((f,'!=',''))
             else:
                 domain.append((f,'!=',False))
@@ -742,11 +767,14 @@ def get_main_records(model, domain, fields, extra=[], use_blanks=False):
             )
     for i, rec in enumerate(records):
         rec.update(meta[rec.id])
-        records[i] = OERec(model=model.model_name, tertiary={}, **rec)
+        records[i] = OERec(
+                _model=model.model_name,
+                _tertiary={},
+                **rec)
     return records
 
 def get_id_from_name(fis_module, name, table):
-    imd_name = ('%s_%s_%s' % (fis_module, name, table)).replace('.','_')
+    # imd_name = ('%s_%s_%s' % (fis_module, name, table)).replace('.','_')
     found = imd.read([('name','=ilike',name)], fields=['module','model','res_id'])
     if len(found) > 1:
         abort('too many records found for %r:\n%s' % (name, '\n'.join('%s %s:%s' % (f.module, f.model, f.res_id) for f in found)))
@@ -826,7 +854,7 @@ def merge(main_model, selection, primary, duplicates):
     errors = []
     for rec in duplicates:
         error = False
-        for rel, ids in rec.tertiary.items():
+        for rel, ids in rec._tertiary.items():
             model = oe.get_model(rel.model)
             if DRY_RUN:
                 echo('\n\n')
@@ -857,18 +885,42 @@ def pick_one(records, prefer):
     def key(record):
         # { rel1: ids1, res2: ids2, ...}
         count = 0
-        for ids in record.tertiary.values():
+        for ids in record._tertiary.values():
             count += len(ids)
         if record.xmlid and record.xmlid.startswith(('fis.','whc.')):
             is_fis = 1  # 1 means yes (sorts after 0)
         else:
             is_fis = 0  # 0 means no (sorts before 1)
         preferred = sum([1 for p in prefer if getattr(record, p, None)])
-        return -is_fis, -preferred, -count, record.create_date
+        return -record._primary, -is_fis, -preferred, -count, record.create_date
     records.sort(key=lambda r: key(r))
     primary = records.pop(0)
     return primary, records
 
+class OERecTuple(NamedTuple):
+    #
+    # key_len = a_number         # set by main program
+    #
+    @classmethod
+    def record_key(cls, rec):
+        keys = []
+        for value in rec[:cls.key_len]:
+            if isinstance(value, str) and IGNORECASE:
+                keys.append(value.upper())
+            elif isinstance(value, list):
+                keys.append(tuple(value))
+            else:
+                keys.append(value)
+        return tuple(keys)
+    #
+    @classmethod
+    def _review_(cls, args):
+        # set the last two args: _key and _primary
+        args[-2] = key = cls.record_key(args)
+        args[-1] = bool(key[-1])
+
+# unknown
+def add_imd(): pass
 
 Main()
 
