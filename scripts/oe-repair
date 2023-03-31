@@ -865,12 +865,21 @@ def merge(main_model, selection, primary, duplicates):
     errors = []
     merges = []
     def display_prim(rec):
-        return "%s: %s" % (rec.id, '; '.join(str(f) for f in rec[:REPR_FIELDS]))
+        return "%s:\n  %s\n  %s" % (
+                rec.id,
+                '\n  '.join(str(f) for f in rec[:REPR_FIELDS]),
+                '\n  '.join([rec.create_date[:16], rec.create_uid[1]]),
+                )
     def display_dupe(rec):
+        tail = '%s, %s' % (rec.create_date[:16], rec.create_uid[1])
         if DUPE_FIELDS == REPR_FIELDS:
-            return str(rec.id)
+            return '%s: %s' % (rec.id, tail)
         else:
-            return "%s: %s" % (rec.id, '; '.join(str(f) for f in rec[DUPE_FIELDS:REPR_FIELDS]))
+            return "%s: %s, %s" % (
+                    rec.id,
+                    '; '.join(str(f) for f in rec[DUPE_FIELDS:REPR_FIELDS]),
+                    tail,
+                    )
     def display_tert(id):
         return '  %s: %s' % tuple(model.name_get(id)[0])
     merges.append(display_prim(primary))
