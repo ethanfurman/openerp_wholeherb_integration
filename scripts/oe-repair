@@ -165,7 +165,7 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
     # incomplete record, the incomplete record is not considered a match.  'lax' should only be used if
     # the final element should have data.
     #
-    global OERec, OERel, DRY_RUN, IGNORECASE
+    global OERec, OERel, DRY_RUN, IGNORECASE, DUPE_FIELDS, REPR_FIELDS
     try:
         main_model = oe.get_model(table)
     except MissingTable:
@@ -180,6 +180,8 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
     else:
         dupe = list(dupe)
     prefer = [p for p in prefer if p not in dupe]
+    DUPE_FIELDS = len(dupe)
+    REPR_FIELDS = DUPE_FIELDS + len(prefer)
     inheriting_fields = [v for k,v in main_model._inherits if v not in dupe]
     domain = literal_eval(selection)
     IGNORECASE = ignore_case
@@ -239,10 +241,19 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
             dupes[key] = records
             total += len(records)
     errors = None
+    history = []
     for key, records in ViewProgress(dupes.items(), "removing duplicates from $total sets / %d records" % total):
         primary, secondary = pick_one(records, prefer)
         print('keeping: %r\nlosing: %r\n' % (primary, secondary), verbose=2)
-        errors = merge(main_model, dupe, primary, secondary)
+        errors, merges = merge(main_model, dupe, primary, secondary)
+        history.append(None)
+        history.append(merges)
+    if script_verbosity:
+        if DRY_RUN:
+            history.insert(0, ('winner','would be\ndeleted','would be\nupdated'))
+        else:
+            history.insert(0, ('winner','deleted','updated'))
+        echo(history, border='table')
     if errors:
         errors.insert(0, None)
         errors.insert(0, ('Duplicate Record','Exception','Relation','IDs'))
@@ -852,27 +863,43 @@ def merge(main_model, selection, primary, duplicates):
     # TODO: special case mail.message create entries: leave them on their original records
     # echo('merging with %s' % (primary, ), border='flag')
     errors = []
+    merges = []
+    def display_prim(rec):
+        return "%s: %s" % (rec.id, '; '.join(str(f) for f in rec[:REPR_FIELDS]))
+    def display_dupe(rec):
+        if DUPE_FIELDS == REPR_FIELDS:
+            return str(rec.id)
+        else:
+            return "%s: %s" % (rec.id, '; '.join(str(f) for f in rec[DUPE_FIELDS:REPR_FIELDS]))
+    def display_tert(id):
+        return '  %s: %s' % tuple(model.name_get(id)[0])
+    merges.append(display_prim(primary))
+    merges.append('\n'.join(display_dupe(d) for d in duplicates))
+    third = {}
+    merges.append(third)
     for rec in duplicates:
         error = False
         for rel, ids in rec._tertiary.items():
             model = oe.get_model(rel.model)
-            if DRY_RUN:
-                echo('\n\n')
-                echo("would assign %s to %s ids %s" % (primary.id, model.model_name, ', '.join([str(i) for i in ids])))
-            else:
+            third.setdefault(model.model_name, []).extend([display_tert(i) for i in ids])
+            if not DRY_RUN:
                 try:
                     model.write(ids, {rel.field: primary.id}, context={'fis_maintenance':True})
                 except Exception:
                     _, exc, _ = sys.exc_info()
                     errors.append((rec[:-8], str(exc).split('\n'), rel, ids))
                     error = True
-        if DRY_RUN:
-            echo("would delete %s" % (rec, ))
-            echo('\n\n')
-        elif not error:
+        if not DRY_RUN and not error:
             print("  deleting", rec, verbose=2)
             main_model.unlink(rec.id)
-    return errors
+    tertiary = []
+    for model, details in merges[2].items():
+        row = ['%s:' % model]
+        for d in details:
+            row.append(d)
+        tertiary.append('\n'.join(row))
+    merges[2] = '\n'.join(tertiary)
+    return errors, merges
 
 def pick_one(records, prefer):
     # given a group of records picks the one:
