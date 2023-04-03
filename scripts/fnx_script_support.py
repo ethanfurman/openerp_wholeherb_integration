@@ -237,7 +237,7 @@ def send_mail(recipients, subject, message):
         # may be skipped if all eligible addresses have already been notified
         try:
             job = Job(
-                    '/usr/bin/mail -# -s "%s" %s' % (subject, address),
+                    '/usr/sbin/sendmail -# -s "%s" %s' % (subject, address),
                     pty=True,
                     )
             job.communicate(input=message+'\n\x04', timeout=300)
