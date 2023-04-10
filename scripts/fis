@@ -6,7 +6,7 @@ from collections import defaultdict
 from itertools import cycle
 from scription import *
 from VSS.BBxXlate import fisData as fd
-from VSS.BBxXlate.bbxfile import TableError
+from VSS.BBxXlate.bbxfile import TableError, MissingTableError
 from VSS.address import cszk, normalize_address, Rise, Sift, AddrCase, NameCase, BsnsCase, name_chars
 from VSS.utils import fix_phone, fix_date
 from antipathy import Path
@@ -21,6 +21,8 @@ from openerplib.dates import DEFAULT_SERVER_DATETIME_FORMAT as DT_FORMAT
 from openerplib.dates import DEFAULT_SERVER_DATE_FORMAT as D_FORMAT
 
 config = OrmFile(Path('%s/config/fnx.ini' % os.environ['VIRTUAL_ENV']))
+
+# API
 
 @Command(
         database=('which database to check', ),
@@ -55,6 +57,81 @@ def is_active_customer(database, fis_id):
         str_to_datetime(last_accessed['write_date']).strftime(DT_FORMAT),
         last_accessed['write_uid']),
         )
+
+@Command(
+        tables=Spec('FIS file/number or disk file to operate on', MULTIREQ),
+        all_tables=Spec('show all tables', FLAG, target='tables', default='--all', usage='all',),
+        inclusive=Spec('showw bundled tables', FLAG),
+        )
+def info(tables, inclusive):
+    all_tables = fd.tables.keys()
+    if tables == '--all':
+        fis_tables = all_tables
+    else:
+        fis_tables = list(tables)
+    if inclusive:
+        tgt_names = set([
+                t['filename']
+                for n, t in fd.tables.items()
+                if n in fis_tables or t['filename'] in tables
+                ])
+        inc_tables = set()
+        for n, t in fd.tables.items():
+            if t['filename'] in tgt_names:
+                inc_tables.add(n)
+        fis_tables = list(inc_tables)
+    fis_tables.sort()
+    header = ['table','file','file #', '# records']
+    if script_verbosity:
+        header.append('fields')
+        fields_width = 0
+    else:
+        header.extend(['rec-type', 'key-length'])
+    rows = [header, None]
+    row_widths = map(len, header)
+    for t in fis_tables:
+        row = []
+        try:
+            table = fd.fisData(t)
+        except MissingTableError as exc:
+            row = [t + ' -- missing  [%s]' % exc.template, '', '', '', '']
+            if script_verbosity:
+                row.append('')
+        else:
+            row.append('%s - %s' % (table.name, table.desc.strip('- ')))
+            row.append('%s' % table.filename)
+            row.append('%s' % (table.number or ''))
+            row.append('%9s' % len(table))
+            if script_verbosity:
+                fields = []
+                for fl in table.fieldlist:
+                    if script_verbosity == 1 and not fl[3].startswith('An$'):
+                        break
+                    fields.append('%-10s: %s' % (fl[3], fl[1]))
+                    fields_width = max(fields_width, len(fields[-1]))
+                row.append('\n'.join(fields))
+            else:
+                rectype = ''
+                if table.rectype:
+                    rc_lines = []
+                    for rc in table.rectype[0]:
+                        if not rc.strip():
+                            rc = 'BLANK'
+                        rc_lines.append(rc)
+                    rectype = '\n'.join(rc_lines)
+                row.extend([rectype, '%10s' % table.key_length])
+        rows.append(row)
+        if script_verbosity and len(fis_tables) > 1:
+            rows.append(None)
+        widths = map(len, row)
+        row_widths = map(max, zip(widths, row_widths))
+    if rows[-1] is None:
+        rows.pop()
+    if script_verbosity:
+        # limit fieldlist column
+        row_widths[-1] = fields_width
+    echo(rows, border='table', table_specs=(None, row_widths))
+
 
 @Command(
         start=Spec('where to start checking', OPTION),
