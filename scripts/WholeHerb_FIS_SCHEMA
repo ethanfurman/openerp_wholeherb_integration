@@ -470,7 +470,7 @@ FCOPER   -OPERATOR CODES MAINTENANCE AND INQUIRY  (at start)
      6    Access Priority                          2    Cn$(4,2)  ##
      7    (open)                                   8
 FCCNVZ"  -REPORT HEADING RECORD (GENERAL FORMAT)  (at start)
-     1    Key Group = ' '                          1    AN$(1,1)
+     1    Key Group = BLANK                        1    AN$(1,1)
      2    Program Name                             6    AN$(2,6)
      3    Report Heading                          50    BN$
                D = DAILY
@@ -642,7 +642,7 @@ FCCNVZCPO-P/O Appication Control Record  (at start)
 FCCSMS   -CUSTOMER MASTER FILE MAINTENANCE & INQUI  (at start)
      1    Company Code                             2    An$(1,2)
      2    Customer Code                            6    An$(3,6)
-     3    Key Type = ' '                           1    An$(9,1)
+     3    Key Type = BLANK                         1    An$(9,1)
      4    Name                                    30    Bn$
      5    Addr Line 1                             30    Cn$
      6    Addr Line 2                             30    Dn$
@@ -747,7 +747,7 @@ FCCSMS   -CUSTOMER MASTER FILE MAINTENANCE & INQUI  (at start)
 FCCSMSS  -CUSTOMER MASTER FILE - ADDTN'L SHIP-TO'S  (at start)
      1    COMPANY                                  2    An$(1,2)
      2    CUSTOMER NUMBER                          6    An$(3,6)
-     3    SHIP TO INDICATOR "1"                    1    An$(9,1)
+     3    KEY TYPE = "1"                           1    An$(9,1)
      4    SHIP TO NUMBER                           2    An$(10,2)
      5    SHIP TO NAME                            30    Bn$
      6    ADDRESS LINE 1                          30    Cn$
@@ -2448,7 +2448,10 @@ FCPWKF   -PAYROLL EMPLOYEE CURRENT CHECK WORK FILE  (at start)
                An$(1,2) = COMPANY
                An$(3,5) = EMPLOYEE NUMBER
                An$(8,1) = SEQUENCE NO. (0-9)
-     1    CO/EMPL/SEQ                              8    An$
+          CO/EMPL/SEQ                              8    An$
+     1    COMPANY                                  2    An$(1,2)
+     2    EMPLOYEE NUMBER                          5    An$(3,5)
+     3    SEQUENCE NO. (0-9)                       1    An$(8,1)
      2    CHECK NUMBER                             6    Bn$
                " ", "0" = REGULAR CHECK
                     "1" = MANUAL CHECK
@@ -3533,7 +3536,7 @@ FCIFPP   -Production Pending File  (at start)
     14    Total Gross Wt                           9    Jn        ######.00
     15    Total Gross Wt                           9    Jn        ######.00
 FCNVPR   -INVENTORY PRICING LIST FILE MAINTENANCE & INQUIRY  (at start)
-     1    KEY GROUP = " "                          1    An$(1,1)
+     1    KEY GROUP = BLANK                        1    An$(1,1)
      2    COMPANY                                  2    An$(2,2)
      3    PRICE LIST CODE                          2    An$(4,2)
      4    (OPEN)                                   4    An$(6,4)
@@ -3586,7 +3589,7 @@ FCCNVZ:  -SELECTOR ACCESS CONTROL FILE  (at start)
 FCCSMSB  -CUSTOMER MASTER FILE - DEFAULT SHIP-TO  (at start)
      1    COMPANY                                  2    An$(1,2)
      2    Customer Code                            6    An$(3,6)
-     3    Ship-to Indicator = '1'                  1    An$(9,1)
+     3    KEY GROUP = '1'                          1    An$(9,1)
      4    Ship-to Code=spaces                      2    An$(10,2)
      5    SHIP TO NAME                            30    Bn$
      6    ADDRESS LINE 1                          30    Cn$
@@ -3932,7 +3935,7 @@ FCGARFA  -GROWER REMITTANCE MASTER FILE (HEADER)  (at start)
      1    COMPANY CODE                             2    An$(1,2)
      2    GROWER CODE                              6    An$(3,6)
      3    CONTRACT CODE                            6    An$(9,6)
-     4    HEADER INDICATOR = "000000"              6    An$(15,6)
+     4    RECORD TYPE = "000000"                   6    An$(15,6)
      5    TERMS CODE                               1    Bn$
      6    VENDOR NUMBER                            6    Cn$
      7    1099 FLAG                                1    Dn$(1,1)
@@ -3961,6 +3964,7 @@ FCGARFB  -GROWER REMITTANCE MASTER FILE (CROP DETAIL)  (at start)
      1    COMPANY CODE                             2    An$(1,2)
      2    GROWER CODE                              6    An$(3,6)
      3    CONTRACT CODE                            6    An$(9,6)
+     *    RECORD TYPE != "000000"                  6    An$(15,6)
      4    CYCLE CODE                               1    An$(15,1)
      5    SEQUENCE                                 5    An$(16,5)
      6    CERT. NO.                                6    Bn$
@@ -3985,6 +3989,7 @@ FCGARFB  -GROWER REMITTANCE MASTER FILE (CROP DETAIL)  (at start)
      1    COMPANY CODE                             2    An$(1,2)
      2    GROWER CODE                              6    An$(3,6)
      3    CONTRACT CODE                            6    An$(9,6)
+     *    RECORD TYPE != "000000"                  6    An$(15,6)
      4    CYCLE CODE                               1    An$(15,1)
      5    SEQUENCE                                 5    An$(16,5)
      6    (open)                                   1    Bn$
@@ -4530,22 +4535,22 @@ FCCNVZQ  -W/H Delivery Address File  (at start)
      7    TELEPHONE                               10    Fn$       ##########
      8    ZIP CODE                                 9    GN$
 FCCNVZmE -Order Entry Message Codes  (at start)
-     1    "mE"                                     2    An$(1,2)
+     1    key type = "mE"                          2    An$(1,2)
      2    COMPANY                                  2    An$(3,2)
      3    CODE                                     2    An$(5,2)
      4    MESSAGE                                 64    Bn$
 FCCNVZm$ -Pricing Message Codes  (at start)
-     1    "m$"                                     2    An$(1,2)
+     1    key type = "m$"                          2    An$(1,2)
      2    COMPANY                                  2    An$(3,2)
      3    CODE                                     2    An$(5,2)
      4    MESSAGE                                 64    Bn$
 FCCNVZmO -Order Print Message Codes  (at start)
-     1    "mO"                                     2    An$(1,2)
+     1    key type = "mO"                          2    An$(1,2)
      2    COMPANY                                  2    An$(3,2)
      3    CODE                                     2    An$(5,2)
      4    MESSAGE                                 64    Bn$
 FCCNVZmI -Invoice Print Messages  (at start)
-     1    "mI"                                     2    An$(1,2)
+     1    key type = "mI"                          2    An$(1,2)
      2    COMPANY                                  2    An$(3,2)
      3    CODE                                     2    An$(5,2)
      4    MESSAGE                                 64
