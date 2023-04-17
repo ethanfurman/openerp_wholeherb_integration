@@ -230,7 +230,6 @@ class Blends(osv.Model):
     _columns = {
         'code' : fields.char(u'Item Code', size=64, help=u'Blend Item Code'),
         'name' : fields.char(u'Blend Name', size=64, help=u'Blend Description'),
-        'packaging' : fields.char(u'Packaging', size=85, help=u'Finished packing instructions'),
         'special_instructions' : fields.char(u'Special Instructions', size=225, help=''),
         'category_id' : fields.many2one(
                 u'wholeherb_integration.blend_category',
@@ -258,6 +257,13 @@ class Blends(osv.Model):
                 u'wholeherb_integration.formula',
                 string=u'Formula Template',
                 ),
+        'packaging' : fields.related(
+            'formula_id', 'packaging',
+            type='char',
+            string=u'Packaging',
+            size=85,
+            help=u'Finished packing instructions',
+            ),
         'ingredient_ids' : fields.one2many(
                 u'wholeherb_integration.blend_ingredient', u'blend_id',
                 string=u'Ingredients',
