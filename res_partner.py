@@ -163,7 +163,6 @@ class res_partner(xid.xmlid, osv.Model):
         for data in self.read(cr, uid, ids, fields=['id', 'xml_id', 'module', 'user_ids'], context=context):
             id = data['id']
             xml_id = data['xml_id']
-            module = data['module']
             user_ids = data['user_ids']
             name = res[id]
             if xml_id:
