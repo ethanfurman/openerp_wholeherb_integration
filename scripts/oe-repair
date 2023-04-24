@@ -146,7 +146,7 @@ def cnvzo1():
         use_empty=Spec('how to handle empty dupe fields', OPTION, choices=['lax','strict']),
         ignore_case=Spec('do not consider upper/lower-case as distinct', FLAG),
         dry_run=Spec('Do not affect changes, merely report what they would be', FLAG),
-        identical=Spec('check for identical records', FLAG, target='dupe', default='--all'),
+        identical=Spec('check for identical records', FLAG, None, target='dupe', default='--all'),
         )
 def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
     """
