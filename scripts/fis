@@ -332,9 +332,8 @@ def records(filenum, subset, code, fields, dbf_name):
 @Command(
         filenum=Spec('file abbreviation or number to display', ),
         output=Spec('output type', choices=['dump','enum'], default='dump'),
-        number=Spec('number to use for enum output (when using an abbr for FILENUM)', OPTION, type=int),
         )
-def schema(filenum, output, number):
+def schema(filenum, output):
     if filenum.isdigit():
         filenum = int(filenum)
     table = fd.tables[filenum]
@@ -343,7 +342,7 @@ def schema(filenum, output, number):
         for field in table['fields']:
             max_width = max(max_width, len(field[1]))
         max_width += 10
-        print(table['name'], table['desc'], table['filenum'], verbose=0)
+        echo(table['name'], table['desc'], table['filenum'])
         dotted = True
         field_num = 0
         last_field = None
@@ -361,13 +360,17 @@ def schema(filenum, output, number):
                 name += '.' * (max_width - len(name))
             else:
                 name += ' ' * (max_width - len(name))
-            print('%3d  %s' % (i+1, display_field_num), name, spec, verbose=0)
+            echo('%3d  %s' % (i+1, display_field_num), name, spec)
             display_field_num = '  '
     elif output == 'enum':
-        print('class F%d(str, Enum):' % (number or table['filenum']), verbose=0)
-        print('    """', verbose=0)
-        print('    %s - %s' % (table['name'], table['desc'].strip('-')), verbose=0)
-        print('    """', verbose=0)
+        echo('class F_%s(FISenum):' % filenum)
+        echo('    """')
+        echo('    %s - %s' % (table['name'], table['desc'].strip('-')))
+        echo('    """')
+        echo('    #')
+        echo('    _init_ = "value sequence"')
+        echo('    _order_ = lambda m: m.sequence')
+        echo('    #')
         lines = []
         for i, field in enumerate(table['fields']):
             name, spec = field[1:4:2]
@@ -379,9 +382,9 @@ def schema(filenum, output, number):
         max_spec = max([len(s) for n, s, i, c in lines]) + 2
         for name, spec, fld, comment in lines:
             if name:
-                print('    %-*s = %-*r     # %3d: %s' % (max_name, name, max_spec, spec, fld, comment), verbose=0)
+                echo('    %-*s = %-*r     # %3d: %s' % (max_name, name, max_spec, spec, fld, comment))
             else:
-                print(' ' * (max_name + max_spec + 11), '# %s %s' % (comment, spec), verbose=0)
+                echo(' ' * (max_name + max_spec + 11), '# %s %s' % (comment, spec))
     else:
         abort('unknown output type: %s' % output)
 
