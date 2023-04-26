@@ -248,19 +248,47 @@ def record(filenum, which, id):
 
 @Command(
         filenum=Spec('file abbreviation or number to operate on', ),
-        subset=Spec('subset template to match many records to', ),
+        template=Spec('subset or rematch template to match many records to', ),
         code=Spec('code to match with template', force_default='', type=lambda s: s and tuple(s.split(',') or s)),
-        fields=Spec('specific fields to display [default: all, counting starts with 0]', MULTI, type=int),
+        fields=Spec('specific fields to display [default: all]', MULTI, type=int),
         dbf_name=Spec('dbf to create with data', OPTION),
+        tabular=Spec('save output in tab-delimited mode [default: dump_<filenum>]', OPTION, None, default='dump'),
+        rematch=Spec('template is a re match', FLAG, abbrev=('r', 're')),
+        test=Spec('output in format usable by test_scripts', FLAG, abbrev=None),
+        check_old=Spec('use older version of data files', FLAG, None),
+        table=Spec('show output in a table', FLAG, None),
         )
-def records(filenum, subset, code, fields, dbf_name):
+def records(filenum, template, code, fields, dbf_name, tabular, rematch, test, check_old, table):
+    print('fields requested: %s' % (fields, ))
+    print('code given: %r' % (code, ))
+    from fislib import schema as fis_schema
+    show_table = table
     if filenum.isdigit():
         filenum = int(filenum)
-    fis_table = fd.fisData(filenum, subset=subset)
-    print('using file', fis_table.filename)
-    records = [v for k, v in fis_table.get_subset(code)]
+    if template == 'default':
+        if not isinstance(filenum, int):
+            abort('unable to use default with file name')
+        template = table_keys[filenum]
+    target_path = check_old and config.network.fis_data_local_old_path or None
+    if rematch:
+        if not code:
+            abort('CODE required for REMATCH match')
+        code = code[0]
+        fis_table = fd.fisData(filenum, rematch=template, data_path=target_path)
+        print('using rematch and file', fis_table.filename, 'in', target_path or config.network.fis_data_local_path)
+        records = fis_table.get_rekey(code) or []
+    else:
+        fis_table = fd.fisData(filenum, subset=template, data_path=target_path)
+        print('using subset and file', fis_table.filename, 'in', target_path or config.network.fis_data_local_path)
+        records = [v for k, v in fis_table.get_subset(code)]
+    if test:
+        try:
+            enum = getattr(fis_schema, 'F%d' % fis_table.number)
+        except AttributeError:
+            abort('Table %r has no file number, unable to generate test output' % fis_table.filename)
     print('  found %d records' % (len(records), ))
     used_fields = []
+    table_names = []
     if records:
         # get field defs now, may be needed for dbf creation
         record = records[0]
@@ -270,72 +298,94 @@ def records(filenum, subset, code, fields, dbf_name):
         field_widths = []
         dbf_types = []
         dbf_names = []
-        fis_fields = record.fieldlist
-        for i, row in enumerate(fis_fields):
-            if not fields or i in fields:
-                name, spec = row[1:4:2]
-                if not name.strip() or name.strip().lower() == '(open)':
-                    continue
-                max_spec_width = max(max_spec_width, len(spec.strip()))
-                width = fis_table.field_widths[i]
-                field_widths.append(width)
-                field_name = convert_name(name, 10)
-                if field_name in dbf_names:
-                    print('duplicate name:', field_name, verbose=2)
-                    prior = dbf_names.index(field_name)
-                    print('  found at:', prior, verbose=2)
-                    alt_name = convert_name(name, 9)
-                    dbf_names[prior] = alt_name
-                    dbf_types[prior] = dbf_types[prior].replace(field_name, alt_name)
-                    print('  reset to:', dbf_names[prior], verbose=2)
-                    print('  and:     ', dbf_types[prior], verbose=2)
-                    field_name = alt_name + '2'
-                dbf_names.append(field_name)
-                name = convert_name(name)
-                if '$' in spec:
-                    dbf_types.append('%s C(%d)' % (field_name, width))
-                    used_fields.append((i, str))
-                else:
-                    dbf_types.append('%s N(17,5)' % field_name)
-                    used_fields.append((i, float))
+        if fields:
+            fis_fields = [(i-1, record.fieldlist[i-1]) for i in fields]
+        else:
+            fis_fields = list(enumerate(record.fieldlist))
+        for i, row in fis_fields:
+            # j = i + 1
+            print('checking for %d' % (i, ), end='... ', verbose=2)
+            # if not fields or i in fields:
+            print('keeping', end='', verbose=2)
+            name, spec = row[1:4:2]
+            if not name.strip() or name.strip().lower() == '(open)':
+                continue
+            table_names.append(name)
+            max_spec_width = max(max_spec_width, len(spec.strip()))
+            width = fis_table.field_widths[i]
+            field_widths.append(width)
+            field_name = convert_name(name, 10, dbf_names)
+            dbf_names.append(field_name)
+            name = convert_name(name, 50)
+            if '$' in spec:
+                dbf_types.append('%s C(%d)' % (field_name, width))
+                used_fields.append((i, str))
+            else:
+                dbf_types.append('%s N(17,5)' % field_name)
+                used_fields.append((i, float))
+            print(verbose=2)
         if dbf_name:
             print('dbf fields:\n  ', '\n   '.join(dbf_types))
-            table = dbf.Table(dbf_name, dbf_types).open()
+            table = dbf.Table(dbf_name, dbf_types).open(dbf.READ_WRITE)
     try:
         fields = [t[0] for t in used_fields]
+        print('fields: %r' % (fields, ), border='flag', verbose=2)
+        output = []
         for record in records:
-            field_data = [record[i] for i in fields]
+            field_data = tuple(record[i] for i in fields)
+            output.append(field_data)
+            # for i, row in enumerate(fis_fields):
             lines = format_record(record, fields)
-            if not dbf_name and lines:
+            if test:
+                for i, datum in zip(fields, field_data):
+                    echo('%s: %s,' % (enum[i-1], repr(datum).strip('u')))
+            elif not dbf_name and not tabular and not show_table and not test and lines:
                 echo('\n'.join(lines))
                 try:
-                    raw_input('...')
+                    ans = input('[Continue|Quit]', default='continue')
+                    if ans == 'quit':
+                        raise KeyboardInterrupt
                 except KeyboardInterrupt:
                     raise SystemExit(1)
-            if dbf_name:
+            elif dbf_name:
                 data = []
-                for i, item in enumerate(used_fields):
-                    cnv = item[1]
-                    data.append(cnv(field_data[i]))
-                print('field data:', data, verbose=2)
+                for i, (_, converter) in enumerate(used_fields):
+                    print(i, converter, verbose=3)
+                    # cnv = converter[1]
+                    data.append(converter(field_data[i]))
+                print('field data:', data, verbose=3)
                 table.append(tuple(data))
-            if not dbf_name:
+            if not dbf_name and not tabular and not show_table:
                 echo()
+        if tabular:
+            if tabular == 'dump':
+                tabular = 'dump_%03d' % filenum
+            with open(tabular,'w') as fh:
+                for record in output:
+                    fh.write("\t".join(map(str,record))+"\n")
+        if show_table:
+            if table_names:
+                echo([table_names, None] + output, border='table')
+            else:
+                error('no records found')
     except Exception:
         import traceback
         traceback.print_exc()
     finally:
-        if dbf_name:
+        if records and dbf_name:
             table.close()
 
 
 @Command(
         filenum=Spec('file abbreviation or number to display', ),
         output=Spec('output type', choices=['dump','enum'], default='dump'),
+        number=Spec('number to use for enum output (when using an abbr for FILENUM)', OPTION, type=int),
         )
-def schema(filenum, output):
+def schema(filenum, output, number):
     if filenum.isdigit():
         filenum = int(filenum)
+    elif not number:
+        abort('--number NNN must be given when using table abbreviations')
     table = fd.tables[filenum]
     if output == 'dump':
         max_width = 0
@@ -363,7 +413,7 @@ def schema(filenum, output):
             echo('%3d  %s' % (i+1, display_field_num), name, spec)
             display_field_num = '  '
     elif output == 'enum':
-        echo('class F_%s(FISenum):' % filenum)
+        echo('class F%s(FISenum):' % (number or filenum))
         echo('    """')
         echo('    %s - %s' % (table['name'], table['desc'].strip('-')))
         echo('    """')
@@ -382,9 +432,9 @@ def schema(filenum, output):
         max_spec = max([len(s) for n, s, i, c in lines]) + 2
         for name, spec, fld, comment in lines:
             if name:
-                echo('    %-*s = %-*r     # %3d: %s' % (max_name, name, max_spec, spec, fld, comment))
+                echo('    %-*s = %r, %*d     # %s' % (max_name, name, spec, max_spec-len(spec)+1, fld, comment))
             else:
-                echo(' ' * (max_name + max_spec + 11), '# %s %s' % (comment, spec))
+                echo(' ' * (max_name + max_spec + 16), '# %s %s' % (comment, spec))
     else:
         abort('unknown output type: %s' % output)
 
