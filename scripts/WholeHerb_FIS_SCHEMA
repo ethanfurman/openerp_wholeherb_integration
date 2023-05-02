@@ -639,7 +639,7 @@ FCCNVZCPO-P/O Appication Control Record  (at start)
     14    ITEM CODE LENGTH                         2    Bn        ##
     15    NO OF HISTORY RECS                       2    Cn        ##
     16    (open)                                   1    Dn
-FCCSMS   -CUSTOMER MASTER FILE MAINTENANCE & INQUI  (at start)
+FCCSMS   -CUSTOMER MASTER FILE MAINTENANCE & INQUI  (33 at start)
      1    Company Code                             2    An$(1,2)
      2    Customer Code                            6    An$(3,6)
      3    Key Type = BLANK                         1    An$(9,1)
@@ -744,7 +744,7 @@ FCCSMS   -CUSTOMER MASTER FILE MAINTENANCE & INQUI  (at start)
     56    Total Numb of Invoices                   5    Qn        #####
     57    Total Payment Days                       5    Rn        #####
     58    Customer Rank                            3    Sn        ###
-FCCSMSS  -CUSTOMER MASTER FILE - ADDTN'L SHIP-TO'S  (at start)
+FCCSMSS  -CUSTOMER MASTER FILE - ADDTN'L SHIP-TO'S  (34 at start)
      1    COMPANY                                  2    An$(1,2)
      2    CUSTOMER NUMBER                          6    An$(3,6)
      3    KEY TYPE = "1"                           1    An$(9,1)
@@ -3227,7 +3227,7 @@ FCCNVZw  -WAREHOUSE MASTER FILE  (at start)
     13    Zip Code                                 9    Hn$
     14    Next History Seq no                      5    In
     15    Priority Order Numbers                  60    Jn$
-FCCNVZc  -PRODUCT CATEGORY MASTER FILE MAINTENANCE & INQUIRY  (at start)
+FCCNVZc  -PRODUCT CATEGORY MASTER FILE MAINTENANCE & INQUIRY  (116 at start)
      1    KEY TYPE = 'c'                           1    AN$(1,1)
      2    COMPANY CODE                             2    AN$(2,2)
      3    PRODUCT CATEGORY                         1    AN$(4,1)
@@ -3423,7 +3423,7 @@ FCNXRFw  -WAREHOUSE/INVENTORY ITEM CROSS REFERENCE FILE  (at start)
      3    ITEM NUMBER                              8    An$(6,8)
      4    --OPEN--                                 4    An$(14,4)
      5    COMPANY CODE                             2    An$(18,2)
-FCNVTY   -INVENTORY MASTER FILE MAINTENANCE & INQU  (at start)
+FCNVTY   -INVENTORY MASTER FILE MAINTENANCE & INQU  (135 at start)
      1    Company Code                             2    An$(1,2)
      2    Item Code                                8    An$(3,8)
      3    (open)                                   4    An$(11,4)
@@ -3586,7 +3586,7 @@ FCCNVZ:  -SELECTOR ACCESS CONTROL FILE  (at start)
      5    OPERATOR CODES LIST (MAX 10)            30    Cn$
      6    TERMINAL ID'S (MAX 10)                  20    Dn$
      7    ACCESS CONTROL METHOD                    1    En$
-FCCSMSB  -CUSTOMER MASTER FILE - DEFAULT SHIP-TO  (at start)
+FCCSMSB  -CUSTOMER MASTER FILE - DEFAULT SHIP-TO  (140 at start)
      1    COMPANY                                  2    An$(1,2)
      2    Customer Code                            6    An$(3,6)
      3    KEY GROUP = '1'                          1    An$(9,1)
@@ -5140,7 +5140,7 @@ FCGACT   -GROWER ACCOUNTING OPEN CONTRACT MASTER FILE  (at start)
     36    % SPLIT-VENDOR #2                        5    G(2)      ##.00
     37    % SPLIT-VENDOR #3                        5    G(3)      ##.00
     38    % SPLIT-VENDOR #4                        5    G(4)      ##.00
-FCNVBA   -INVENTORY LOT CONTROL FILE MAINTENANCE &  (at start)
+FCNVBA   -INVENTORY LOT CONTROL FILE MAINTENANCE &  (250 at start)
      1    Company Code                             2    An$(1,2)
      2    Item Code                                8    An$(3,8)
      3    (open)                                   4    An$(11,4)
