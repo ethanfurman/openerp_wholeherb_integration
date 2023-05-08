@@ -708,12 +708,12 @@ def imd(name, fields):
             if q_rec.model == model:
                 model_rec = model_records[q_rec.res_id]
                 for f in fields:
-                    q_rec[f] = model_rec[f]
+                    q_rec['r.'+f] = model_rec[f]
     rows = [['module','name','model','res_id','display_name'] + list(fields), None]
     for q in query:
         rows.append([
             q.module, q.name, q.model, q.res_id, q.display_name,
-            ] + [q[f] for f in fields]
+            ] + [q['r.'+f] for f in fields]
             )
     echo(rows, border='table')
 
