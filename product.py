@@ -79,6 +79,11 @@ class P(FISenum):
     committed = 'I(7)'
     on_order =  'I(8)'
 
+
+class ProductSource(fields.SelectionEnum):
+    _order_ = ""
+
+
 class CNVZc(FISenum):
     'Category codes for Products'
     code = 'An$(4,1)'
@@ -100,6 +105,11 @@ class product_category(xmlid, osv.Model):
     _columns = {
         'xml_id': fields.char('FIS ID', size=16, readonly=True),
         'module': fields.char('FIS Module', size=16, readonly=True),
+        'active': fields.boolean('Active'),
+        }
+
+    _defaults = {
+        'active': True,
         }
 
 
@@ -200,7 +210,7 @@ class product_product(xmlid, osv.Model):
     _columns = {
         'xml_id': fields.char('FIS ID', size=16, readonly=True),
         'module': fields.char('FIS Module', size=16, readonly=True),
-        'sold_by': fields.char('Sold by', size=50),
+        'sold_by': fields.char('Sold by', size=50, help="unit size"),
         'latin': fields.char('Latin name', size=40),
         'avail': fields.char('Available?', size=24),
         'spcl_ship_instr': fields.text('Special Shipping Instructions'),
@@ -228,7 +238,12 @@ class product_product(xmlid, osv.Model):
         'sds': files('sds', string='Safety Data Sheets'),
         'create_date': fields.datetime('Product created on', readonly=True),
         'create_uid': fields.many2one('res.users', string='Product created by', readonly=True),
+        'fis_record': fields.boolean('Record is in FIS'),
         }
+
+    _defaults = {
+            'fis_record': False,
+            }
 
     def fnxfs_folder_name(self, records):
         "return name of folder to hold related files"
@@ -361,6 +376,7 @@ class product_lot(osv.Model):
         return res
 
     _columns = {
+        'active': fields.boolean('Active'),
         'lot_no': fields.char('Lot #', size=10),
         'qty_recd': fields.integer('Amount received'),
         'qty_recd_uom_id': fields.many2one('product.uom', 'Received UoM'),

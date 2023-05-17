@@ -677,18 +677,23 @@ def list_exports(table=None):
 
 @Command(
         name=Spec('name pattern to match'),
+        module=Spec('name is module', FLAG),
         # domain=Spec('domain to use for relevant model', OPTION),
         fields=Spec('fields to look up in relevant model', MULTI),
         )
-def imd(name, fields):
+def imd(name, module, fields):
     """
     return matching ir.model.data records
     """
+    if module:
+        key = 'module'
+    else:
+        key = 'name'
     query = adhoc(
             table='ir.model.data',
             fields=['module','name','model','res_id','display_name'],
             to_file='',
-            domain=[('name','=like',name)],
+            domain=[(key,'=like',name)],
             order='',
             distinct=False,
             separator=False,

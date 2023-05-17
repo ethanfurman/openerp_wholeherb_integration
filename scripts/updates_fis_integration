@@ -1,0 +1,214 @@
+#!/usr/local/sbin/suid-python --virtualenv
+
+# imports
+from __future__ import print_function
+
+from scription import *
+from fislib.fis_oe_converters import *
+from antipathy import Path
+from collections import defaultdict
+from logging import getLogger
+from openerplib import get_connection, get_records
+from openerplib import AttrDict, Many2One
+from pandaemonium import PidLockFile
+from fislib import tools
+from fislib.tools import Synchronize
+import errno
+import os
+import socket
+import traceback
+
+virtualenv = Path(os.environ['VIRTUAL_ENV'])
+
+# Constants
+
+C = Color
+grey = C.Dim | C.FG_White
+white = C.Normal | C.FG_White
+same = C.Normal | C.FG_White
+oldv = C.Normal | C.FG_Red
+newv = C.Normal | C.FG_Green
+
+# TODO: implement EXTRA handling for
+#       - EMP1
+#       - POSM/VNMS
+#       - CSMS
+#       - NVTY          --> done
+#       - CNVZd0
+#       - CNVZ_Z_K
+#       - CNVZSV
+#       - CNVZas
+#       - CNVZaa
+
+# API
+@Script(
+        dryrun=Spec('do not make changes, only show what changes would be made', FLAG, abbrev=None),
+        list_records=Spec('list added/changed records', FLAG, abbrev=('list', )),
+        raise_on_exception=Spec('do not ignore exceptions', FLAG, abbrev=('raise', )),
+        )
+def main(dryrun, list_records, raise_on_exception):
+    global config, oe, ir_model_data, errors
+    global DRYRUN, LIST_RECORDS, RAISE_ON_EXCEPTION, VIEW_TYPE, BORDER, script_verbosity
+    DRYRUN = LIST_RECORDS = False
+    config = OrmFile(virtualenv / 'config/fnx.ini', types={'_path': Path})
+    oe = config.openerp
+    oe = get_connection(hostname=oe.host, database=oe.db, login=oe.user, password=oe.pw)
+    ir_model_data = oe.get_model('ir.model.data')
+    errors = defaultdict(list)
+    if dryrun:
+        tools.DRYRUN = True
+        if not script_verbosity:
+            script_verbosity = 1
+    LIST_RECORDS = list_records
+    RAISE_ON_EXCEPTION = raise_on_exception
+    VIEW_TYPE = 'none' if LIST_RECORDS else 'percent'
+    BORDER = 'box' if LIST_RECORDS and script_verbosity > 1 else None
+    global logger
+    logger = getLogger('orders')
+
+@Command(
+        files=Spec('changed FIS files', type=lambda f: f.lower()),
+        method=Spec(
+            'perform quick or full comparison ['
+            'quick: compare against old FIS files; '
+            'full: compare against OpenERP records; '
+            'check: directly compare OpenERP vs FIS by using in-record data (not ir.model.data); '
+            'imd-update: add ir.model.names for existing records;'
+            ']',
+            OPTION,
+            choices=['quick', 'full', 'check', 'imd-update'],
+            type=lambda m: m.lower(),
+            ),
+        delete=Spec('delete records [default: send email]', FLAG, abbrev=None),
+        extra=Spec('misc key-value pairs', OPTION),
+        )
+def fis_integration(method, delete, *files, **extra):
+    global skipped_suppliers, vendor_suppliers, ven2sup, vendor_codes
+    global models, DELETE
+    DELETE = delete
+    unknown = []
+    for f in files:
+        if f not in ('cnvz','csms','nvba','nvty'):
+            unknown.append(f)
+    if unknown:
+        abort('unknown files: %s' % (', '.join(unknown)))
+    try:
+        # make sure we are the only one running
+        with PidLockFile(virtualenv / 'var/run/fis_update.pid'):
+            ven2sup = {}
+            state_recs = dict([
+                (r.name, (Many2One(r.id, r.name, 'res.country.state'), r.country_id))
+                for r in get_records(oe, 'res.country.state')
+                ])
+            country_recs = dict([
+                (r.name, Many2One(r.id, r.name, 'res.country'))
+                for r in get_records(oe, 'res.country')
+                ])
+            for name, rec_id in country_recs.items():
+                country_recs[rec_id] = name
+            skipped_suppliers = set()
+            vendor_suppliers = {}
+            vendor_codes = set()
+            # if 'emp1' in files:
+            #     EMP1(oe, config, state_recs, country_recs, extra=extra).run(method)
+            # if 'posm' in files or 'vnms' in files:
+            #     POSM_VNMS(oe, config, state_recs, country_recs, extra=extra).run(method)
+            if 'cnvz' in files:
+                for handler in (
+                    CNVZc,      # product category, 116
+                    ):
+                    handler(oe, config, extra=extra).run(method)
+                # shipping carriers, 27
+                # CNVZSV(oe, config, state_recs, country_recs, extra=extra).run(method)
+            if 'csms' in files:
+                CSMS(oe, config, state_recs, country_recs, extra=extra).run(method)
+                CSMSS(oe, config, state_recs, country_recs, extra=extra).run(method)
+            for filename, handler in (
+                    ('nvty', NVTY),
+                    ('nvba', NVBA),
+                ):
+                if filename in files:
+                    handler(oe, config, extra=extra).run(method)
+    except socket.error as s_error:
+        if s_error.errno in (
+                errno.ECONNREFUSED,
+                errno.EHOSTDOWN,
+            ):
+            raise SystemExit(Exit.Unavailable)
+        else:
+            raise SystemExit(Exit.IoError)
+    except Exception:
+        traceback.print_exc()
+        raise SystemExit(Exit.Software)
+    finally:
+        for m, problems in sorted(Synchronize.errors.items()):
+            error()
+            error(m, border=('lined', '='), sep='')
+            for failure, values_list in sorted(problems.items()):
+                error('%s' % (failure, ))
+                for values in values_list:
+                    error('    %r' % (values, ))
+                # for p in problems:
+                #     error('  %r' % (p, ))
+                error()
+
+    # dependencies:
+    #
+    # CNVZc -> None
+    #
+    # CSMSS -> CSMS
+    #
+    # EMP1 -> None
+    #
+    # NVTY -> CNVZc
+    #
+    # POSM/VNMS -> None
+
+
+
+
+# helpers
+#
+def update_ir_model_data(model, table_number, oe_records):
+    # oe_records = {id: key, ...}
+    ir_model_data = oe.get_model('ir.model.data')
+    imd_by_id = dict()
+    imd_by_name = dict()
+    for rec in ir_model_data.read(
+            [('module','=','fis'), ('model','=',model)],
+            fields=['name','res_id'],
+        ):
+        imd_by_id[rec.res_id] = rec
+        imd_by_name[rec.name] = rec
+    # remove missing ids first
+    dead_ids = list(set([imd_rec.id for imd_rec in imd_by_id.values() if imd_rec.res_id not in oe_records]))
+    if dead_ids:
+        ir_model_data.unlink(dead_ids)
+    for id, key in oe_records.items():
+        imd_name = "F%03d_%s_%s" % (table_number, key, model.replace('.','_'))
+        by_id = imd_by_id.get(id)
+        by_name = imd_by_name.get(imd_name)
+        if by_id and by_id == by_name:
+            # we have records and they match
+            continue
+        elif not (by_id or by_name):
+            # no records, so create one
+            new_rec = AttrDict({
+                    'module':'fis',
+                    'model':model,
+                    'res_id':id,
+                    'name':imd_name,
+                    })
+            new_rec.id = ir_model_data.create(new_rec)
+            imd_by_id[new_rec.res_id] = new_rec
+            imd_by_name[imd_name] = new_rec
+        else:
+            error('error with name %r:\n  oe record id: %d\n  ir.model.data res_id: %r\n  ir.model.data name: %r'
+                    % (imd_name, id, by_id, by_name))
+
+
+# main
+# import cProfile
+# file_name = DateTime.now().strftime("updates_%Y-%m-%d_%H:%M:%S.stats")
+# cProfile.run('Main()', virtualenv / 'var/log/sync-updates/%s' % file_name)
+Main()

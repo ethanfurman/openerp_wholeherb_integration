@@ -1,0 +1,519 @@
+#!/usr/local/sbin/suid-python --virtualenv
+"""\
+Update OpenERP tables from FIS source files.
+
+Downloads selected FIS files, determine which have changed, finds the
+appropriate script, and runs it.
+"""
+
+from __future__ import print_function
+from scription import *
+from antipathy import Path
+from dbf import Char, Date, DateTime, Time, Logical, NoneType, Null, NullType
+from logging import getLogger, INFO, Formatter, handlers
+from pandaemonium import PidLockFile
+import dbf
+import os
+import re
+import time
+import fislib
+fislib.script_verbosity = script_verbosity
+
+# two directories are used, one for old data and one for the new incoming
+# data;
+# which is used is determined by the timestamp on a specifec file
+# called age
+
+virtual_env = Path(os.environ.get('VIRTUAL_ENV'))
+# location of dbf log files
+dbf_log_path = virtual_env / 'var/log/sync-updates'
+pid_path = virtual_env / 'run'
+
+# global error condition -- True if an error occurred at any point
+failure = False
+
+@Script()
+def main():
+    print('getting logger', verbose=2)
+    global logger, master, path, pre, old, new, active_files, extra_files, config, dbf_log_path
+    logger = getLogger()
+    logger.setLevel(INFO)
+    _handler = handlers.RotatingFileHandler(
+            '%s/var/log/openerp/update_fis.log' % os.environ['VIRTUAL_ENV'],
+            maxBytes=1024*1024*1024,
+            backupCount=30,
+            )
+    _formatter = Formatter('%(process)06d %(asctime)s %(name)-25s %(message)s')
+    _handler.setFormatter(_formatter)
+    logger.addHandler(_handler)
+    config = OrmFile('%s/config/fnx.ini' % os.environ['VIRTUAL_ENV'], types={'_path':Path})
+    master = config.network.fis_data_host
+    path = config.network.fis_data_path
+    pre = config.network.fis_data_prefix
+    old = config.network.fis_data_local_old_path
+    new = config.network.fis_data_local_path
+    active_files = config.network.fis_openerp_files.split()
+    extra_files = config.network.fis_extra_files.split()
+    if script_command is fis_update:
+        with PidLockFile(pid_path / 'fis_update.pid'):
+            script_command()
+    else:
+        script_command()
+
+@Command(
+        method=Spec(
+            'perform quick or full comparison [quick: compare against old FIS files;'
+            ' full: compare against OpenERP records',
+            choices=['quick', 'full'],
+            default='quick',
+            type=lambda f: f.lower(),
+            ),
+        skip_copy=Spec('Skip copying files', FLAG, None),
+        skip_update=Spec('Skip updating OpenERP', FLAG, None),
+        files=Spec('files to process', MULTI, None),
+        dryrun=Spec('do not actually make changes', FLAG),
+        list_records=Spec('list affected records', FLAG),
+        bw_limit=Spec('rate limit rsync command', OPTION, force_default=1024),
+        abort_on_error=Spec('abort on error', FLAG),
+        extra=Spec('extra arguments for subscripts', OPTION),
+        )
+def fis_update(method, skip_copy, skip_update, files, dryrun, list_records, bw_limit, abort_on_error, **extra):
+    """
+    update FIS files from master, then FIS data in OpenERP
+
+    copy from network.fis_data_local_path to network.fis_data_local_old_path
+    copy from network.fis_data_host/path to network.fis_data_local_path
+    calculate changed files
+    find update scripts for those files
+    run scripts
+    """
+    user_files = files
+    #
+    # step 1: move files around
+    #
+    if not skip_copy:
+        print('copying files (at: %s)' % (time.strftime('%H:%M:%S', time.localtime()), ))
+        # copy files to old path
+        system('rsync -a %s/ %s' % (new, old))
+        # calculate which files to grab from master
+        if user_files:
+            files = [path/pre+f for f in user_files]
+        else:
+            if method == 'full':
+                files = '{path}/{pre}???? {path}/{pre}????? {path}/{pre}??????'.format(path=path, pre=pre).split()
+                for filename in extra_files:
+                    files.append('{path}/{name}'.format(path=path, name=filename))
+            else:
+                files = ['%s/%s%s' % (path, pre, f) for f in active_files]
+        # and grab the files
+        system('rsync --bwlimit=%d %s:%s %s/' % (bw_limit, master, ' :'.join(files), new))
+        system('chown -R openerp: %s/' % config.network.fis_data_local_path)
+        system('chown -R openerp: %s/' % config.network.fis_data_local_old_path)
+        config.network.fis_data_local_path.chmod(0o440, '*')
+    #
+    # step 2: determine which files changed (only if quick, does not check extra_files)
+    #
+    if method == 'quick' and not user_files:
+        print('checking for changed files (at: %s)' % time.strftime('%H:%M:%S', time.localtime()))
+        print('  between %r and %r' % (old, new), verbose=2)
+        files = [
+            f for f in new.glob('%s????' % pre) if
+                f.stat().st_mtime != old.stat(f.filename).st_mtime
+            ]
+        files.extend([
+            f for f in new.glob('%s?????' % pre) if
+                f.stat().st_mtime != old.stat(f.filename).st_mtime
+            ])
+        files.extend([
+            f for f in new.glob('%s??????' % pre) if
+                f.stat().st_mtime != old.stat(f.filename).st_mtime
+            ])
+        # strip path and leading {pre} from filenames
+        files = [f.filename[1:] for f in files]
+        print('changed file candidates: %s [%s]' % (len(files), ', '.join(files)), verbose=1)
+    #
+    # step 3: get appropriate scripts, and execute them
+    #
+    if not skip_update:
+        print('checking for mappings (at: %s)' % time.strftime('%H:%M:%S', time.localtime()))
+        FIS_mapping = fislib.get_script_mapping()
+        print('FIS_mapping:\n   ', '\n   '.join(['%s: %r' % (k, v) for k, v in FIS_mapping.items()]), sep='', verbose=2)
+        for script, tables in sorted(FIS_mapping.items()):
+            print('method', method, '  user_files:', user_files, verbose=3)
+            if method == 'quick' or user_files:
+                print('selecting %r from %r' % (set(files), set(tables)), verbose=3)
+                tables = set(tables) & set(files)
+            else:
+                # sync all tables for "full" update
+                tables = set(tables)
+            cmd = ('%s/bin/%s --method=%s'
+                % (virtual_env,
+                   script,
+                   method,
+                ))
+            if dryrun:
+                cmd += ' --dryrun'
+            if list_records:
+                cmd += ' --list-records'
+            if script_verbosity:
+                cmd += ' -' + 'v' * script_verbosity
+            if extra:
+                cmd += ' %s' % ' '.join(['%s=%s' % (k, v) for k, v in sorted(extra.items())])
+            # additionally, if the command errored out due to connectivity issues, rerun
+            # the command
+            print('processing %r' % tables, verbose=2)
+            command = '%s %s' % (cmd, ' '.join(t for t in tables if t))
+            attempts = 0
+            while True:
+                attempts += 1
+                try:
+                    system(command, abort_on_error)
+                except ServiceUnavailable:
+                    # wait five minutes for system to come back up
+                    if attempts > 5:
+                        # but only five times
+                        break
+                    time.sleep(420)
+                else:
+                    break
+    if failure:
+        return Exit.UnknownError
+
+@Command(
+        fis_file=Spec('File name or number to examine', default='all'),
+        key=Spec('key of specific record to look for', OPTION),
+        type=Spec('type of records to display', OPTION, choices=['add','change','delete']),
+        last=Spec('look in most recent file [default]', FLAG, abbrev=None, radio='when'),
+        today=Spec("look in today's files", FLAG, abbrev=None, radio='when', default=Date.today()),
+        all=Spec("check all files", FLAG, abbrev=None, radio='when'),
+        date=Spec("check files from specified date [yyyy-mm-dd]", OPTION, abbrev=None, radio='when', type=lambda v: Date.strptime(v, '%Y-%m-%d')),
+        location=Spec("location of files", OPTION, type=Path),
+        info=Spec("display breakdown of files", FLAG),
+        )
+def check_log(fis_file, key, type, last, today, all, date, location, info):
+    """
+    show activity from the specified runs of fis-update, possibly restricted
+    to a given key
+    """
+    if key:
+        try:
+            key, key_value = key.split(',')
+            if not key and key_value:
+                raise ValueError
+        except ValueError:
+            help("KEY must be a 'field,value' pair, not %r" % (key, ))
+    if not location:
+        location = dbf_log_path
+    if fis_file == 'all':
+        template = '*.dbf'
+        if not (last or today or all):
+            all = True
+    elif fis_file.isdigit():
+        template = '%s_*.dbf' % fis_file
+    else:
+        template = '*_%s-*.dbf' % fis_file.lower()
+    print('looking in %r for %r' % (location, template))
+    files = location.glob(template)
+    if not files:
+        abort('unable to find any files for %r in %s' % (fis_file, location))
+    files.sort()
+    print('\n'.join(files), verbose=2)
+    if today or date:
+        old_target = (today and Date.today() or date).strftime('-%Y-%m-%d.')
+        new_target = (today and Date.today() or date).strftime('-%Y_%m_%d-')
+        files[:] = [pf for pf in files if old_target in pf or new_target in pf]
+    elif all:
+        # already have all files
+        pass
+    else:
+        # --last is the default if nothing else is selected
+        files[:] = files[-1:]
+    #
+    # display entries from each file, possible restricted by key/type
+    #
+    enhanced = dict(
+            C=(Char, NoneType, NullType),
+            L=(Logical, NoneType, NullType),
+            D=(Date, NoneType, NullType),
+            T=(DateTime, NoneType, NullType),
+            M=(Char, NoneType, NullType),
+            )            
+    for file in files:
+        echo('PROCESSING %s' % file, border=('lined','~'))
+        with dbf.Table(file, default_data_types=enhanced) as table:
+            print('  %d records' % len(table), verbose=2)
+            if info:                    # number of...
+                added = 0               #   successfully added records
+                add_failed = 0          #   failed to add records
+                deltas = 0              #   change groups
+                changed = 0             #   successfully changed records
+                change_failed = 0       #   failed to change records
+                change_group = 0        #   records in current delta
+                deleted = 0             #   successfully deleted/deactivated records
+                delete_failed = 0       #   failed to delete/deactivate records
+                section = 'delete'         # current type of record being processed
+                for rec in table:
+                    if rec.action_ in ('deactivate', 'delete'):
+                        deleted += 1
+                    elif rec.action_ == 'add':
+                        section = 'add'
+                        added += 1
+                    elif rec.action_ == 'delta':
+                        section = 'change'
+                        deltas += 1
+                        change_group = 0
+                    elif rec.action_ == 'change':
+                        changed += 1
+                        change_group += 1
+                    elif rec.action_ == 'failed':
+                        if section == 'add':
+                            added -= 1
+                            add_failed += 1
+                        elif section == 'change':
+                            changed -= change_group
+                            change_failed += change_group
+                        elif section == 'delete':
+                            deleted -= 1
+                            delete_failed += 1
+                echo((
+                    ('Added', 'Failed\nto add', 'Change\nSets', 'Changed', 'Failed\nto change', 'Deleted', 'Failed\nto delete'),
+                    None,
+                    (added, add_failed, deltas, changed, change_failed, deleted, delete_failed),
+                    ),
+                    border='table',
+                    )
+                continue
+            added = []
+            changed = {}
+            deleted = []
+            field_names = table.field_names
+            field_names.remove('action_')
+            field_names.remove('failure_')
+            widths, types = calc_widths_types(field_names, table)
+            table.top()
+            if not type or type == 'delete':
+                # one big table with all fields from all deletes
+                def process_deletes():
+                    first = True
+                    key_found = False
+                    failed = False
+                    while not table.eof:
+                        table.skip()
+                        rec = table.current_record
+                        if rec.action_ not in ('delete', 'deactivate', 'failed'):
+                            table.skip(-1)
+                            break
+                        if key:
+                            if rec[key] and re.match(key_value, rec[key]):
+                                key_found = True
+                            else:
+                                continue
+                        if first:
+                            yield('-- deletes --')
+                            yield(field_names)
+                            yield(None)
+                            first = False
+                        if rec.action_ == 'failed':
+                            if key and not key_found:
+                                continue
+                            yield(' ')
+                            yield(rec.failure_)
+                            failed = True
+                        else:
+                            if failed:
+                                yield('-')
+                                failed = False
+                            yield([rec[fn] for fn in field_names])
+                echo(table_display(process_deletes(), widths=widths, types=types, header=False))
+            if not type or type == 'add':
+                # one big table with all fields from all adds
+                def process_adds():
+                    first = True
+                    key_found = False
+                    failed = False
+                    while not table.eof:
+                        table.skip()
+                        if not first and not failed and table.next_record.failure_:
+                            error(repr(table.next_record))
+                            error(repr(bool(table.next_record)))
+                            error(repr(table.next_record.failure_))
+                            error(repr(bool(table.next_record.failure_)))
+                            yield('-')
+                        rec = table.current_record
+                        if rec.action_ not in ('add', 'failed'):
+                            table.skip(-1)
+                            break
+                        if key:
+                            if rec[key] and re.match(key_value, rec[key]):
+                                key_found = True
+                            else:
+                                continue
+                        if first:
+                            yield('-- adds --')
+                            yield(field_names)
+                            yield(None)
+                            first = False
+                        if rec.failure_:
+                            if key and not key_found:
+                                continue
+                            yield(' ')
+                            yield(rec.failure_)
+                            failed = True
+                        else:
+                            if failed:
+                                yield('-')
+                                failed=False
+                            yield([rec[fn] for fn in field_names])
+                echo(table_display(process_adds(), widths=widths, types=types, header=False))
+            if not type or type == 'change':
+                # many little tables, one per change set
+                def process_changes():
+                    "process one table at a time"
+                    # return a dictionary of rows, widths, and types
+                    table.skip()
+                    rec = table.current_record
+                    table_rows = dbf.List()
+                    rows = []
+                    if rec.action_ != 'delta':
+                        table.skip(-1)
+                        return {'rows': []}
+                    else:
+                        first = True
+                        key_found = False
+                        delta = [(field_names[0], Null),(field_names[1], Null)]
+                        for fn in field_names[2:]:
+                            val = rec[fn]
+                            if val is not Null:
+                                delta.append((fn, val))
+                        delta = tuple(delta)
+                        table_rows.append(rec)
+                    while not table.eof:
+                        table.skip()
+                        rec = table.current_record
+                        if rec.action_ not in ('change', 'failed'):
+                            table.skip(-1)
+                            break
+                        elif rec.action_ == 'change':
+                            if key:
+                                if re.match(key_value, rec[key]):
+                                    key_found = True
+                                else:
+                                    continue
+                            if first:
+                                fields, values = zip(*delta)
+                                rows.append(fields)
+                                rows.append(values)
+                                rows.append(None)
+                                first = False
+                            rows.append([rec[fn] for fn in fields])
+                            table_rows.append(rec)
+                        elif rec.action_ == 'failed':
+                            if key and not key_found:
+                                continue
+                            rows.append('-')
+                            rows.append(rec.failure_)
+                            table_rows.append(rec)
+                    if key and not key_found:
+                        return {'rows': []}
+                    widths, types = calc_widths_types(fields, table_rows, table)
+                    return {'rows': rows, 'widths': widths, 'types': types}
+                while table.next_record.action_ == 'delta':
+                    echo(table_display(display_none='!', **process_changes()))
+
+
+class ServiceUnavailable(Exception):
+    "presented when unable to communicate with OpenERP server"
+
+
+def calc_widths_types(field_names, rows, table=None):
+    if table is None:
+        table = rows
+    widths = [len(fn) for fn in field_names]
+    types = []
+    text_fields = []
+    numeric_fields = []
+    max_failure_len = 0
+    for i, fn in enumerate(field_names):
+        spec = table.field_info(fn)
+        if spec.py_type == Char:
+            types.append('')
+            text_fields.append((i, fn))
+            # widths[i] = len(field_names[i])
+        elif spec.py_type == Date:
+            types.append('f')
+            # widths[i] = max(10, len(field_names[i]))
+            widths[i] = max(10, widths[i])
+        elif spec.py_type == DateTime:
+            types.append('f')
+            # widths[i] = max(19, len(field_names[i]))
+            widths[i] = max(19, widths[i])
+        elif spec.py_type == Time:
+            types.append('f')
+            # widths[i] = max(10, len(field_names[i]))
+            widths[i] = max(10, widths[i])
+        elif spec.py_type == Logical:
+            types.append('f')
+            # widths[i] = max(1, len(field_names[i]))
+            widths[i] = max(1, widths[i])
+        elif spec.py_type == 'default':
+            types.append('n')
+            numeric_fields.append((i, fn, spec.decimal))
+            # widths[i] = len(field_names[i])
+        else:
+            abort('programmer error -- %r: unknown field type: %r' % (fn, spec, ))
+    for rec in rows:
+        for line in (rec.failure_ or '').split('\n'):
+            max_failure_len = max(max_failure_len, len(line))
+        for i, fn in text_fields:
+            for line in (rec[fn] or '').split('\n'):
+                widths[i] = max(widths[i], len(line))
+                widths[i] = min(widths[i], 80)
+        for i, fn, decimals in numeric_fields:
+            value = rec[fn]
+            if value:
+                if decimals:
+                    value = str(round(value, decimals))
+                else:
+                    value = str(value)
+                widths[i] = max(widths[i], len(value))
+    max_field_len = sum(widths) + 3 * (len(widths) - 1)
+    if max_failure_len > max_field_len:
+        widths.append(max_failure_len - max_field_len)
+        types.append('')
+    return widths, types
+
+def system(cmd, abort_on_error=False):
+    global failure
+    with user_ids(0, 0):
+        print(
+                '--==[%s] running "%s" . . .: ' % (time.strftime('%H:%M:%S', time.localtime()), cmd),
+                end='',
+                verbose=1,
+                )
+        job = Execute(cmd, pty=True)
+        print(job.returncode, ' [%s]==--' % time.strftime('%H:%M:%S', time.localtime()), verbose=1)
+        if job.returncode or job.stderr:
+            v_level = 0
+            if not script_verbosity:
+                echo('Error with command (returncode %r):' % (job.returncode, ))
+                echo('---- cmd  ----')
+                echo(cmd)
+        else:
+            v_level = 1
+        if job.stdout.strip():
+            print('---- stdout ----', verbose=v_level)
+            print('\n'.join(['   %s' % l for l in job.stdout.strip().split('\n')]), verbose=v_level)
+            if v_level:
+                print('==========================================', verbose=1)
+        if job.returncode or job.stderr:
+            failure = True
+            error('---- stderr ----')
+            if job.stderr.strip():
+                error('\n'.join(['   %s' % l for l in job.stderr.strip().split('\n')]))
+                error('==========================================')
+            if abort_on_error:
+                abort()
+            if job.returncode == Exit.Unavailable:
+                raise ServiceUnavailable
+
+Main()

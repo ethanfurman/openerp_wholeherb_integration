@@ -12,7 +12,7 @@ from scription import split_text
 from aenum import NamedTuple
 from antipathy import Path
 from ast import literal_eval
-from openerplib import get_connection, MissingTable, Many2One, XidRec, CSV
+from openerplib import get_connection, get_records, MissingTable, Many2One, XidRec, CSV
 from os import environ
 
 import re
@@ -57,85 +57,73 @@ def _module_name(text):
     module, name = text.split('.')
     return module, name
 
-def table(name):
-    if name.isdigit():
-        name = int(name)
-    try:
-        return fis_tables[name.lower()]
-    except KeyError:
-        abort('unable to find %r' % (name, ))
 
 @Command(
-        table=Spec('table to process names for', type=table),
+        table=Spec('table to process names for', ),
         )
 def fix_imd(table):
     "ensure eligible records have correct link in ir.model.data"
     # instanciate the table, retrieve all existing ir.model.data records, then
     # get any records that should have an imd link but don't
-    table = table(oe, cfg)
-    updated, skipped = table.update_imd()
-    print('%d records added to ir.model.data' % updated)
-    print('%d duplicates' % skipped)
-    if script_command_name != 'add_imd':
-        return table
-    else:
-        return skipped
-
-
-@Command(
-        )
-@Alias(
-        '192'
-        )
-def cnvzo1():
-    "ensure all transmitter numbers have an ir.model.data entry; update user logins"
-    cnvzo1 = add_imd(table('CNVZO1'))
-    #
-    # imd.get_object_reference('portal','group_portal')
-    # ['res.groups', 229]
-    #
-    portal_group_id = imd.get_object_reference('portal','group_portal')[1]
-    res_users = oe.get_model('res.users')
-    fis_transmitter_code = oe.get_model('fis.transmitter_code')
-    users = get_main_records(
-            res_users,
-            domain=[('groups_id','=',portal_group_id)],
-            fields=['id','login','name','fis_partner_id','fis_transmitter_id'],
-            )
-    for user in users:
-        print('user: ', user)
-        if heb(user.login):
-            transmitter_no = '150' + heb.data
-            print('  HEB: ', transmitter_no)
-        elif other(user.name):
-            transmitter_no = other.data
-            print('  other: ', transmitter_no)
+    from fislib import fis_oe_converters
+    try:
+        model = getattr(fis_oe_converters, table)
+    except AttributeError:
+        abort('unable to find %r in fis_oe_converters' % table)
+    model = model(oe, cfg)
+    records = get_records(imd, domain=[('model','=',model.OE)], fields=['id','module','name','res_id'])
+    imd_records = {}
+    for rec in records:
+        imd_records.setdefault(rec.res_id, []).append(rec)
+    main_domain = [(model.OE_KEY,'!=',False)]
+    if model.OE_KEY_MODULE is not None:
+        oe_model = oe.get_model(model.OE)
+        module_value = model.OE_KEY_MODULE
+        module = None
+        if 'fis_module' in oe_model._all_columns:
+            module = 'fis_module'
+        elif 'module' in oe_model._all_columns:
+            module = 'module'
+        elif isinstance(module_value, tuple):
+            module, module_value = module_value
+        if module is not None:
+            main_domain.append((module,'=',module_value))
+    main_records = get_records(oe, model.OE, domain=main_domain, fields=[model.OE_KEY])
+    to_delete = []
+    created = existed = 0
+    for rec in ViewProgress(main_records):
+        print('\nprocessing: %r' % (rec, ), verbose=3)
+        possible = imd_records.get(rec.id, ())
+        print(' possibles: %s' % '\n          : '.join([
+                '%s - %s - %s' % (
+                    p.module, p.name, p.res_id,
+                    ) for p in possible]),
+                verbose=3)
+        if model.oe_ignore_record(rec):
+            # no possibles should exist
+            to_delete.extend([p.id for p in possible])
+            continue
+        target = model.calc_xid(rec[model.OE_KEY])
+        print('       key: %r' % target, verbose=3)
+        found = [p for p in possible if p.name == target]
+        print('     match: %r' % (found, ), verbose=3)
+        to_delete.extend([p.id for p in possible if p.name != target])
+        if found:
+            print('  found branch', verbose=3)
+            existed += 1
         else:
-            error("unable to extract transmitter from", user.login)
-            transmitter_no = None
-            continue
-        transmitter_m2o = user.fis_transmitter_id
-        if transmitter_m2o:
-            transmitter = fis_transmitter_code.read(transmitter_m2o.id)
-            if transmitter_no == transmitter.transmitter_no:
-                # nothing needed
-                continue
-        # fis_transmitter_id=Many2One(
-        #           id=66168,
-        #           name='Staff of Life - Bakery',
-        #           model='fis.transmitter_code',
-        #           ),
-        # let OpenERP do the work for us
-        transmitters = cnvzo1.model.read([('transmitter_no','=',transmitter_no)])
-        if len(transmitters) != 1:
-            error('too many/too few transmitters for %r:  %s' % (transmitter_no, transmitters))
-            continue
-        transmitter ,= transmitters
-        print('transmitter:', transmitter)
-        values = res_users.onchange_fis_transmitter([user.id], transmitter.id, False, False)['value']
-        values['fis_transmitter_id'] = transmitter.id
-        print('saving %s' % values)
-        res_users.write(user.id, values)
+            print('  create branch', verbose=3)
+            try:
+                imd.create({'module':'fis', 'name':target, 'model':model.OE, 'res_id':rec.id})
+                created += 1
+            except ValueError:
+                error('cannot create duplicate entry: %s.%d fis.%s' % (model.OE, rec.id, target))
+    if to_delete:
+        imd.unlink(to_delete)
+    echo('found:   %d' % existed)
+    echo('created: %d' % created)
+    echo('deleted: %d' % len(to_delete))
+
 
 
 @Command(

@@ -1,4 +1,3 @@
-import enum
 import logging
 from . import xid
 from dbf import Date
@@ -10,47 +9,6 @@ from openerplib.dates import DEFAULT_SERVER_DATE_FORMAT as D_FORMAT
 _logger = logging.getLogger(__name__)
 
 CONFIG_ERROR = "Cannot sync products until  Settings --> Configuration --> FIS Integration --> %s  has been specified."
-
-class FISenum(str, enum.Enum):
-    pass
-
-class C(FISenum):
-    'Customers from CSMS'
-    code =       'An$(3,6)'
-    name =       'Bn$'
-    addr1 =      'Cn$'
-    addr2 =      'Dn$'
-    addr3 =      'En$'
-    postal =     'Ln$'
-    phone =      'Gn$(20,10)'
-    fax =        'Gn$(31,15)'
-    addl_phone = 'Gn$(46,15)'
-    sales_mgr =  'Jn$(10,3)'
-
-class V(FISenum):
-    'Vendors from VNMS'
-    code =        'An$(3,6)'
-    name =        'Bn$'
-    addr1 =       'Cn$'
-    addr2 =       'Dn$'
-    addr3 =       'En$'
-    phone =       'Gn$(1,15)'
-    fax =         'Gn$(16,15)'
-    telex =       'Gn$(31,15)'
-    is_broker =   'In$(5,1)'
-    broker_code = 'In$(6,3)'
-    contact =     'Nn$'
-
-class S(FISenum):
-    'Suppliers from POSM'
-    code =  'An$(3,6)'
-    name =  'Bn$'
-    addr1 = 'Cn$'
-    addr2 = 'Dn$'
-    addr3 = 'En$'
-    phone = 'Gn$(1,15)'
-    fax =   'Gn$(16,15)'
-    telex = 'Gn$(31,15)'
 
 
 class res_partner(xid.xmlid, osv.Model):

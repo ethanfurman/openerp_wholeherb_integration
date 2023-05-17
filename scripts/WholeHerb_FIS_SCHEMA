@@ -3227,7 +3227,7 @@ FCCNVZw  -WAREHOUSE MASTER FILE  (at start)
     13    Zip Code                                 9    Hn$
     14    Next History Seq no                      5    In
     15    Priority Order Numbers                  60    Jn$
-FCCNVZc  -PRODUCT CATEGORY MASTER FILE MAINTENANCE & INQUIRY  (116 at start)
+FCCNVZc  -PRODUCT CATEGORY MASTER FILE MAINTENANCE & INQUIRY  (122 at start)
      1    KEY TYPE = 'c'                           1    AN$(1,1)
      2    COMPANY CODE                             2    AN$(2,2)
      3    PRODUCT CATEGORY                         1    AN$(4,1)

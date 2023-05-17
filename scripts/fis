@@ -384,7 +384,7 @@ def records(filenum, template, code, fields, dbf_name, tabular, rematch, test, c
 def schema(filenum, output, number):
     if filenum.isdigit():
         filenum = int(filenum)
-    elif not number:
+    elif output == 'enum' and not number:
         abort('--number NNN must be given when using table abbreviations')
     table = fd.tables[filenum]
     if output == 'dump':
@@ -546,6 +546,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
     context = {
         'mail_create_nosubscribe': True,
         'log_write_date': False,
+        'fis_maintenance': True,
         }
     print('looking for', search_key)
     active_salesinq_customers = get_active_salesinq_customers()
@@ -570,7 +571,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
     # the final portion of the key is not specified in the schema, we can get them
     # all at once
     # process customers
-    for cus_rec in customers:
+    for cus_rec in ViewProgress(customers, 'Customers'):
         if search_key and search_key != cus_rec[F33.code]:
             print('skipping customer: %r != %r' % (search_key, cus_rec[F33.code]), verbose=2)
             continue
@@ -585,7 +586,6 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
         result['xml_id'] = key = cus_rec[F33.code]
         result['module'] = 'CSMS'
         # valid customer code? active account?
-        result['fis_valid'] = fis_valid = True
         if key in active_salesinq_customers or not active_salesinq_customers:
             # if active customers is empty, mark them all as active
             result['active'] = True
@@ -595,7 +595,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
                 BsnsCase(cus_rec[F33.name]),
                 flags=re.I,
                 )
-        print('name:', result['name'])
+        print('name:', result['name'], verbose=2)
         addr1, addr2, addr3 = Sift(cus_rec[F33.addr1], cus_rec[F33.addr2], cus_rec[F33.addr3])
         addr2, city, state, postal, country = cszk(addr2, addr3)
         addr3 = ''
@@ -630,8 +630,6 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
         if key in customer_codes:
             print('found %s in OpenERP' % key, verbose=2)
             id = customer_codes[key]
-            # leave fis_valid alone
-            del result['fis_valid']
             # if active is False, double-check lack of OpenERP activity for this account
             if not result['active']:
                 print('%s is inactive in SalesInq, and has an OpenERP last-write date of %s' %
@@ -659,7 +657,6 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
             contact = cus_rec[F33.contact]
             result = {
                     'active': result['active'],
-                    'fis_valid': fis_valid,
                     }
             result['name'] = re.sub(
                     config.fis_imports.name_from,
@@ -687,7 +684,6 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
         for _, ship_to in sorted(alternates):
             result = {
                     'active': result['active'],
-                    'fis_valid': fis_valid,
                     }
             result['parent_id'] = False
             result['ship_to_parent_id'] = cus_id
@@ -698,13 +694,11 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
             if ship_to is None:
                 result.update(default_ship_to)
                 result['xml_id'] = ship_to_key = 'ship_' + key + '100'
-                result['notes'] = 'main address from customer record'
-                print('  ship-to:', ship_to_key)
+                print('  ship-to:', ship_to_key, verbose=2)
             else:
                 short_ship_to = '%s-%s' % (ship_to[F140.code], (ship_to[F140.ship_to_sequence].strip() or '00'))
                 result['xml_id'] = ship_to_key = 'ship_' + short_ship_to
-                print('  ship-to:', ship_to_key)
-                result['notes'] = ship_to[F140.comments]
+                print('  ship-to:', ship_to_key, verbose=2)
                 result['name'] = '%s: %s' % (
                         short_ship_to,
                         re.sub(
@@ -761,7 +755,7 @@ def update_customers(contacts, state_recs, country_recs_name, search_key):
 def update_suppliers(contacts, state_recs, country_recs_name ):
     supplier_codes = get_xml_id_map(model='res.partner', fis_module='posm')
     posm = fd.fisData('POSM', keymatch=partner_key)
-    context = {'mail_create_nosubscribe': True}
+    context = {'mail_create_nosubscribe': True, 'fis_maintenance': True}
     print('processing %d POSM records' % len(posm))
     for sup_rec in posm:
         result = {'active': False}
@@ -772,7 +766,6 @@ def update_suppliers(contacts, state_recs, country_recs_name ):
         result['xml_id'] = key = sup_rec[F163.code]
         result['module'] = 'POSM'
         # valid customer code? active account?
-        result['fis_valid'] = True
         result['active'] = True
         result['name'] = re.sub(
                 config.fis_imports.name_from,
@@ -814,8 +807,6 @@ def update_suppliers(contacts, state_recs, country_recs_name ):
             continue
         if key in supplier_codes:
             id = supplier_codes[key]
-            # leave fis_valid alone
-            del result['fis_valid']
             res_partner.write(id, result, context=context)
         else:
             result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'posm_%s_res_partner'%key.replace('.','_')}
@@ -825,7 +816,7 @@ def update_suppliers(contacts, state_recs, country_recs_name ):
 def update_vendors(contacts, state_recs, country_recs_name ):
     vendor_codes = get_xml_id_map(model='res.partner', fis_module='vnms')
     vnms = fd.fisData('VNMS', keymatch=partner_key)
-    context = {'mail_create_nosubscribe': True}
+    context = {'mail_create_nosubscribe': True, 'fis_maintenance': True}
     for ven_rec in vnms:
         result = {'active': False}
         result['is_company'] = True
@@ -835,7 +826,6 @@ def update_vendors(contacts, state_recs, country_recs_name ):
         result['xml_id'] = key = ven_rec[F65.code]
         result['module'] = 'VNMS'
         # valid customer code? active account?
-        result['fis_valid'] = True
         result['active'] = True
         result['name'] = re.sub(
                 config.fis_imports.name_from,
@@ -877,8 +867,6 @@ def update_vendors(contacts, state_recs, country_recs_name ):
             continue
         if key in vendor_codes:
             id = vendor_codes[key]
-            # leave fis_valid alone
-            del result['fis_valid']
             res_partner.write(id, result, context=context)
         else:
             result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'vnms_%s_res_partner'%key.replace('.','_')}
@@ -887,8 +875,8 @@ def update_vendors(contacts, state_recs, country_recs_name ):
 
 def update_carriers(contacts, state_recs, country_recs_name ):
     carrier_codes = get_xml_id_map(model='res.partner', fis_module='F27')
-    carrier = fd.fisData(27, keymatch='SV10%s')
-    context = {'mail_create_nosubscribe': True}
+    carrier = fd.fisData(27, keymatch='SV%s')
+    context = {'mail_create_nosubscribe': True, 'fis_maintenance': True}
     for carrier_rec in carrier:
         result = {'active': False}
         result['is_company'] = True
@@ -898,7 +886,6 @@ def update_carriers(contacts, state_recs, country_recs_name ):
         result['xml_id'] = key = carrier_rec[F27.code]
         result['module'] = 'VNMS'
         # valid customer code? active account?
-        result['fis_valid'] = True
         result['active'] = True
         result['name'] = re.sub(
                 config.fis_imports.from_name,
@@ -940,8 +927,6 @@ def update_carriers(contacts, state_recs, country_recs_name ):
             continue
         if key in carrier_codes:
             id = carrier_codes[key]
-            # leave fis_valid alone
-            del result['fis_valid']
             res_partner.write(id, result, context=context)
         else:
             result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'cnvzsv_%s_res_partner'%key.replace('.','_')}
@@ -951,7 +936,7 @@ def update_carriers(contacts, state_recs, country_recs_name ):
 def update_employees(contacts, state_recs, country_recs_name ):
     employee_codes = get_xml_id_map(model='res.partner', fis_module='F74')
     emp1 = fd.fisData('EMP1', keymatch='10%s')
-    context = {'mail_create_nosubscribe': True}
+    context = {'mail_create_nosubscribe': True, 'fis_maintenance': True}
     for emp_rec in emp1:
         result = {'active': False}
         result['is_company'] = True
@@ -961,7 +946,6 @@ def update_employees(contacts, state_recs, country_recs_name ):
         result['xml_id'] = key = emp_rec[F74.code]
         result['module'] = 'VNMS'
         # valid customer code? active account?
-        result['fis_valid'] = True
         result['active'] = True
         result['name'] = re.sub(
                 config.fis_imports.from_name,
@@ -1003,8 +987,6 @@ def update_employees(contacts, state_recs, country_recs_name ):
             continue
         if key in employee_codes:
             id = employee_codes[key]
-            # leave fis_valid alone
-            del result['fis_valid']
             res_partner.write(id, result, context=context)
         else:
             result['imd_info'] = {'module':'whc', 'model':'res.partner', 'name':'emp1_%s_res_partner'%key.replace('.','_')}
@@ -1012,10 +994,10 @@ def update_employees(contacts, state_recs, country_recs_name ):
             employee_codes[key] = id
 
 def update_product_categories():
-    context = {'mail_create_nosubscribe': True}
+    context = {'mail_create_nosubscribe': True, 'fis_maintenance': True}
     category_codes = get_xml_id_map(model='product.category', fis_module='CNVZc')
     cnvz = fd.fisData('CNVZc', keymatch='c10%s')
-    for category_rec in cnvz:
+    for category_rec in ViewProgress(cnvz, 'Categories'):
         key = category_rec[F116.code]
         name = category_rec[F116.desc].title()
         values = {
@@ -1034,12 +1016,12 @@ def update_product_categories():
             category_codes[key] = new_id
 
 def update_products():
-    context = {'mail_create_nosubscribe': True}
+    context = {'mail_create_nosubscribe': True, 'fis_maintenance': True}
     product_codes = get_xml_id_map(model='product.product', fis_module='nvty')
     category_codes = get_xml_id_map(model='product.category', fis_module='CNVZc')
     default_product_codes = get_records(oe, model='product.product', domain=[('xml_id','=',False),('default_code','!=',False)])
     nvty = fd.fisData('NVTY', keymatch='10%s')
-    for item in nvty:
+    for item in ViewProgress(nvty, 'Products'):
         key = item[F135.item_id]
         name = NameCase(name_chars(' - '.join(item[F135.name].split('\x10'))))
         values = {
@@ -1050,23 +1032,28 @@ def update_products():
                 }
         if name:
             values['name'] = name
-        if key in product_codes:
-            # update existing FIS record
-            id = product_codes[key]
-            print('  updating with:', values, verbose=2)
-            product.write(id, values, context=context)
-        elif key in default_product_codes:
-            # update existing default_code record
-            id = default_product_codes[key]
-            print('  updating with:', values, verbose=2)
-            product.write(id, values, context=context)
-        else:
-            values['imd_info'] = {'module':'whc', 'model':'product.product', 'name':'nvty_%s_product_product'%key.replace('.','_')}
-            print('  creating with:', values, verbose=2)
-            product_codes[key] = product.create(values, context=context)
+        try:
+            id = None
+            if key in product_codes:
+                # update existing FIS record
+                id = product_codes[key]
+                print('  updating with:', values, verbose=2)
+                product.write(id, values, context=context)
+            elif key in default_product_codes:
+                # update existing default_code record
+                id = default_product_codes[key]
+                print('  updating with:', values, verbose=2)
+                product.write(id, values, context=context)
+            else:
+                values['imd_info'] = {'module':'whc', 'model':'product.product', 'name':'nvty_%s_product_product'%key.replace('.','_')}
+                print('  creating with:', values, verbose=2)
+                product_codes[key] = product.create(values, context=context)
+        except:
+            error('unable to create/write id: %r  values: %r' % (id, values))
+            raise
 
 def update_lots():
-    context = {'mail_create_nosubscribe': True}
+    context = {'mail_create_nosubscribe': True, 'fis_maintenance': True}
     print('getting products from OpenERP')
     product_codes = get_xml_id_map('product.product', fis_module='nvty')
     print('getting default product codes from OpenERP')
@@ -1085,10 +1072,7 @@ def update_lots():
     nvba = fd.fisData('NVBA', subset='10')
     seen_lots = set()
     added = changed = zeroed = 0
-    for lot in ProgressView(
-            iterable=nvba,
-            view_type='bar',
-            ):
+    for lot in ViewProgress(nvba, 'Product Lots'):
         values = {}
         values['lot_no'] = lot_no = lot[F250.lot_no]
         prod_xml_id = lot[F250.item_id]
@@ -1194,7 +1178,8 @@ def format_record(record, fields=None):
                 lines.append('%5d | %*s | %*s | %s' % (i+1, -name_width, row[3], value_width, value, row[1]))
     return lines
 
-def convert_name(name, max_len=50):
+def convert_name(name, max_len, existing_names=()):
+    original_name = name
     name = name.lower()
     if '(' in name:
         name = name.split('(')[0]
@@ -1212,31 +1197,49 @@ def convert_name(name, max_len=50):
     name = ' '.join(pieces)
     if name.startswith(('key type', 'key group')):
         name = 'key type'
-    member = []
+    members = []
     # name substitution
     for i, piece in enumerate(re.sub('\W+', ' ', name).split()):
         if i == 0 and piece[0].isdigit():
             piece = numbers.get(piece, piece)
         else:
             piece = common.get(piece, piece)
-        member.append(piece)
+        members.append(piece)
     # shrink further as necessary
     def no_under(names):
         return ''.join(names)
     def pop_under(names):
+        # if we get down to only one name, just trim it to desired size
+        if len(names) == 1:
+            return names[0][:max_len]
         names.pop()
         return '_'.join(names)
-    name = '_'.join(member)
+    name = '_'.join(members)
     shrinker = cycle([no_under, pop_under])
+    # shrink name if needed
     if len(name) > max_len:
         # first try uncommon abbr
-        for i, m in enumerate(member):
-            member[i] = uncommon.get(m, m)
-        name = '_'.join(member)
+        for i, m in enumerate(members):
+            members[i] = uncommon.get(m, m)
+        name = '_'.join(members)
     while len(name) > max_len:
         func = next(shrinker)
-        name = func(member)
+        name = func(members)
+    # check for name already being used
+    for suffix in range(1, 10):
+        if name not in existing_names:
+            break
+        else:
+            suffix = str(suffix)
+            name = name[:-1] + suffix
+    else:
+        # name still taken
+        raise Exception(
+                'unable to convert %r\nexisting names: '
+                % (original_name, ', '.join(existing_names)
+                ))
     return name
+
 
 numbers = {
     '0':    'zero',
@@ -1359,7 +1362,7 @@ def get_active_salesinq_customers():
                 fis_id = line.split()[0]
                 if fis_id.isdigit():
                     result.add(fis_id)
-                    print(line)
+                    print(line, verbose=3)
     print('found %d active companies' % len(result))
     return result
 
