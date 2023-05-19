@@ -1,0 +1,62 @@
+#!/usr/local/bin/suid-python --virtualenv
+
+from __future__ import print_function
+
+# globals
+
+from antipathy import Path
+from openerplib import get_connection
+from os import environ
+from scription import *
+
+virtual_env = environ['VIRTUAL_ENV']
+config = '%s/config/fnx.ini' % virtual_env
+cfg = OrmFile(config, types={'_path':Path})
+oe = get_connection(
+        hostname=cfg.openerp.host,
+        database=cfg.openerp.db,
+        login=cfg.openerp.user,
+        password=cfg.openerp.pw,
+        )
+ir_model_data = oe.get_model('ir.model.data')
+product_lot = oe.get_model('wholeherb_integration.product_lot')
+
+@Command()
+def preship_imd():
+    existing = duplicate = created = orphaned = 0
+    try:
+        for rec in ViewProgress(product_lot.read(
+                domain=[('preship_lot','=',True)],
+                fields=['lot_no','product_id'],
+                )):
+            name = 'preship_%s_product_lot' % rec.lot_no
+            # check imd for name
+            matches = ir_model_data.read(
+                    [('module','=','whc'),('name','=',name)],
+                    fields=['module','name','model','res_id','display_name'],
+                    )
+            if matches:
+                [match] = matches
+                if match.res_id == rec.id:
+                    existing += 1
+                    continue
+                target = product_lot.search([('id','=',match.res_id)])
+                if not target:
+                    orphaned += 1
+                    ir_model_data.write(match.id, {'res_id':rec.id})
+                else:
+                    print('duplicate record: %r' % (match, ), verbose=2)
+                    duplicate += 1
+            else:
+                # create if not found
+                ir_model_data.create({
+                        'module': 'whc',
+                        'name': name,
+                        'model': 'wholeherb_integration.product_lot',
+                        'res_id': rec.id,
+                        })
+                created += 1
+    finally:
+        echo('created: %r\norphaned: %r\nexisting: %r\nduplicate: %r' % (created, orphaned, existing, duplicate))
+
+Run()
