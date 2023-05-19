@@ -367,7 +367,7 @@ class product_lot(osv.Model):
     def _validate_lot_no(self, cr, uid, ids, field_names, arg, context=None):
         res = {}
         user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
-        valid_lot = re.compile(user.company_id.valid_lot_regex or '!!!!!')
+        valid_lot = re.compile(user.company_id.valid_lot_regex or '!!!!!', re.IGNORECASE)
         for rec in self.browse(cr, uid, ids, context=context):
             res[rec.id] = {
                     'lot_no_maybe': bool(potential_lot.match(rec.lot_no)),

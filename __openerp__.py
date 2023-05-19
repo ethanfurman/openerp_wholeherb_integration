@@ -20,7 +20,6 @@
     #        'security/ir.model.access.csv',
     #    ],
     'data': [
-	    'whc_data.xaml',
             'res_config_view.xaml',
             'res_partner_view.xaml',
             'product_view.xaml',
