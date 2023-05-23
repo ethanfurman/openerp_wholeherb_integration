@@ -426,7 +426,13 @@ class product_lot(osv.Model):
         'preship_lot': fields.boolean('Pre-Ship lot?'),
         'create_date': fields.datetime('Lot # created on', readonly=True, track_visibility='onchange'),
         'create_uid': fields.many2one('res.users', string='Lot # created by', readonly=True),
+        'fis_record': fields.boolean('Record is in FIS'),
         }
+
+    _defaults = {
+            'active': True,
+            'fis_record': False,
+            }
 
     def onchange_lot_no(self, cr, uid, ids, lot_no, context=None):
         user = self.pool.get('res.users').browse(cr, uid, uid, context=context)

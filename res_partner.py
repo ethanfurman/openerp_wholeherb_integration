@@ -79,7 +79,12 @@ class res_partner(xid.xmlid, osv.Model):
         'write_uid': fields.many2one('res.users', string='Last changed by', readonly=True),
         'order_confirmations': files('order_confs', string='Order Confirmations', style='static_list', sort='alpha desc'),
         'open_invoices': files('invoices', string='Open Invoices', style='static_list', sort='alpha desc'),
+        'fis_record': fields.boolean('Record is in FIS'),
         }
+
+    _defaults = {
+            'fis_record': False,
+            }
 
     def fnxfs_folder_name(self, records):
         "return name of folder to hold related files"
