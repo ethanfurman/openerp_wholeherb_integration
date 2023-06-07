@@ -11,6 +11,13 @@ import logging
 import operator as op
 import time
 
+
+class Approval(fields.SelectionEnum):
+    NONE = '', ''
+    YES = 'yes', 'Yes'
+    NO = 'no', 'Rejected'
+
+
 class purchasing_lot(osv.Model):
     'Lot information associated with a purchase'
     _inherit = 'wholeherb_integration.product_lot'
@@ -148,5 +155,24 @@ class preship_sample(osv.Model):
         'rnd_use': fields.boolean('R&D Use'),
         'adb_desc': fields.text('Access DB Description'),
         'adb_salesrep': fields.char('Access DB Sales Rep', size=32),
+        }
+
+class preship_lot(osv.Model):
+    _name = 'wholeherb_integration.preship_lot'
+    _description = 'preship sample lot from supplier'
+    _order = 'lot_no desc'
+
+    _columns = {
+        'active': fields.boolean('Active'),
+        'lot_no': fields.char('Lot #', size=12),
+        'date_recd': fields.date('Date Received'),
+        'product_id': fields.many2one('product.product', 'Product'),
+        'rnd_use': fields.boolean('R/D Use Only'),
+        'approved': fields.selection(Approval, 'Approved Preship Sample'),
+        'supplier_id': fields.many2one('res.partner', 'Supplier'),
+        'supplier_lot_no': fields.char('Supplier Lot #', size=64),
+        'comments': fields.text('Comments'),
+        'salesrep_id': fields.many2one('res.users', 'WHC Sales Rep'),
+        'customer_id': fields.many2one('res.partner', 'WHC Customer'),
         }
 
