@@ -88,7 +88,7 @@ def fix_imd(table):
             module, module_value = module_value
         if module is not None:
             main_domain.append((module,'=',module_value))
-    main_records = get_records(oe, model.OE, domain=main_domain, fields=[model.OE_KEY])
+    main_records = get_records(oe, model.OE, domain=main_domain, fields=model.OE_FIELDS)
     to_delete = []
     created = existed = 0
     for rec in ViewProgress(main_records):
@@ -100,8 +100,7 @@ def fix_imd(table):
                     ) for p in possible]),
                 verbose=3)
         if model.oe_ignore_record(rec):
-            # no possibles should exist
-            to_delete.extend([p.id for p in possible])
+            # ignore the main record, ignore any imd entries
             continue
         target = model.calc_xid(rec[model.OE_KEY])
         print('       key: %r' % target, verbose=3)
