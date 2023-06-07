@@ -121,7 +121,7 @@ class CSMS(SynchronizeAddress):
     OE_KEY = FIS_ID
     OE_KEY_MODULE = FN
     OE_FIELDS = (
-            'id', FIS_MODULE, FIS_ID, 'email',
+            'id', FIS_MODULE, FIS_ID, 'email', 'fis_record',
             'name', 'street', 'street2', 'city', 'state_id', 'zip', 'country_id',
             'phone', 'is_company', 'customer', 'active', 'use_parent_address',
             )
@@ -256,6 +256,9 @@ class CSMS(SynchronizeAddress):
         return (company, )
 
 
+    def keep_oe_only_record(self, oe_rec):
+        return not oe_rec.fis_record
+
 class CSMSS(SynchronizeAddress):
     """
     ship-to addresses, 34  (CSMS)
@@ -370,7 +373,7 @@ class NVBA(Synchronize):
     FIS_KEY = F250.lot_no
     OE_KEY = 'lot_no'
     OE_KEY_MODULE = FN
-    OE_FIELDS = 'id', 'product_id', 'lot_no', 'active',
+    OE_FIELDS = 'id', 'product_id', 'lot_no', 'active', 'preship_lot', 'fis_record',
     FIS_SCHEMA = (
             F250.lot_no, F250.item_id, F250.warehouse_id,
             )
@@ -382,6 +385,8 @@ class NVBA(Synchronize):
 
     def oe_ignore_record(self, oe_rec):
         if super(NVBA, self).oe_ignore_record(oe_rec):
+            return True
+        if oe_rec.preship_lot:
             return True
         if not self.valid_lot.match(oe_rec[self.OE_KEY]):
             return True
@@ -430,8 +435,12 @@ class NVBA(Synchronize):
         product_lot.lot_no = key
         product_lot.product_id = NVTY.Product(fis_rec[F250.item_id])
         product_lot.active = True
+        product_lot.preship_lot = False
         return (XidRec.fromdict(product_lot, imd), )
 
+
+    def keep_oe_only_record(self, oe_rec):
+        return not oe_rec.fis_record
 
 class NVTY(Synchronize):
     """
