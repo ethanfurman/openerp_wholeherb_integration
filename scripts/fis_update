@@ -106,7 +106,7 @@ def fis_update(method, skip_copy, skip_update, files, dryrun, list_records, bw_l
             else:
                 files = ['%s/%s%s' % (path, pre, f) for f in active_files]
         # and grab the files
-        system('rsync --bwlimit=%d %s:%s %s/' % (bw_limit, master, ' :'.join(files), new))
+        system('rsync --rsh "ssh -q" --bwlimit=%d %s:%s %s/' % (bw_limit, master, ' :'.join(files), new))
         system('chown -R openerp: %s/' % config.network.fis_data_local_path)
         system('chown -R openerp: %s/' % config.network.fis_data_local_old_path)
         config.network.fis_data_local_path.chmod(0o440, '*')
