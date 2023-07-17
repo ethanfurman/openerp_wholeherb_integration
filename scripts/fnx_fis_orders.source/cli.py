@@ -206,9 +206,9 @@ def create_order_conf(order, source, dest, which):
         dst = 'test.pdf'
         order_conf = OrderConf(order_conf_test_data[which-1])
     else:
-        src = source / order + '.dat'
+        src = source / order + '.dzz'
         if not src.exists():
-            src = source / order + '.dzz'
+            src = source / order + '.dat'
             if not src.exists():
                 abort("unable to find file %s" % src, Exit.DataError)
         dst = dest / order + '.pdf'
@@ -229,7 +229,7 @@ def create_order_conf(order, source, dest, which):
             names.append(Paragraph(li.notes, styles['Note']))
         table_items.append([li.code, names, li.qty, li.price, li.total])
 
-    doc = DocTemplate(
+    doc = OrderConfTemplate(
             dst,
             topMargin = 2.0*inch,
             rightMargin = 0.5*inch,
@@ -285,7 +285,7 @@ def create_order_conf(order, source, dest, which):
 
 # reportlab
 
-class DocTemplate(SimpleDocTemplate):
+class OrderConfTemplate(SimpleDocTemplate):
     #
     def __fixed_elements(self, c, doc):
         c.saveState()
@@ -361,7 +361,7 @@ itemTableStyle = TableStyle([
         ('ALIGN', (2,0), (-1,-1), 'RIGHT'),
         ('FONT', (0,0), (-1,0), FontSet['Text'], 10, 12),
         ('FONT', (0,1), (-1,-1), FontSet['SubHdg'], 12, 15),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ])
 
 # helpers
