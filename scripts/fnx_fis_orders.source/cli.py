@@ -1,4 +1,4 @@
-"""\
+"""
 Manage FIS order confirmations, open order invoices, and availability in OpenERP.
 """
 
@@ -6,11 +6,12 @@ Manage FIS order confirmations, open order invoices, and availability in OpenERP
 # imports & config
 
 from __future__ import print_function
+from aenum import NamedTuple
 from antipathy import Path
 from dbf import Date
 from logging import INFO, getLogger, Formatter, handlers
 from re import match as re_match
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
@@ -29,17 +30,18 @@ version = "2022.1.12 [source: 2.243:/opt/openerp/openerp/wholeherb_integtration/
 # API
 
 @Script(
+        log_file=Spec('log file', OPTION, force_default='/var/log/fnx_fis_orders.log'),
         )
-def main():
+def main(log_file):
     global WholeHerbLogo, logger
     WholeHerbLogo = Path("/home/emile/berje_logo.png")
     if not WholeHerbLogo.exists():
-        WholeHerbLogo = 'berje_logo.png'
+        WholeHerbLogo = 'PYZAPP/berje_logo.png'
 
     logger = getLogger()
     logger.setLevel(INFO)
     handler = handlers.TimedRotatingFileHandler(
-            '/var/log/fnx_fis_orders.log',
+            log_file,
             when='midnight',
             backupCount=30,
             )
@@ -191,8 +193,9 @@ def import_order_confs():
         order=Spec("order number to process", ),
         source=Spec("order file location", OPTION, force_default="/mnt/linuxworkstationmaster/confs/", type=Path),
         dest=Spec("pdf file location", OPTION, force_default="/mnt/linuxworkstationmaster/pdfs/", type=Path),
+        which=Spec("which test data to use [1-3]", OPTION, choices=[1, 2, 3], type=int, force_default=1),
         )
-def create_order_conf(order, source, dest):
+def create_order_conf(order, source, dest, which):
     """
     Create pdf version of order confirmation.
     """
@@ -201,26 +204,32 @@ def create_order_conf(order, source, dest):
     _logger.info('processing %r', order)
     if order == 'test':
         dst = 'test.pdf'
-        order_conf = OrderConf(order_conf_test_data[:55])
+        order_conf = OrderConf(order_conf_test_data[which-1])
     else:
         src = source / order + '.dat'
+        if not src.exists():
+            src = source / order + '.dzz'
+            if not src.exists():
+                abort("unable to find file %s" % src, Exit.DataError)
         dst = dest / order + '.pdf'
         try:
             order_conf = OrderConf.from_file(src)
         except ValueError:
             abort("problem converting '%s'" % src, Exit.DataError)
-        except OSError:
-            abort("unable to find file '%s'" % src, Exit.DataError)
-    for line in order_conf.line_items:
-        line1, line2 = line[1].split('\n')
-        if line2 == '-- continued --':
-            line[1] = [Paragraph(line2, styles['continued'])]
-        else:
-            line[1] = [Paragraph(line1, styles['Item'])]
-            if line2:
-                line[1].append(Paragraph(line2, styles['Latin']))
+    table_items = []
+    for li in order_conf.line_items:
+        # line1, line2 = line[1].split('\n')
+        # if line2 == '-- continued --':
+        #     line[1] = [Paragraph(line2, styles['continued'])]
+        # else:
+        names = [Paragraph(li.name, styles['Item'])]
+        if li.latin_name:
+            names.append(Paragraph(li.latin_name, styles['Latin']))
+        if li.notes:
+            names.append(Paragraph(li.notes, styles['Note']))
+        table_items.append([li.code, names, li.qty, li.price, li.total])
 
-    doc = SimpleDocTemplate(
+    doc = DocTemplate(
             dst,
             topMargin = 2.0*inch,
             rightMargin = 0.5*inch,
@@ -256,17 +265,69 @@ def create_order_conf(order, source, dest):
             ))
     flowables.append(Spacer(1, 0.125*inch))
     flowables.append(Table(
-            [['Item', 'Item Description', 'Quantity', 'Price per LB', 'Total']] + order_conf.line_items,
+            [['Item', 'Item Description', 'Quantity', 'Price per LB', 'Total']] + table_items,
             colWidths=[1.0*inch, 3.0*inch, 1.0*inch, 1.25*inch, 1.25*inch],
-            rowHeights=(len(order_conf.line_items)+1) * [0.5*inch],
+            rowHeights=(len(order_conf.line_items)+1) * [None],
             style=itemTableStyle,
             repeatRows=1,
             ))
-    doc.build(flowables, onFirstPage=page_template, onLaterPages=page_template)
+    if order_conf.notes:
+        flowables.append(Spacer(1, 0.5*inch))
+        notes = []
+        notes.append(Paragraph('Notes:', styles['Item']))
+        notes.append(Spacer(1, 0.125*inch))
+        for n in order_conf.notes:
+            notes.append(Paragraph(n, styles['Note']))
+        flowables.append(KeepTogether(notes))
+    doc.build(flowables)
     _logger.info('done')
 
 
-# styles
+# reportlab
+
+class DocTemplate(SimpleDocTemplate):
+    #
+    def __fixed_elements(self, c, doc):
+        c.saveState()
+        c.drawImage(WholeHerbLogo, 3.0*inch, 9.5*inch, width=2.5*inch, height=1.25*inch, mask=None)
+        c.setFont(FontSet['SubHdg'], 24)
+        c.drawCentredString(4.25*inch, 9.125*inch, "Order Confirmation")
+        c.setFont(FontSet['Ftr'], 10)  #  was 9 and below was .55 .40 .25
+        c.drawCentredString(4.25*inch, 0.66 * inch, "We do not accept any returns without prior return authorization. Claims for shortages or allowances must be")
+        c.drawCentredString(4.25*inch, 0.54 * inch, "made in writing within ten days from the delivery date. All raw materials are sold for further processing.")
+        c.setFont(FontSet['SubHdg'], 4)
+        c.drawCentredString(8.0*inch, 0.25*inch, "%s" % ctime())
+        c.restoreState()
+    onFirstPage = onLaterPages = __fixed_elements
+
+    def afterInit(self):
+        def _onProgress(typ, value):
+            self._leaf_state[typ] = value
+        self._onProgress = _onProgress
+        self._leaf_state = {}
+
+    def afterPage(self):
+        _logger.info('_leaf_state: %r', self._leaf_state)
+        if self._leaf_state['PROGRESS'] < self._leaf_state['SIZE_EST']:
+            self.draw_continued(self.canv, self)
+        else:
+            self.draw_address(self.canv, self)
+
+    def draw_address(self, c, doc):
+        c.saveState()
+        c.setFont(FontSet['Ftr'], 10)  #  was 9 and below was .55 .40 .25
+        c.drawCentredString(4.25*inch, 1.22 * inch, "Whole Herb Company")
+        c.drawCentredString(4.25*inch, 1.08 * inch, "19800 8th Street East   Sonoma, CA 95476")
+        c.drawCentredString(4.25*inch, 0.94 * inch, "Phone: 707-935-1077   Fax: 707-935-3447")
+        c.drawCentredString(4.25*inch, 0.80 * inch, "www.wholeherbcompany.com")
+        c.restoreState()
+
+    def draw_continued(self, c, doc):
+        c.saveState()
+        c.setFont(FontSet['Ftr'], 10)
+        c.drawCentredString(4.25*inch, 1.08 * inch, "-- continued on next page --")
+        c.restoreState()
+
 
 FontSet = { 'Hdg'    : 'Times-Bold',
             'SubHdg' : 'Times-Bold',
@@ -280,6 +341,7 @@ styles = getSampleStyleSheet()
 styles.add(ParagraphStyle('Request', fontName='Times-Bold', fontSize=14, leading=14, alignment=TA_CENTER))
 styles.add(ParagraphStyle('Item', fontName='Times-Bold', fontSize=12, leading=15, alignment=TA_LEFT))
 styles.add(ParagraphStyle('Latin', fontName='Times-Italic', fontSize=12, leading=15, alignment=TA_LEFT))
+styles.add(ParagraphStyle('Note', fontName='Times-Bold', fontSize=10, leading=15, alignment=TA_LEFT))
 styles.add(ParagraphStyle('continued', fontName='Times-BoldItalic', fontSize=10, leading=10, alignment=TA_LEFT))
 
 addressTableStyle = TableStyle([
@@ -363,22 +425,48 @@ class OrderConf(object):
         startPos = 13
         count = 0
         overflow = 10
-        while len(data) > startPos:
-            line = data[startPos:startPos+6]
+
+        count, overflow
+
+        data_len = len(data)
+        notes = []
+        while data_len > startPos:
+            # any notes lines at this point are global, and the end of the confirmation
+            if data[startPos].startswith('Notes:'):
+                notes.append(data[startPos][7:].strip())
+                startPos += 1
+                continue
+            rec_len = 6
+            # get fixed portion of data
+            line = data[startPos:startPos+rec_len]
             print(repr(line), verbose=2)
             if any(line):
-                count += 1
-                if count == overflow:
-                    line_items.insert(count-2, ['','\n-- continued --','','',''])
-                    overflow += 14
-                keywords.add(line[0])
-                # Convert the FIS Description to title case and latin to lower case
-                line[1] = ('%s\n%s' % (line[1].title(), line[5].lower()))
-                line_items.append(line[:5])
-            startPos += 6
+                item = line
+                notes = []
+                while startPos+rec_len < data_len and data[startPos+rec_len].startswith('Notes:'):
+                    note = data[startPos+rec_len][7:].strip()
+                    rec_len += 1
+                    if not note:
+                        break
+                    notes.append(note)
+                    if data_len <= startPos:
+                        break
+                item.append('\n'.join(notes))
+                line_item = OrderItem(*item)
+                keywords.add(line_item.code)
+                line_items.append(line_item)
+
+                # count += 1
+                # if count == overflow:
+                #     line_items.insert(count-2, ['','\n-- continued --','','',''])
+                #     overflow += 14
+
+            startPos += rec_len
+
         self.keywords = ["per %s:" % self.date] + list(keywords)
         self.line_items = line_items
         self.data = data
+        self.notes = notes
 
     @classmethod
     def from_file(cls, path):
@@ -396,65 +484,94 @@ class OrderConf(object):
         print(repr(raw_data), verbose=2)
         return cls(raw_data)
 
+
+class OrderItem(NamedTuple):
+    #
+    code = 0, "Item Code"
+    name = 1, "Common Name"
+    latin_name = 2, "Latin Name"
+    qty = 3, "Qty in Lbs"
+    price = 4, "Price per Lb"
+    total = 5, "Total Cost"
+    notes = 6, "Any notes"
+    #
+    def __new__(cls, code, name, qty, price, total, latin_name, notes):
+        # Convert the FIS Description to title case and latin to lower case
+        name = name.title()
+        latin_name = latin_name.lower()
+        if notes:
+            notes = 'Note: ' + notes
+        return tuple.__new__(cls, (code, name, latin_name, qty, price, total, notes.strip()))
+
+
 # reportlab config
 
-def page_template(c, doc):
-    c.saveState()
-    c.drawImage(WholeHerbLogo, 3.0*inch, 9.5*inch, width=2.5*inch, height=1.25*inch, mask=None)
-    c.setFont(FontSet['SubHdg'], 24)
-    c.drawCentredString(4.25*inch, 9.125*inch, "Order Confirmation")
-    c.setFont(FontSet['Ftr'], 10)  #  was 9 and below was .55 .40 .25
-    c.drawCentredString(4.25*inch, 1.22 * inch, "Whole Herb Company")
-    c.drawCentredString(4.25*inch, 1.08 * inch, "19800 8th Street East   Sonoma, CA 95476")
-    c.drawCentredString(4.25*inch, 0.94 * inch, "Phone: 707-935-1077   Fax: 707-935-3447")
-    c.drawCentredString(4.25*inch, 0.80 * inch, "www.wholeherbcompany.com")
-    c.drawCentredString(4.25*inch, 0.66 * inch, "We do not accept any returns without prior return authorization. Claims for shortages or allowances must be")
-    c.drawCentredString(4.25*inch, 0.54 * inch, "made in writing within ten days from the delivery date. All raw materials are sold for further processing.")
-    c.setFont(FontSet['SubHdg'], 4)
-    c.drawCentredString(8.0*inch, 0.25*inch, "%s" % ctime())
-    c.restoreState()
-
-order_conf_test_data = [
+order_conf_test_data = ([
         'ANAHUAC', '', '7522 SCOUT AVE.', 'BELL GARDENS, CA 90201', 
         'ANAHUAC', '2257 BRAVE ST.', 'BELL GARDENS, CA 90201', 'UNITED STATES',
-        '07-12-22', 'RATE SHOPPER', 'EMAIL', 'NET 30', '118431', 
-        'FLA10000', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
-        'PAL13290', 'PALO AZUL', '105', '3.17', '332.85', '', 
-        'EPO10000', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
-        'COR20000', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
-        'FLA10000', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
-        'PAL13290', 'PALO AZUL', '105', '3.17', '332.85', '', 
-        'EPO10000', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
-        'COR20000', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
-        'FLA10000', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
-        'PAL13290', 'PALO AZUL', '105', '3.17', '332.85', '', 
-        'EPO10000', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
-        'COR20000', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
-        'FLA10000', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
-        'PAL13290', 'PALO AZUL', '105', '3.17', '332.85', '', 
-        'EPO10000', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
-        'COR20000', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
-        'FLA10000', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
-        'PAL13290', 'PALO AZUL', '105', '3.17', '332.85', '', 
-        'EPO10000', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
-        'COR20000', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
-        'FLA10000', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
-        'PAL13290', 'PALO AZUL', '105', '3.17', '332.85', '', 
-        'EPO10000', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
-        'COR20000', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
-        'FLA10000', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
-        'PAL13290', 'PALO AZUL', '105', '3.17', '332.85', '', 
-        'EPO10000', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
-        'COR20000', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
-        'FLA10000', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
-        'PAL13290', 'PALO AZUL', '105', '3.17', '332.85', '', 
-        'EPO10000', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
-        'COR20000', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
-        'FLA10000', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
-        'PAL13290', 'PALO AZUL', '105', '3.17', '332.85', '', 
-        'EPO10000', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        '07-12-22', 'RATE SHOPPER', 'EMAIL', 'NET 30', '118431',
+        'FLA10001', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 'Notes: a longer and', 'Notes: more convoluted', 'Notes: note', 'Notes: ',
+        'PAL13291', 'PALO AZUL', '105', '3.17', '332.85', '',  'Notes: ',
+        'EPO10001', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'COR20001', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
+        'FLA10002', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
+        'PAL13292', 'PALO AZUL', '105', '3.17', '332.85', '', 
+        'EPO10002', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'COR20002', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
+        'FLA10003', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
+        'PAL13293', 'PALO AZUL', '105', '3.17', '332.85', '', 
+        'EPO10003', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'COR20003', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
+        'FLA10004', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
+        'PAL13294', 'PALO AZUL', '105', '3.17', '332.85', '',  'Notes: a note', 'Notes: ',
+        'EPO10004', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'COR20004', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
+        'FLA10005', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
+        'PAL13295', 'PALO AZUL', '105', '3.17', '332.85', '', 
+        'EPO10005', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'COR20005', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
+        'FLA10006', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
+        'PAL13296', 'PALO AZUL', '105', '3.17', '332.85', '', 
+        'EPO10006', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'COR20006', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
+        'FLA10007', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
+        'PAL13297', 'PALO AZUL', '105', '3.17', '332.85', '', 
+        'EPO10007', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'COR20007', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
+        'FLA10008', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
+        'PAL13298', 'PALO AZUL', '105', '3.17', '332.85', '', 
+        'EPO10008', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'COR20008', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
+        'FLA10009', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
+        'PAL13299', 'PALO AZUL', '105', '3.17', '332.85', '', 
+        'EPO10009', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'PAL13298', 'PALO AZUL', '105', '3.17', '332.85', '', 
+        'EPO10008', 'EPASOTE DE COMER WHOLE', '45', '3.21', '144.45', '(Chenopodium ambrosioides)', 
+        'COR20008', 'CORNSILK WHOLE', '48.5', '4.10', '198.85', '(Zea mays)', 
+        'FLA10009', 'FLAX*SEED WHOLE', '50', '2.98', '149.00', '(Linum usitatissimum)', 
+        'PAL13299', 'PALO AZUL', '105', '3.17', '332.85', '', 
         '', '', '', '', '', '', 
-        '', '', '', '', '', '']
+        '', '', '', '', '', '',
+        'Notes: some final thoughts', 'Notes: about life, the universe, and everything', 'Notes: ',
+        ], [
+        "LION BRIDGE BREWING COMPANY", "ATTN:  QUINTON McCLAIN", "59 16TH AVENUE SW           ", "CEDAR RAPIDS, IA 52404",
+        "LION BRIDGE BREWING COMPANY", "59 16TH AVENUE SW", "", "CEDAR RAPIDS, IA 52404",
+        "07-14-23", "FEDEX GROUND", "LBBC71323", "PREPAID", "121579",
+        "HIB14000", "HIBISCUS FLOWERS C/S", "134.25", "     4.77", "    640.37", "     (Hibiscus sabdariffa)", "Notes: ",
+        "Notes: EMAILED COA & SHIP WITH ORDER",
+        "Notes: CUSTOMERS FEDEX GROUND ACCOUNT# 720660415",
+        "Notes: $10.00/BOX REBOXING FEE FOR GROUND SHIPPING",
+        "Notes: DELIVERY CONTACT: QUINTON MCCLAIN 319-491-4471",
+        ], [
+        "THE EAST INDIES COMPANY", "EMAIL INVOICES ONLY", "CUSTOMERSERVICE@", "EASTINDIESCOFFEEANDTEA.COM",
+        "THE EAST INDIES COMPANY", "", "7 KEYSTONE DRIVE", "LEBANON,  PA  17042",
+        "07-17-23", "RATE SHOPPER", "3311", "NET 30", "121576",
+        "CHA20002", "CHAMOMILE WHOLE (EGYPT)", " 127.5", "     7.61", "    970.28", "     (Matricaria chamomilla)", "Notes: REPACK W/LINERS IN BOXES", "Notes: ",
+        "LAV10201", "LAVENDER*SUPER (FRANCE)", "    88", "     8.69", "    764.72", "     (Lavandula officinalis)", "Notes: ",
+        "ORA23021", "ORANGE PL 1/4'' SQ CUT IMPORT", "    55", "     3.48", "    191.40", "     (Citrus sinensis)", "Notes: ",
+        "PEP34001", "PEPPERMINT LEAVES*C/S (USA)", "   440", "     5.53", "  2,433.20", "     (Mentha piperita)", "Notes: ",
+        "Notes: COA'S EMAILED TO CUSTOMER", "Notes: ",
+        ])
 
 
 
