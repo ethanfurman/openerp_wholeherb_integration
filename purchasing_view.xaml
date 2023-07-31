@@ -118,49 +118,106 @@
             @view_mode: list,form
             @domain eval="[]"
 
-        ~menuitem @Lots #purchasing_lot_views parent='wholeherb_integration_purchasing' action='purchase_lot_normal_action' groups='base.group_sale_salesman' sequence='10' 
+        // ~menuitem @Lots #purchasing_lot_views parent='wholeherb_integration_purchasing' action='purchase_lot_normal_action' groups='base.group_sale_salesman' sequence='10' 
 
         ~record model='ir.ui.view' #purchasing_preship_log_tree_view
             @name: Pre-Ship View
             @model: wholeherb_integration.preship_sample
             @arch type='xml'
                 ~tree $Pre-Ship_Samples
-                    @customer
-                    @supplier_id
-                    @lot_id
-                    @product_id
-                    @approved
+                    @lot_no
+                    @product_name
+                    @supplier_name
+                    @date_recd
 
         ~record model='ir.ui.view' #purchasing_preship_log_form_view
             @name: Pre-Ship View
             @model: wholeherb_integration.preship_sample
             @arch type='xml'
                 ~form $Pre-Ship_Samples version='7.0'
+                    @id invisible='1'
                     ~group
                         ~group
                             @product_id
-                            @adb_desc attrs="{'invisible':[('product_id','!=',False)]}"
-                            @lot_id
-                            @received_date
+                            @adb_product attrs="{'invisible':['|',('product_id','!=',False),('id','=',False)]}"
+                            @lot_no
+                            @date_recd
                         ~group
                             @salesrep_id
-                            @adb_salesrep attrs="{'invisible':[('salesrep_id','!=',False)]}"
-                            @customer
-                            @approved
+                            @adb_salesrep attrs="{'invisible':['|',('salesrep_id','!=',False),('id','=',False)]}"
+                            @customer_id
+                            @adb_customer attrs="{'invisible':['|',('customer_id','!=',False),('id','=',False)]}"
                         ~group
                             @supplier_id
+                            @adb_supplier attrs="{'invisible':['|',('supplier_id','!=',False),('id','=',False)]}"
+                            @supplier_lot_no
+                            @approved
+                        ~group
+                            @supplier_address
                         ~group
                             @rnd_use
                     ~notebook
                         ~page $Comments
                             @comments nolabel='1'
 
+        ~record model='ir.ui.view' #search_preship_log_view
+            @name: Pre-Ship Search
+            @model: wholeherb_integration.preship_sample
+            @arch type='xml'
+                ~search string='Supplier Pre-Ship Search'
+                    @product_id
+                    @supplier_id
+                    @lot_no
+                    ~separator
+                    ~filter $Approved @type_approved domain="[('approved','=','yes')]"
+                    ~filter string='R/D Use' @type_rnd_use domain="[('rnd_use','=',True)]"
+                    ~separator
+                    ~group expand='0' string='Group by...'
+                        ~filter $Date domain='[]' context="{'group_by': 'date_recd'}"
+                        ~filter $Product domain='[]' context="{'group_by': 'product_id'}"
+                        ~filter $Supplier domain='[]' context="{'group_by': 'supplier_id'}"
+
+
         ~record model='ir.actions.act_window' #purchasing_preship_sample_normal_action
-            @name: Pre-Ship Samples
+            @name: Supplier Pre-Ship Samples
             @type: ir.actions.act_window
             @res_model: wholeherb_integration.preship_sample
             @view_type: form
             @view_id ref='purchasing_preship_log_tree_view'
             @view_mode: list,form
 
-        ~menuitem name='Pre-Ship Samples' #preship_views parent='wholeherb_integration_purchasing' action='purchasing_preship_sample_normal_action' groups='base.group_sale_salesman' sequence='20' 
+        ~menuitem name='Supplier Samples' #preship_views parent='wholeherb_integration_purchasing' action='purchasing_preship_sample_normal_action' groups='base.group_sale_salesman' sequence='50' 
+
+        // Reports
+
+        ~record model='ir.ui.view' #purchasing_preship_report_form
+            @name: Pre-Ship Report
+            @model: wholeherb_integration.preship_sample.report
+            @arch type='xml'
+                ~form $Report create='false' version='7.0'
+                    ~group
+                        ~group $Sort
+                            @sort widget='radio' options="{'horizontal': 1}" nolabel='1'
+                        ~group $Range
+                            @start attrs="{'invisible': [('sort','=','date')]}"
+                            @end attrs="{'invisible': [('sort','=','date')]}"
+                            @start_date attrs="{'invisible': [('sort','!=','date')]}"
+                            @end_date attrs="{'invisible': [('sort','!=','date')]}"
+                    ~group $Filter
+                        @approved
+                        @rejected
+                        @rnd_use
+                    ~button @create_pdf $Run_Report .oe_highlight type='object'
+
+        ~record model='ir.actions.act_window' #purchasing_preship_report_action
+            @name: Pre-Ship Report
+            @type: ir.actions.act_window
+            @res_model: wholeherb_integration.preship_sample.report
+            @view_type: form
+            @view_id ref='purchasing_preship_report_form'
+            @view_mode: form
+            @target: inline
+
+        ~menuitem name='Sample Reports' #preship_sample_report parent='wholeherb_integration_purchasing' action='purchasing_preship_report_action' groups='base.group_sale_salesman' sequence='70' 
+        // ~report model='wholeherb_integration.preship_sample.report' name='wholeherb_integration.preship_sample.report' auto='False' $Preship_Sample_Report #report_preship_sample
+        

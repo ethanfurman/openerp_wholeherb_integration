@@ -1,5 +1,6 @@
 from antipathy import Path as _Path
 from xaml import Xaml as _Xaml
+import preship_sample
 
 # report_name = (_Path(__file__).dirname or _Path('.'))/'product-traffic.xaml'
 base_dir = (_Path(__file__).dirname or _Path('.'))

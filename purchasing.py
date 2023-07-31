@@ -1,22 +1,21 @@
-from collections import defaultdict
-from .xid import xmlid
-from VSS.address import NameCase
-from VSS.BBxXlate.fisData import fisData
-from VSS.utils import translator
-from openerp.addons.product.product import sanitize_ean13
+from openerp.tools import self_ids
 from osv import osv, fields
-from urllib import urlopen
-import enum
-import logging
-import operator as op
-import time
 
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class Approval(fields.SelectionEnum):
+    _order_ = 'NONE YES NO'
     NONE = '', ''
-    YES = 'yes', 'Yes'
+    YES = 'yes', 'Accepted'
     NO = 'no', 'Rejected'
 
+
+class ReportType(fields.SelectionEnum):
+    date = 'Date'
+    product = 'Product'
+    supplier = 'Supplier'
 
 class purchasing_lot(osv.Model):
     'Lot information associated with a purchase'
@@ -140,39 +139,127 @@ class purchasing(osv.Model):
 
 class preship_sample(osv.Model):
     _name = 'wholeherb_integration.preship_sample'
-    _description = 'preship samples from suppliers'
-    _order = 'lot_id desc'
-
-    _columns = {
-        'received_date': fields.date('Date Received'),
-        'lot_id': fields.many2one('wholeherb_integration.product_lot', 'Pre-Ship Lot #'),
-        'product_id': fields.many2one('product.product', 'Product'),
-        'supplier_id': fields.many2one('res.partner', 'Supplier'),
-        'comments': fields.text('Comments'),
-        'salesrep_id': fields.many2one('res.partner', 'Sales Rep'),
-        'customer': fields.text('Customer'),
-        'approved': fields.boolean('Approved'),
-        'rnd_use': fields.boolean('R&D Use'),
-        'adb_desc': fields.text('Access DB Description'),
-        'adb_salesrep': fields.char('Access DB Sales Rep', size=32),
-        }
-
-class preship_lot(osv.Model):
-    _name = 'wholeherb_integration.preship_lot'
     _description = 'preship sample lot from supplier'
     _order = 'lot_no desc'
+
+
+    def _get_names(self, cr, uid, ids, field_name=None, arg=None, context=None):
+        res = {}
+        for rec in self.browse(cr, uid, ids, context=context):
+            res[rec.id] = values = {}
+            values['product_name'] = rec.product_id.name or rec.adb_product
+            values['supplier_name'] = rec.supplier_id.name or rec.adb_supplier
+            values['customer_name'] = rec.customer_id.name or rec.adb_customer
+            values['salesrep_name'] = rec.salesrep_id.name or rec.adb_salesrep
+        return res
 
     _columns = {
         'active': fields.boolean('Active'),
         'lot_no': fields.char('Lot #', size=12),
-        'date_recd': fields.date('Date Received'),
+        'date_recd': fields.date('Date Received', oldname='received_date'),
         'product_id': fields.many2one('product.product', 'Product'),
         'rnd_use': fields.boolean('R/D Use Only'),
-        'approved': fields.selection(Approval, 'Approved Preship Sample'),
+        'approved': fields.selection(Approval, 'Approval Status'),
         'supplier_id': fields.many2one('res.partner', 'Supplier'),
         'supplier_lot_no': fields.char('Supplier Lot #', size=64),
+        'supplier_address': fields.text('Supplier Address'),
         'comments': fields.text('Comments'),
         'salesrep_id': fields.many2one('res.users', 'WHC Sales Rep'),
         'customer_id': fields.many2one('res.partner', 'WHC Customer'),
+        'adb_salesrep': fields.char('Sales Rep (MDB)', size=32),
+        'adb_customer': fields.char('WHC Customer (MDB)', size=64),
+        'adb_product': fields.char('Product (MDB)', size=64),
+        'adb_supplier': fields.char('Supplier (MDB)', size=64),
+        'product_name': fields.function(
+                _get_names,
+                type='char',
+                size=128,
+                string='Product name',
+                multi='names',
+                store={
+                    'wholeherb_integration.preship_sample': (
+                        self_ids, [
+                            'product_id', 'adb_product',
+                            'supplier_id', 'adb_supplier',
+                            'customer_id', 'adb_customer',
+                            'salesrep_id', 'adb_salesrep',
+                            ],
+                        10)}
+                ),
+        'supplier_name': fields.function(
+                _get_names,
+                type='char',
+                size=128,
+                string='Supplier name',
+                multi='names',
+                store={
+                    'wholeherb_integration.preship_sample': (
+                        self_ids, [
+                            'product_id', 'adb_product',
+                            'supplier_id', 'adb_supplier',
+                            'customer_id', 'adb_customer',
+                            'salesrep_id', 'adb_salesrep',
+                            ],
+                        10)}
+                ),
+        'customer_name': fields.function(
+                _get_names,
+                type='char',
+                size=128,
+                string='WHC Customer name',
+                multi='names',
+                store={
+                    'wholeherb_integration.preship_sample': (
+                        self_ids, [
+                            'product_id', 'adb_product',
+                            'supplier_id', 'adb_supplier',
+                            'customer_id', 'adb_customer',
+                            'salesrep_id', 'adb_salesrep',
+                            ],
+                        10)}
+                ),
+        'salesrep_name': fields.function(
+                _get_names,
+                type='char',
+                size=128,
+                string='WHC Sales Rep name',
+                multi='names',
+                store={
+                    'wholeherb_integration.preship_sample': (
+                        self_ids, [
+                            'product_id', 'adb_product',
+                            'supplier_id', 'adb_supplier',
+                            'customer_id', 'adb_customer',
+                            'salesrep_id', 'adb_salesrep',
+                            ],
+                        10)}
+                ),
         }
 
+    _defaults = {
+        'active': True,
+        }
+
+
+
+class preship_sample_report(osv.TransientModel):
+    _name = 'wholeherb_integration.preship_sample.report'
+    _description = 'supplier sample report'
+
+    _columns = {
+        'sort': fields.selection(ReportType, string='Sort'),
+        'approved': fields.boolean('Approved'),
+        'rejected': fields.boolean('Rejected'),
+        'rnd_use': fields.boolean('R/D'),
+        'start': fields.char('Start', size=24),
+        'end': fields.char('End', size=24),
+        'start_date': fields.date('Start Date'),
+        'end_date': fields.date('End Date'),
+        }
+
+    _defaults = {
+        'sort': ReportType.date,
+        }
+
+    def create_pdf(self, cr, uid, ids, context=None):
+        return {'type': 'ir.actions.report.xml', 'report_name': 'wholeherb_integration.preship_sample', 'datas': {}, 'nodestroy': True}
