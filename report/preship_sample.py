@@ -48,9 +48,9 @@ class report_spec_sheet(report_int):
         _logger.warning('start: %r   end: %r   start_date: %r   end_date: %r', psr.start, psr.end, psr.start_date, psr.end_date)
         domain = []
         if psr.approved:
-            domain.append(('approved','=','Approved'))
+            domain.append(('approved','=','yes'))
         if psr.rejected:
-            domain.append(('approved','=','Rejected'))
+            domain.append(('approved','=','no'))
         if psr.rnd_use:
             domain.append(('rnd_use','=',True))
         if psr.sort == 'date':

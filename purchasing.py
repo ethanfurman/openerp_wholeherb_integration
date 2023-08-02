@@ -6,10 +6,10 @@ import logging
 _logger = logging.getLogger(__name__)
 
 class Approval(fields.SelectionEnum):
-    _order_ = 'NONE YES NO'
-    NONE = '', ''
-    YES = 'yes', 'Accepted'
-    NO = 'no', 'Rejected'
+    _order_ = 'none yes no'
+    none = '', ''
+    yes = 'Accepted'
+    no = 'Rejected'
 
 
 class ReportType(fields.SelectionEnum):
