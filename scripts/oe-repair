@@ -173,7 +173,7 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
     domain = literal_eval(selection)
     IGNORECASE = ignore_case
     DRY_RUN = dry_run
-    OERec = OERecTuple(
+    OERec = NamedTuple(
             'OERec',
             list(dupe) + prefer + inheriting_fields + [
                 f
@@ -182,7 +182,7 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
                     )
                 if f not in dupe
                 ]
-            + ['_model', '_tertiary', '_key', '_primary']
+            + ['_model', '_tertiary']
             )
     OERec.key_len = len(dupe)
     OERel = NamedTuple('OERel', ['model', 'field'])
@@ -314,7 +314,7 @@ def fix_name(table, selection, dry_run):
 
 
 @Command(
-        table=Spec('Which table to update', ),
+        table=Spec('Which table to examine', ),
         selection=Spec('an OpenERP domain to determine record selection', ),
         fields=Spec('other fields to display', MULTIREQ, force_default=()),
         )
@@ -331,7 +331,7 @@ def map_record(table, selection, fields):
             'OERec',
             fields + inheriting_fields + [
                 'id', 'create_uid', 'create_date', 'write_uid', 'write_date',
-                'xmlid', '_model', '_tertiary', '_key', '_primary',
+                'xmlid', '_model', '_tertiary',
                 ])
     OERel = NamedTuple('OERel', ['model', 'field'])
     upstream, downstream, inherited = get_relations(table)
@@ -920,27 +920,6 @@ def pick_one(records, prefer):
     primary = records.pop(0)
     return primary, records
 
-class OERecTuple(NamedTuple):
-    #
-    # key_len = a_number         # set by main program
-    #
-    @classmethod
-    def record_key(cls, rec):
-        keys = []
-        for value in rec[:cls.key_len]:
-            if isinstance(value, str) and IGNORECASE:
-                keys.append(value.upper())
-            elif isinstance(value, list):
-                keys.append(tuple(value))
-            else:
-                keys.append(value)
-        return tuple(keys)
-    #
-    @classmethod
-    def _review_(cls, args):
-        # set the last two args: _key and _primary
-        args[-2] = key = cls.record_key(args)
-        args[-1] = bool(key[-1])
 
 # unknown
 def add_imd(): pass
