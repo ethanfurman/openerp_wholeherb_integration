@@ -160,12 +160,16 @@ class preship_sample(osv.Model):
         'product_id': fields.many2one('product.product', 'Product'),
         'rnd_use': fields.boolean('R/D Use Only'),
         'approved': fields.selection(Approval, 'Approval Status'),
-        'supplier_id': fields.many2one('res.partner', 'Supplier'),
+        'supplier_id': fields.many2one('res.partner', 'Supplier', domain="[('supplier','=',True),('xml_id','!=',False)]"),
         'supplier_lot_no': fields.char('Supplier Lot #', size=64),
         'supplier_address': fields.text('Supplier Address'),
         'comments': fields.text('Comments'),
-        'salesrep_id': fields.many2one('res.users', 'WHC Sales Rep'),
-        'customer_id': fields.many2one('res.partner', 'WHC Customer'),
+        'salesrep_id': fields.many2one(
+                'res.users',
+                'WHC Sales Rep',
+                domain=[('groups_id','=',fields.ref('base.group_sale_salesman'))],
+                ),
+        'customer_id': fields.many2one('res.partner', 'WHC Customer', domain="[('customer','=',True),('xml_id','!=',False)]"),
         'adb_salesrep': fields.char('Sales Rep (MDB)', size=32),
         'adb_customer': fields.char('WHC Customer (MDB)', size=64),
         'adb_product': fields.char('Product (MDB)', size=64),
@@ -240,6 +244,19 @@ class preship_sample(osv.Model):
         'active': True,
         }
 
+    def onchange_supplier(self, cr, uid, ids, supplier_id, context=None):
+        res_partner = self.pool.get('res.partner')
+        supplier = res_partner.read(
+                cr, uid, supplier_id,
+                fields=['name','street','street2','city','state_abbr','zip','country_id'],
+                context=context,
+                )
+        address = [supplier['name'], supplier['street'], supplier['street2']]
+        city = '  '.join(supplier[f] for f in ('city','state_abbr','zip') if supplier[f])
+        address.append(city)
+        address.append(supplier['country_id'][1] or '')
+        _logger.warning('address: %r', address)
+        return {'value': {'supplier_address': '\n'.join(l for l in address if l)}}
 
 
 class preship_sample_report(osv.TransientModel):

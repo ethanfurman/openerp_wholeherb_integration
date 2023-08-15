@@ -148,7 +148,7 @@
                             @customer_id
                             @adb_customer attrs="{'invisible':['|',('customer_id','!=',False),('id','=',False)]}"
                         ~group
-                            @supplier_id
+                            @supplier_id on_change="onchange_supplier(supplier_id)"
                             @adb_supplier attrs="{'invisible':['|',('supplier_id','!=',False),('id','=',False)]}"
                             @supplier_lot_no
                             @approved
