@@ -186,7 +186,7 @@
             @view_id ref='purchasing_preship_log_tree_view'
             @view_mode: list,form
 
-        ~menuitem name='Supplier Samples' #preship_views parent='wholeherb_integration_purchasing' action='purchasing_preship_sample_normal_action' groups='base.group_sale_salesman' sequence='50' 
+        ~menuitem name='Pre-ship Samples' #preship_views parent='wholeherb_integration_purchasing' action='purchasing_preship_sample_normal_action' groups='base.group_sale_salesman' sequence='50' 
 
         // Reports
 
