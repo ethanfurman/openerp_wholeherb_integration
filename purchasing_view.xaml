@@ -197,16 +197,18 @@
                 ~form $Report create='false' version='7.0'
                     ~group
                         ~group $Sort
-                            @sort widget='radio' options="{'horizontal': 1}" nolabel='1'
-                        ~group $Range
-                            @start attrs="{'invisible': [('sort','=','date')]}"
-                            @end attrs="{'invisible': [('sort','=','date')]}"
-                            @start_date attrs="{'invisible': [('sort','!=','date')]}"
-                            @end_date attrs="{'invisible': [('sort','!=','date')]}"
-                    ~group $Filter
-                        @approved
-                        @rejected
-                        @rnd_use
+                            @sort nolabel='1'
+                        ~group $Filter
+                            @approved
+                            @rejected
+                            @rnd_use
+                        ~group $Ranges
+                            @start_date
+                            @end_date
+                            @start_prod
+                            @end_prod
+                            @start_supp
+                            @end_supp
                     ~button @create_pdf $Run_Report .oe_highlight type='object'
 
         ~record model='ir.actions.act_window' #purchasing_preship_report_action

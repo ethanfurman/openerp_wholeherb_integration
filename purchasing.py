@@ -13,9 +13,10 @@ class Approval(fields.SelectionEnum):
 
 
 class ReportType(fields.SelectionEnum):
-    date = 'Date'
-    product = 'Product'
-    supplier = 'Supplier'
+    _order_ = 'date_prod supp_prod prod_date'
+    date_prod = 'Date / Product'
+    supp_prod = 'Supplier / Product'
+    prod_date = 'Product / Date'
 
 class purchasing_lot(osv.Model):
     'Lot information associated with a purchase'
@@ -142,7 +143,6 @@ class preship_sample(osv.Model):
     _description = 'preship sample lot from supplier'
     _order = 'lot_no desc'
 
-
     def _get_names(self, cr, uid, ids, field_name=None, arg=None, context=None):
         res = {}
         for rec in self.browse(cr, uid, ids, context=context):
@@ -268,14 +268,16 @@ class preship_sample_report(osv.TransientModel):
         'approved': fields.boolean('Approved'),
         'rejected': fields.boolean('Rejected'),
         'rnd_use': fields.boolean('R/D'),
-        'start': fields.char('Start', size=24),
-        'end': fields.char('End', size=24),
         'start_date': fields.date('Start Date'),
         'end_date': fields.date('End Date'),
+        'start_prod': fields.char('Start Product', size=24),
+        'end_prod': fields.char('End Product', size=24),
+        'start_supp': fields.char('Start Supplier', size=24),
+        'end_supp': fields.char('End Supplier', size=24),
         }
 
     _defaults = {
-        'sort': ReportType.date,
+        'sort': ReportType.date_prod,
         }
 
     def create_pdf(self, cr, uid, ids, context=None):

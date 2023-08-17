@@ -16,11 +16,7 @@ from openerp.report.interface import report_int
 from openerp.report.render import render
 
 from openerplib.dates import DEFAULT_SERVER_DATE_FORMAT as D_FORMAT
-import logging
 
-_logger = logging.getLogger(__name__)
-
-GUTTER = 5
 
 class external_pdf(render):
     #
@@ -36,7 +32,6 @@ class external_pdf(render):
 class report_spec_sheet(report_int):
 
     def create(self, cr, uid, ids, datas, context=None):
-        _logger.warning('%r %r %r %r %r', cr, uid, ids, datas, context)
         if context is None:
             context = {}
 
@@ -44,8 +39,6 @@ class report_spec_sheet(report_int):
         preship_sample_report = pooler.get_pool(cr.dbname).get('wholeherb_integration.preship_sample.report')
 
         psr = preship_sample_report.browse(cr, uid, ids[0], context=context)
-        _logger.warning('sort: %r   app: %r   rej: %r   rnd: %r', psr.sort, psr.approved, psr.rejected, psr.rnd_use)
-        _logger.warning('start: %r   end: %r   start_date: %r   end_date: %r', psr.start, psr.end, psr.start_date, psr.end_date)
         domain = []
         if psr.approved:
             domain.append(('approved','=','yes'))
@@ -53,38 +46,42 @@ class report_spec_sheet(report_int):
             domain.append(('approved','=','no'))
         if psr.rnd_use:
             domain.append(('rnd_use','=',True))
-        if psr.sort == 'date':
-            if psr.start_date:
-                domain.append(('date_recd','>=',psr.start_date))
-            if psr.end_date:
-                domain.append(('date_recd','<=',psr.end_date))
-        _logger.warning('using domain: %r', domain)
+        if psr.start_date:
+            domain.append(('date_recd','>=',psr.start_date))
+        if psr.end_date:
+            domain.append(('date_recd','<=',psr.end_date))
+        if psr.start_prod:
+            domain.append(('product_name','>=',psr.start_prod))
+        if psr.end_prod:
+            domain.append(('product_name','<=',psr.end_prod))
+        if psr.start_supp:
+            domain.append(('supplier_name','>=',psr.start_supp))
+        if psr.end_supp:
+            domain.append(('supplier_name','<=',psr.end_supp))
         sample_ids = preship_sample.search(cr, uid, domain, context=context)
         samples = preship_sample.browse(cr, uid, sample_ids, context=context)
-        _logger.warning('found %d records', len(samples))
         records = {}
-        sort_index = PreshipSample._fields_.index(psr.sort)
-        if psr.sort == 'date':
+        if psr.sort == 'date_prod':
             for s in samples:
                 if s.date_recd:
                     date = datetime.strptime(s.date_recd, D_FORMAT)
-                    key = date.strftime('%Y %m'), date.strftime('%B %Y')
+                    group = date.strftime('%Y %m'), date.strftime('%B %Y')
                 else:
-                    key = '', '<not specified>'
-                records.setdefault(key, []).append(PreshipSample(s))
-        else:
-            start, end = (psr.start or '').lower(), (psr.end or '').lower()
-            slen = len(start)
-            elen = len(end)
+                    group = '', '<date missing>'
+                sort_key = s.date_recd, s.product_name, s.lot_no
+                records.setdefault(group, []).append((sort_key, PreshipSample(s)))
+        elif psr.sort == 'supp_prod':
             for s in samples:
-                v = PreshipSample(s)
-                # _logger.warning('v: %r', v)
-                key = v[sort_index].lower()
-                if slen and key[:slen] < start:
-                    continue
-                if elen and key[:elen] > end:
-                    continue
-                records.setdefault((key, v[sort_index]), []).append(v)
+                group = (s.supplier_name or '').lower(), s.supplier_name or ''
+                sort_key = (s.product_name or '').lower(), s.lot_no
+                records.setdefault(group, []).append((sort_key, PreshipSample(s)))
+        elif psr.sort == 'prod_date':
+            for s in samples:
+                group = (s.product_name or '').lower(), s.product_name or ''
+                sort_key = s.date_recd, s.lot_no
+                records.setdefault(group, []).append((sort_key, PreshipSample(s)))
+        else:
+            raise ValueError('unknow sort option: %r' % psr.sort)
 
         # create document
         pdf_io = BytesIO()
@@ -97,17 +94,17 @@ class report_spec_sheet(report_int):
                 showBoundary=0,
                 pagesize=(8.5*inch, 11*inch),
                 author='Whole Herb Company',
-                title='Supplier preship samples by %s' % psr.sort,
-                subject='Supplier Preship Samples',
+                title='Pre-ship samples by %s' % psr.sort,
+                subject='Pre-ship Samples',
             )
         doc.today = datetime.strptime(fields.date.today(preship_sample, cr, localtime=True), D_FORMAT)
         doc.last_entry = None
         flowables = [
                 ]
-        for (order, display), samples in sorted(records.items()):
-            samples.sort(key=lambda s: (s[sort_index], s.product, s.date))
+        for (group, display), samples in sorted(records.items()):
+            samples.sort()
             rows = []
-            for s in samples:
+            for k, s in samples:
                 rows.append([ProductEntry(s, sort=psr.sort, doc=doc)])
             flowables.append(Table(
                     [[Paragraph(display, styles['Request'])]] + rows,
@@ -150,16 +147,16 @@ class ProductEntry(Flowable):
         self.height = 0.6*inch
         self.sort = sort
         self.doc = doc
-        if sort == 'product':
+        if sort.startswith('prod_'):
             self.product = ''
-        elif sort == 'supplier':
+        elif sort.startswith('supp_'):
             self.supplier = ''
     #
     def __repr__(self):
         return "ProductEntry(product=%r, lot_no=%r)" % (self.product, self.lot_no)
     #
     def draw(self):
-        if self.sort == 'supplier':
+        if self.sort.startswith('supp_'):
             # only show product name if first in series, or beginning of page
             if self.doc.last_entry == self.product:
                 self.product = ''
@@ -197,7 +194,7 @@ def onPageByDate(c, doc):
     c.saveState()
     c.setFont('Times-Bold', 20)
     c.line(0.5*inch, 10.5*inch, 8.0*inch, 10.5*inch)
-    c.drawString(0.5*inch, 10.25*inch, "Supplier samples by date received")
+    c.drawString(0.5*inch, 10.25*inch, "Pre-ship samples by date received")
     c.line(0.5*inch, 10.125*inch, 8.0*inch, 10.125*inch)
     c.setFont('Times-Roman', 10)
     c.drawString(0.5*inch, 9.875*inch, "Month")
@@ -215,7 +212,7 @@ def onPageByProduct(c, doc):
     c.saveState()
     c.setFont('Times-Bold', 20)
     c.line(0.5*inch, 10.5*inch, 8.0*inch, 10.5*inch)
-    c.drawString(0.5*inch, 10.25*inch, "Supplier samples by product")
+    c.drawString(0.5*inch, 10.25*inch, "Pre-ship samples by product")
     c.line(0.5*inch, 10.125*inch, 8.0*inch, 10.125*inch)
     c.setFont('Times-Roman', 10)
     c.drawString(0.5*inch, 9.875*inch, "Product")
@@ -233,7 +230,7 @@ def onPageBySupplier(c, doc):
     c.saveState()
     c.setFont('Times-Bold', 20)
     c.line(0.5*inch, 10.5*inch, 8.0*inch, 10.5*inch)
-    c.drawString(0.5*inch, 10.25*inch, "Supplier samples by supplier")
+    c.drawString(0.5*inch, 10.25*inch, "Pre-ship samples by supplier")
     c.line(0.5*inch, 10.125*inch, 8.0*inch, 10.125*inch)
     c.setFont('Times-Roman', 10)
     c.drawString(0.5*inch, 9.875*inch, "Supplier")
@@ -246,9 +243,9 @@ def onPageBySupplier(c, doc):
     c.restoreState()
 
 page_headers = {
-        'date': onPageByDate,
-        'product': onPageByProduct,
-        'supplier': onPageBySupplier,
+        'date_prod': onPageByDate,
+        'prod_date': onPageByProduct,
+        'supp_prod': onPageBySupplier,
         }
 
 class PreshipSample(NamedTuple):
