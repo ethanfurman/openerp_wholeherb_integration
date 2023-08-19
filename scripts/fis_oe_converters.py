@@ -192,6 +192,7 @@ class CSMS(SynchronizeAddress):
         if not name:
             return ()
         company = AttrDict.fromkeys(self.OE_FIELDS, None)
+	company.fis_record = True
         company.name = name
         company.update(address)
         company[FIS_MODULE] = self.OE_KEY_MODULE
@@ -226,6 +227,7 @@ class CSMS(SynchronizeAddress):
                     name='F033_%s_res_partner' % (key),
                     )
             contact = AttrDict.fromkeys(self.OE_FIELDS, None)
+	    contact.fis_record = True
             name = fis_rec[F33.contact]
             # is it only an email?
             names = name.split()
@@ -238,7 +240,7 @@ class CSMS(SynchronizeAddress):
                 name = NameCase(' '.join(names[:-1]))
             contact.name = name
             contact.email = email
-            contact[FIS_MODULE] = 'F33'
+            contact[FIS_MODULE] = self.OE_KEY_MODULE
             contact[FIS_ID] = key
             contact.is_company = False
             contact.customer = True
@@ -432,6 +434,7 @@ class NVBA(Synchronize):
                 name=self.calc_xid(key),
                 )
         product_lot = AttrDict.fromkeys(self.OE_FIELDS, None)
+	product_lot.fis_record = True
         product_lot.lot_no = key
         product_lot.product_id = NVTY.Product(fis_rec[F250.item_id])
         product_lot.active = True
