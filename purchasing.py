@@ -160,7 +160,10 @@ class preship_sample(osv.Model):
         'product_id': fields.many2one('product.product', 'Product'),
         'rnd_use': fields.boolean('R/D Use Only'),
         'approved': fields.selection(Approval, 'Approval Status'),
-        'supplier_id': fields.many2one('res.partner', 'Supplier', domain="[('supplier','=',True),('xml_id','!=',False)]"),
+        'supplier_id': fields.many2one(
+                'res.partner', 'Supplier',
+                domain="[('supplier','=',True),('xml_id','!=',False),('is_company','=',True)]",
+                ),
         'supplier_lot_no': fields.char('Supplier Lot #', size=64),
         'supplier_address': fields.text('Supplier Address'),
         'comments': fields.text('Comments'),
@@ -169,7 +172,10 @@ class preship_sample(osv.Model):
                 'WHC Sales Rep',
                 domain=[('groups_id','=',fields.ref('base.group_sale_salesman'))],
                 ),
-        'customer_id': fields.many2one('res.partner', 'WHC Customer', domain="[('customer','=',True),('xml_id','!=',False)]"),
+        'customer_id': fields.many2one(
+                'res.partner', 'WHC Customer',
+                domain="[('customer','=',True),('xml_id','!=',False),('is_company','=',True)]",
+                ),
         'adb_salesrep': fields.char('Sales Rep (MDB)', size=32),
         'adb_customer': fields.char('WHC Customer (MDB)', size=64),
         'adb_product': fields.char('Product (MDB)', size=64),
