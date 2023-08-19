@@ -192,7 +192,7 @@ class CSMS(SynchronizeAddress):
         if not name:
             return ()
         company = AttrDict.fromkeys(self.OE_FIELDS, None)
-	company.fis_record = True
+        company.fis_record = True
         company.name = name
         company.update(address)
         company[FIS_MODULE] = self.OE_KEY_MODULE
@@ -227,7 +227,7 @@ class CSMS(SynchronizeAddress):
                     name='F033_%s_res_partner' % (key),
                     )
             contact = AttrDict.fromkeys(self.OE_FIELDS, None)
-	    contact.fis_record = True
+            contact.fis_record = True
             name = fis_rec[F33.contact]
             # is it only an email?
             names = name.split()
@@ -280,7 +280,7 @@ class CSMSS(SynchronizeAddress):
     OE_FIELDS = (
             'id', FIS_MODULE, FIS_ID, 'phone',
             'name', 'street', 'street2', 'city', 'state_id', 'zip', 'country_id',
-            'customer', 'fis_ship_to_parent_id', 'use_parent_address', 'is_company',
+            'customer', 'ship_to_parent_id', 'use_parent_address', 'is_company',
             'active',
             )
     FIS_SCHEMA = (
@@ -311,7 +311,7 @@ class CSMSS(SynchronizeAddress):
         # - '(fis_)module', '(fis|xml)_id', 'active',
         # - 'name', 'street', 'street2', 'city', 'state_id', 'zip', 'country_id',
         # - 'phone', 'is_company', 'customer','use_parent_address',
-        # - 'fis_ship_to_code', 'fis_ship_to_parent_id', 'fis_transmitter_id',
+        # - 'ship_to_parent_id',
         #
         # fields coming from OpenERP that are missing/invalid on the FIS side
         # - 'id',
@@ -354,7 +354,7 @@ class CSMSS(SynchronizeAddress):
         ship_to.customer = False
         ship_to.use_parent_address = False
         ship_to.phone = Phone(fis_rec[F34.tele])
-        ship_to.fis_ship_to_parent_id = CSMS.Partner(parent_xml_id)
+        ship_to.ship_to_parent_id = CSMS.Partner(parent_xml_id)
         return (XidRec.fromdict(ship_to, imd), )
 
 
@@ -434,11 +434,12 @@ class NVBA(Synchronize):
                 name=self.calc_xid(key),
                 )
         product_lot = AttrDict.fromkeys(self.OE_FIELDS, None)
-	product_lot.fis_record = True
+        product_lot.fis_record = True
         product_lot.lot_no = key
         product_lot.product_id = NVTY.Product(fis_rec[F250.item_id])
         product_lot.active = True
         product_lot.preship_lot = False
+        product_lot.fis_record = True
         return (XidRec.fromdict(product_lot, imd), )
 
 
