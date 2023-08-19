@@ -194,6 +194,13 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
     dupes = {}
     mixed = {}
     lax = {}
+    def key(record):
+        keys = []
+        for value in rec[:len(dupe)]:
+            if isinstance(value, str) and IGNORECASE:
+                value = value.upper()
+            keys.append(value)
+        return tuple(keys)
     if use_empty:
         valid_records = records
     else:
@@ -203,8 +210,8 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
                 valid_records.append(rec)
     records = enhance_and_filter(valid_records, upstream, inherited, dupe+prefer)
     for rec in ViewProgress(records, 'sorting $total records'):
-        mixed.setdefault(rec._key, []).append(rec)
-        lax.setdefault(rec._key[:-1], []).append(rec)
+        mixed.setdefault(key(rec), []).append(rec)
+        lax.setdefault(key(rec)[:-1], []).append(rec)
     if use_empty == 'lax':
         # sort any partial matches, moving them to appropriate mixed key if eligible
         for records in lax.values():
@@ -214,14 +221,16 @@ def dedupe(table, selection, dupe, prefer, use_empty, ignore_case, dry_run):
             canonical = set()
             possible_dupes = []
             for rec in records:
-                if rec._primary:
-                    canonical.add(rec._key)
-                    can_key = rec._key
+                rec_key = key(rec)
+                if rec_key[-1]:
+                    canonical.add(rec_key)
+                    can_key = rec_key
                 else:
                     possible_dupes.append(rec)
             # if only one canonical record, move possible_dupes to that record
             if len(canonical) == 1:
                 mixed[can_key].extend(possible_dupes)
+                mixed.pop(can_key[:-1], None)
     total = 0
     for key, records in ViewProgress(mixed.items(), 'checking $total keys'):
         if len(records) > 1:
@@ -910,12 +919,15 @@ def pick_one(records, prefer):
         count = 0
         for ids in record._tertiary.values():
             count += len(ids)
-        if record.xmlid and record.xmlid.startswith(('fis.','whc.')):
-            is_fis = 1  # 1 means yes (sorts after 0)
+        if record.xmlid and record.xmlid.startswith('fis.'):
+            is_fis = 0
+        elif record.xmlid and record.xmlid.startswith('whc.'):
+            is_fis = 1
         else:
-            is_fis = 0  # 0 means no (sorts before 1)
+            is_fis = 2
+        not_lax = bool(record[OERec.key_len-1])
         preferred = sum([1 for p in prefer if getattr(record, p, None)])
-        return -record._primary, -is_fis, -preferred, -count, record.create_date
+        return -not_lax, -is_fis, -preferred, -count, record.create_date
     records.sort(key=lambda r: key(r))
     primary = records.pop(0)
     return primary, records
