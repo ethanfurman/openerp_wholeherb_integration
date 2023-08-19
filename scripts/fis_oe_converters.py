@@ -439,7 +439,6 @@ class NVBA(Synchronize):
         product_lot.product_id = NVTY.Product(fis_rec[F250.item_id])
         product_lot.active = True
         product_lot.preship_lot = False
-        product_lot.fis_record = True
         return (XidRec.fromdict(product_lot, imd), )
 
 
