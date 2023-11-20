@@ -6,6 +6,14 @@
 ~openerp
     ~data
 
+        ~record #product_tree_view_xml_id model=view
+            @name: view.product.product.tree.xml_id
+            @model: product.product
+            @inherit_id ref='product.product_product_tree_view'
+            @arch type='xml'
+                @lst_price position='replace'
+                    @pl_1000
+
         // Add external_id and salesinq tab to product.product
         ~record #product_normal_form_view_xml_id model=view
                 @name: view.product.product.form.xml_id
@@ -37,7 +45,7 @@
                             @c_of_a attrs="{'invisible': [('c_of_a','=',False)]}" options="{'no_embed': True}"
                             ~separator $Safety_Data_Sheets attrs="{'invisible': [('sds','=',False)]}"
                             @sds attrs="{'invisible': [('sds','=',False)]}" options="{'no_embed': True}"
-                    @list_price position='after'
+                    @list_price position='replace'
                         @sold_by
                     @default_code position='replace'
                         @latin
