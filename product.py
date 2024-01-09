@@ -514,9 +514,9 @@ class product_traffic(osv.Model):
             values['purchase_comment_date'] = fields.date.today(self, cr)
             values['state'] = 'seen'
         user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
-        follower_ids = [u.id for u in user.company_id.traffic_followers_ids]
+        follower_ids = [u.partner_id.id for u in user.company_id.traffic_followers_ids]
         if follower_ids:
-            values['message_follower_user_ids'] = follower_ids
+            values['message_follower_ids'] = follower_ids
         return super(product_traffic, self).create(cr, uid, values, context=ctx)
 
     def mark_as(self, cr, uid, ids, state, context=None):
