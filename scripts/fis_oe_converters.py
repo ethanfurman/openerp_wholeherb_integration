@@ -271,7 +271,7 @@ class CSMSS(SynchronizeAddress):
     TN = 34
     FN = 'CSMSS'
     F = 'F034'
-    RE = r"10......1...."
+    RE = r"10......1.."
     OE = 'res.partner'
     IMD = 'res_partner'
     FIS_KEY = F34.cust_no
@@ -329,7 +329,7 @@ class CSMSS(SynchronizeAddress):
             return ()
         parent_xml_id = fis_rec[F34.cust_no]
         names, address, do_not_use = self.process_name_address(F34, fis_rec)
-        ship_to_code = fis_rec[F34.ship_to_no].strip() or 'dflt'
+        ship_to_code = fis_rec[F34.ship_to_no].strip() or 'default'
         key = ('%s-%s' % (parent_xml_id, ship_to_code)).strip('-')
         pname = names and names[0] or ''
         pname = BsnsCase(pname) or ''
