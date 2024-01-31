@@ -108,6 +108,9 @@ Outside
 
 from osv import osv, fields
 from openerp.tools import self_ids
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class product_in_process_selection(osv.Model):
@@ -457,15 +460,21 @@ class OutsideProcessing(osv.Model):
             res[rec.id] = '%s' % (rec.process_number, )
         return res
     #
+    def _generate_order_by(self, order_spec, query):
+        order_spec = super(OutsideProcessing, self)._generate_order_by(order_spec, query)
+        if order_spec and '"outside_process"."name"' in order_spec:
+            order_spec = order_spec.replace('"outside_process"."name"', 'cast("outside_process"."name" as int)')
+        return order_spec
+    #
     _columns = {
         'name': fields.function(
                 _calc_name,
-                string='Name', type='char', size=128,
+                string='ID', type='char', size=128,
                 store={
                     'outside.process': (self_ids, ['process_number'], 10),
                     },
                 ),
-        'process_number' : fields.integer('Record', help=''),
+        'process_number' : fields.integer('Process number', help=''),
         'finished_lot_ids' : fields.many2many(
                 'wholeherb_integration.product_lot',
                 'outside_process_lot_out_rel', 'process_id', 'lot_id',
