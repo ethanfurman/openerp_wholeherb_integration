@@ -164,6 +164,14 @@
 
         ~menuitem @Lots #wholeherb_integration_product_lot parent='base.menu_product' action='action_wholeherb_integration_product_lot' groups='base.group_user'
 
+        ~record #wholeherb_integration_product_lot_simple_tree model=view
+            @name: wholeherb_integration_product_lot_simple_tree
+            @model: wholeherb_integration.product_lot
+            @arch type='xml'
+                ~tree $product_lots
+                    @lot_no
+                    @product_id
+
         // product traffic
 
         ~record #wholeherb_integration_product_traffic_tree model=view

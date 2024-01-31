@@ -8,8 +8,8 @@ Log work on products tracked by lot numbers.
 Tables
 ======
 
-Main
-----
+In-House
+--------
 
 --> **Product In** [[*inhouse.product_in*]] -- original product
 --| - **Name** [[*name*]] -- name of process (defaults to process number)
@@ -90,8 +90,6 @@ Main
 --| - **Possibly Valid Lot Number** [[*lot_no_maybe*]] -- omit obviously invalid product lot numbers (zone/type/platform/etc.)
 --| - **Pre-Ship Lot?**
 
-Configuration
--------------
 --> **Processes** [[*inhouse.selection.process*]] -- available processes for In-House jobs
 --| - **Name**
 --| - **Active** -- available for selection
@@ -99,6 +97,13 @@ Configuration
 --> **Equipment** [[inhouse.selection.equip_to_use*]] -- available equipment for In-House jobs
 --| - **Name**
 --| - **Active** -- available for selection
+
+Outside
+-------
+
+--> **aoeu**
+--|
+--|
 """
 
 from osv import osv, fields
@@ -437,4 +442,102 @@ class Finished_Product_Info(osv.Model):
                 ),
         }
 
+
+class OutsideProcessing(osv.Model):
+    _name = 'outside.process'
+    _description = 'Outside process record'
+    _order = 'process_number desc'
+    #
+    def _calc_name(self, cr, uid, ids, field_name, args, context=None):
+        # name from own non-string field
+        res = {}.fromkeys(ids, False)
+        if not ids:
+            return res
+        for rec in self.browse(cr, uid, ids, context=context):
+            res[rec.id] = '%s' % (rec.process_number, )
+        return res
+    #
+    _columns = {
+        'name': fields.function(
+                _calc_name,
+                string='Name', type='char', size=128,
+                store={
+                    'outside.process': (self_ids, ['process_number'], 10),
+                    },
+                ),
+        'process_number' : fields.integer('Record', help=''),
+        'finished_lot_ids' : fields.many2many(
+                'wholeherb_integration.product_lot',
+                'outside_process_lot_out_rel', 'process_id', 'lot_id',
+                string='Finished Lot#',
+                domain=[('lot_no_maybe','=',True)],
+                help='Lot# of finished product',
+                ),
+        'product_out_id' : fields.many2one(
+                'product.product',
+                string='Finished Product',
+                required=False,
+                help='',
+                ),
+        'date_sent' : fields.date('Date sent', help=''),
+        'status': fields.char('Status', size=30),
+        'date_qa_release': fields.date('QA release'),
+        'comments': fields.text('Comments'),
+        'raw_lot_ids' : fields.many2many(
+                'wholeherb_integration.product_lot',
+                'outside_process_lot_in_rel', 'process_id', 'lot_id',
+                string='Raw Lot#',
+                domain=[('lot_no_maybe','=',True)],
+                help='Preprocess lot#',
+                ),
+        'product_in_ids' : fields.many2many(
+                'product.product',
+                'outside_process_product_in_rel', 'process_id', 'product_id',
+                string='Raw product',
+                required=False,
+                help='Item Code & Description of product going into process',
+                ),
+        'sent_lbs': fields.float('Lbs sent to processor'),
+        'customer': fields.char('Customer', size=112),
+        'tests_req': fields.char('Tests required', size=112),
+        'sales_rep': fields.char('Sales rep', size=62),
+        'raw_supplier': fields.char('Raw material supplier', size=112),
+        'returned_lbs': fields.float('Lbs returned'),
+        'percent_loss': fields.float('Percent loss'),
+        'date_eta': fields.date('ETA'),
+        'date_revised_eta': fields.date('Revised ETA'),
+        'date_order_ship': fields.date('Order shipped'),
+        'processor_id': fields.many2one('outside.processor', string='Outside company'),
+        'process_id' : fields.many2one('outside.selection.process', string='Process', help='Process to be done'),
+        'create_date': fields.datetime('Date record created'),
+        }
+    #
+    _sql_constraints = [
+            ('number_unique', 'unique(process_number)', 'Record # already exists.'),
+            ]
+    #
+    def create(self, cr, uid, values, context=None):
+        if 'process_number' not in values or not values['process_number']:
+            values['process_number'] = self.pool.get('ir.sequence').next_by_code(cr, uid, 'outside.process', context=context)
+        return super(OutsideProcessing, self).create(cr, uid, values, context=context)
+
+
+class OutsideProcessor(osv.Model):
+    _name = 'outside.processor'
+    _description = 'Outside process company'
+    _order = 'code'
+    
+    _columns = {
+            'code': fields.char('Code', size=16),
+            'name': fields.char('Name', size=128),
+            }
+
+
+class OutsideProcess(osv.Model):
+    _name = 'outside.selection.process'
+    _description = 'Outside process'
+
+    _columns = {
+            'name': fields.char('Process', size=64),
+            }
 

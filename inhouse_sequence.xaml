@@ -14,3 +14,13 @@
             @code: inhouse.product_in
             @number_next eval='2000'
 
+        // Sequences outside.process
+        ~record #seq_type_outside_process model='ir.sequence.type'
+            @name: Outside Processing Number
+            @code: outside.process
+        
+        ~record #seq_outside_process model='ir.sequence'
+            @name: Outside Processing Number
+            @code: outside.process
+            @number_next eval='3250'
+

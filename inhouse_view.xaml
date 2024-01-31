@@ -4,11 +4,12 @@
 
 
         // top menu item
-        ~menuitem name='InHouse' #inhouse_root_menu sequence='47'
+        ~menuitem name='Process' #inhouse_root_menu sequence='47'
 
-        // first menu item and config menu item
+        // InHouse processes
+
+        // first menu item
         ~menuitem name='InHouse' #inhouse_main_menu parent='inhouse_root_menu' sequence='10'
-        ~menuitem name='Configuration' #inhouse_config_menu parent='inhouse_root_menu' sequence='90'
 
 
         // Product In Info views
@@ -286,7 +287,7 @@
             @view_mode: tree,form
             @view_id ref='inhouse_selection_process_tree'
 
-        ~menuitem $Processes #whc_inhouse_selection_process_menu parent='inhouse_config_menu' action='action_inhouse_selection_process'
+        ~menuitem $Processes #whc_inhouse_selection_process_menu parent='inhouse_main_menu' action='action_inhouse_selection_process' sequence='80'
 
 
         ~record model='ir.ui.view' #inhouse_selection_equipment_form
@@ -324,10 +325,163 @@
             @view_mode: tree,form
             @view_id ref='inhouse_selection_equipment_tree'
 
-        ~menuitem $Equipment #whc_inhouse_selection_equipment_menu parent='inhouse_config_menu' action='action_inhouse_selection_equipment'
+        ~menuitem $Equipment #whc_inhouse_selection_equipment_menu parent='inhouse_main_menu' action='action_inhouse_selection_equipment' sequence='90'
 
         ~report model='inhouse.product_out' name='inhouse.product_out.finished_product' header='True' auto='True' multi='False' xml='wholeherb_integration/report/inhouse-finished_product.xml' xsl='wholeherb_integration/report/inhouse-finished_product.xsl' $Finished_Product #report_wholeherb_integration_finished_product
         ~report model='inhouse.product_out' name='inhouse.product_out.costing_report' header='True' auto='True' multi='False' xml='wholeherb_integration/report/inhouse-costing.xml' xsl='wholeherb_integration/report/inhouse-costing.xsl' $Processing_Costing #report_wholeherb_integration_process_costing
         ~report model='inhouse.job_time' name='inhouse.job_time.job_time' header='True' auto='True' multi='False' xml='wholeherb_integration/report/inhouse-job_time.xml' xsl='wholeherb_integration/report/inhouse-job_time.xsl' $Job_Time #report_wholeherb_integration_process_job_time
         ~report model='inhouse.product_in' name='inhouse.product_out.work_order' header='True' auto='True' multi='False' xml='wholeherb_integration/report/inhouse-work_order.xml' xsl='wholeherb_integration/report/inhouse-work_order.xsl' $Work_Order #report_wholeherb_integration_process_work_order
-        
+
+
+        // Outside processes
+
+        // second menu item
+        ~menuitem name='Outside' #outside_main_menu parent='inhouse_root_menu' sequence='10'
+
+        // Processing
+
+        ~record model='ir.ui.view' #outside_process_view_form
+            @name: outside.process.view.form
+            @model: outside.process
+            @type: form
+            @arch type='xml'
+                ~form string='Outside Processing' version='7.0'
+                    ~group
+
+                        ~group
+                            @name .oe_view_only
+                            @process_number .oe_edit_only
+                            @processor_id
+                            @process_id
+                            @status
+                        ~group
+                            @sales_rep
+                            @raw_supplier
+                            @customer
+                            @tests_req
+
+                        ~group
+                            @sent_lbs
+                            @returned_lbs
+                            @percent_loss
+                        ~group
+                            @date_sent
+                            @date_eta
+                            @date_revised_eta
+                            @date_order_ship
+                            @date_qa_release
+
+                        ~group
+                            @product_out_id
+                        ~group
+                            @product_in_ids
+                                ~tree
+                                    @xml_id
+                                    @name
+                        ~group
+                            @finished_lot_ids
+                                ~tree
+                                    @lot_no
+                                    @product_id
+                        ~group
+                            @raw_lot_ids
+                                ~tree
+                                    @lot_no
+                                    @product_id
+
+                    ~label for='comments' $Comments
+                    @comments
+
+        ~record model='ir.ui.view' #outside_process_view_tree
+            @name: outside.process.view.tree
+            @model: outside.process
+            @type: tree
+            @arch type='xml'
+                ~tree string='Outside Processing'
+                    @name
+                    @processor_id
+                    @process_id
+                    @status
+
+        ~record model='ir.ui.view' #outside_process_search
+            @name: outside.process.view.search
+            @model: outside.process
+            @type: search
+            @arch type='xml'
+                ~search string='Processing Tickets'
+                    @process_number
+                    @processor_id
+                    @process_id
+                    @customer
+                    @product_out_id
+
+        ~record model='ir.actions.act_window' #action_outside_process
+            @name: Processing
+            @res_model: outside.process
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='outside_process_view_tree'
+
+        ~menuitem $Processing #whc_outside_process_menu parent='outside_main_menu' action='action_outside_process' sequence='20'
+
+
+        // Processors
+
+        ~record model='ir.ui.view' #outside_processor_view_form
+            @name: outside.processor.view.form
+            @model: outside.processor
+            @type: form
+            @arch type='xml'
+                ~form string='Outside Processor' version='7.0'
+                    ~group
+                        @code
+                    ~group
+                        @name
+
+        ~record model='ir.ui.view' #outside_processor_view_tree
+            @name: outside.processor.view.tree
+            @model: outside.processor
+            @type: tree
+            @arch type='xml'
+                ~tree string='Outside Processor'
+                    @code
+                    @name
+
+        ~record model='ir.actions.act_window' #action_outside_processor
+            @name: Processor
+            @res_model: outside.processor
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='outside_processor_view_tree'
+
+        ~menuitem $Processors #whc_outside_processor_menu parent='outside_main_menu' action='action_outside_processor' sequence='30'
+
+
+        // Processes
+
+        ~record model='ir.ui.view' #outside_selection_process_view_form
+            @name: outside.selection.process.view.form
+            @model: outside.selection.process
+            @type: form
+            @arch type='xml'
+                ~form string='Outside Processor' version='7.0'
+                    ~group
+                        @name
+
+        ~record model='ir.ui.view' #outside_selection_process_view_tree
+            @name: outside.selection.process.view.tree
+            @model: outside.selection.process
+            @type: tree
+            @arch type='xml'
+                ~tree string='Outside Processor'
+                    @name
+
+        ~record model='ir.actions.act_window' #action_outside_selection_process
+            @name: Process
+            @res_model: outside.selection.process
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='outside_selection_process_view_tree'
+
+        ~menuitem $Process #whc_outside_selection_process_menu parent='outside_main_menu' action='action_outside_selection_process' sequence='40'
+
