@@ -11,8 +11,16 @@
             @model: product.product
             @inherit_id ref='product.product_product_tree_view'
             @arch type='xml'
+                @virtual_available position='attributes'
+                    ~attribute @invisible: True
+                @virtual_available position='after'
+                    @pl_100
                 @lst_price position='replace'
                     @pl_1000
+                @state position='attributes'
+                    ~attribute @invisible: True
+                @state position='after'
+                    @pl_nlt
 
         // Add external_id and salesinq tab to product.product
         ~record #product_normal_form_view_xml_id model=view
@@ -23,33 +31,36 @@
                 @arch type='xml'
                     ~xpath expr="//div[@name='buttons']" position='inside'
                         ~button name='button_fis_refresh' $FIS_Refresh type='object'
+                    ~xpath expr="//form/sheet/div/div" position='before'
+                        ~h3
+                            @fis_latin
                     ~xpath expr="//div[@name='options']" position='inside'
                         @product_is_blend
                         ~label for='product_is_blend'
-                    ~xpath expr="//group[@name='sale']" position='inside'
-                        ~group $Quantity_Pricing
-                            @pl_100
-                            @pl_1000
-                            @pl_nlt
-                    ~page $Sales position='after'
-                        ~page $Lots
-                            @lot_ids nolabel='1'
-                                ~tree
-                                    @lot_no
-                                    @cofo_ids widget='many2many'
-                                    @qty_remain
-                                    @qty_recd_uom_id
+                    ~page $Information position='replace'
+                    ~page $Procurements position='replace'
+                    ~page $Inventory position='replace'
+                    ~xpath expr="//group[@string='Sale Conditions']" position='replace'
+                    ~xpath expr="//group[@name='sale']" position='replace'
+                        ~group
+                            ~group $Quantity_Pricing
+                                @pl_100
+                                @pl_1000
+                                @pl_nlt
+                                ~separator colspan='2'
+                                @pl_last_change
+                            ~group $Included_in_Price
+                                @pi_metal
+                                @pi_treatment
+                                @pi_sifting
+                                @pi_milling
+                                @pi_none
                     ~page $Sales position='after'
                         ~page $Documents
                             ~separator $Certificates_of_Analysis attrs="{'invisible': [('c_of_a','=',False)]}"
                             @c_of_a attrs="{'invisible': [('c_of_a','=',False)]}" options="{'no_embed': True}"
                             ~separator $Safety_Data_Sheets attrs="{'invisible': [('sds','=',False)]}"
                             @sds attrs="{'invisible': [('sds','=',False)]}" options="{'no_embed': True}"
-                    @list_price position='replace'
-                        @sold_by
-                    @default_code position='replace'
-                        @latin
-                        @xml_id
 
         ~record #product_normal_action model=act_window
             @name: Products

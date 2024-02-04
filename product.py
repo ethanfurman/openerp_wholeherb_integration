@@ -182,6 +182,20 @@ class product_product(xmlid, osv.Model):
 
     # XXX end production routines
 
+    def _get_fis_latin(self, cr, uid, ids, field_name=None, arg=False, context=None):
+        if context is None:
+            context = {}
+        records = self.browse(cr, uid, ids, context=context)
+        values = {}
+        for rec in records:
+            names = []
+            if rec.xml_id:
+                names.append('[%s]' % rec.xml_id)
+            if rec.latin:
+                names.append(rec.latin)
+            values[rec.id] = ' '.join(names)
+        return values
+
     def _product_available(self, cr, uid, ids, field_names=None, arg=False, context=None):
         if context is None:
             context = {}
@@ -212,6 +226,10 @@ class product_product(xmlid, osv.Model):
         'module': fields.char('FIS Module', size=16, readonly=True),
         'sold_by': fields.char('Sold by', size=50, help="unit size"),
         'latin': fields.char('Latin name', size=40),
+        'fis_latin': fields.function(
+                _get_fis_latin,
+                type='char', size=96, string='FIS ID & Latin name',
+                ),
         'avail': fields.char('Available?', size=24),
         'spcl_ship_instr': fields.text('Special Shipping Instructions'),
         'fis_location': fields.char('Location', size=6),
@@ -234,6 +252,12 @@ class product_product(xmlid, osv.Model):
         'pl_100': fields.float(string='100+ price'),
         'pl_1000': fields.float(string='1000+ price'),
         'pl_nlt': fields.float(string='NLT'),
+        'pl_last_change': fields.date('Last price change'),
+        'pi_metal': fields.boolean('Metal detection'),
+        'pi_treatment': fields.boolean('Treatment'),
+        'pi_sifting': fields.boolean('Sifting'),
+        'pi_milling': fields.boolean('Milling'),
+        'pi_none': fields.boolean('None'),
         'product_is_blend' : fields.boolean('Product is blend'),
         'lot_ids': fields.one2many('wholeherb_integration.product_lot', 'product_id', 'Lots'),
         'fnxfs_files': files('general', string='Available Files'),
@@ -246,7 +270,55 @@ class product_product(xmlid, osv.Model):
 
     _defaults = {
             'fis_record': False,
+            'pl_last_change': False,
             }
+
+    def create(self, cr, uid, values, context=None):
+        if not ('pl_last_change' in values and values['pl_last_change']):
+            for f in ('pl_100','pl_1000','pl_nlt'):
+                if values.get(f, 0):
+                    values['pl_last_change'] = fields.date.today(self, cr, localtime=True)
+                    break
+        return super(product_product, self).create(cr, uid, values, context=context)
+
+    def write(self, cr, uid, ids, values, context=None):
+        if (
+                ('pl_last_change' in values and values['pl_last_change'])
+                or (
+                    'pl_100' not in values
+                    and 'pl_1000' not in values
+                    and 'pl_nlt' not in values
+                    )
+            ):
+            # change date specified or no price changes this time, we're done here
+            return super(product_product, self).write(cr, uid, ids, values, context=context)
+        #
+        # separate ids into those that need to have their pl_last_change updated, and
+        # those that do not
+        #
+        pl_changed = []
+        pl_same = []
+        changed_fields = [
+                f
+                for f in ('pl_100','pl_1000','pl_nlt')
+                if f in values
+                ]
+        records = self.read(cr, uid, ids, fields=changed_fields, context=context)
+        for rec in records:
+            for f in changed_fields:
+                if rec[f] != values[f]:
+                    pl_changed.append(rec['id'])
+                    break
+            else:
+                pl_same.append(rec['id'])
+        res1 = res2 = True
+        if pl_changed:
+            values['pl_last_change'] = fields.date.today(self, cr, localtime=True)
+            res1 = super(product_product, self).write(cr, uid, pl_changed, values, context=context)
+            values.pop('pl_last_change')
+        if pl_same:
+            res2 = super(product_product, self).write(cr, uid, pl_same, values, context=context)
+        return res1 and res2
 
     def fnxfs_folder_name(self, records):
         "return name of folder to hold related files"
