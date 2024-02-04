@@ -126,8 +126,8 @@ def fix_imd(table):
 
 
 @Command(
-        table=Spec('Which table to update', ),
-        selection=Spec('an OpenERP domain to determine record selection', ),
+        table=Spec('Which table to update', REQUIRED),
+        selection=Spec('an OpenERP domain to determine record selection', REQUIRED),
         dupe=Spec('fields to consider for duplicates', MULTIREQ),
         prefer=Spec('which non-empty fields have priority in picking winning record', MULTI),
         use_empty=Spec('how to handle empty dupe fields', OPTION, choices=['lax','strict']),
@@ -323,8 +323,8 @@ def fix_name(table, selection, dry_run):
 
 
 @Command(
-        table=Spec('Which table to examine', ),
-        selection=Spec('an OpenERP domain to determine record selection', ),
+        table=Spec('Which table to examine', REQUIRED),
+        selection=Spec('an OpenERP domain to determine record selection', REQUIRED),
         fields=Spec('other fields to display', MULTIREQ, force_default=()),
         )
 def map_record(table, selection, fields):
