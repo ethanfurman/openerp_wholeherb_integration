@@ -2,7 +2,7 @@
 ~openerp
     ~data
 
-        ~menuitem @Purchasing #wholeherb_integration_purchasing parent='base.menu_base_partner' groups='base.group_sale_salesman' 
+        ~menuitem @Purchasing #wholeherb_integration_purchasing parent='base.menu_base_partner' groups='group_wholeherb_purchaser'
 
         ~record #purchasing_lot_tree_view model='ir.ui.view'
             @name: Purchase Lot Tree View
@@ -107,7 +107,7 @@
             @view_id ref='purchasing_tree_view'
             @act_window_id ref='purchase_order_normal_action'
 
-        ~menuitem @Purchases #purchasing_views parent='wholeherb_integration_purchasing' action='purchase_order_normal_action' groups='base.group_sale_salesman' sequence='30' 
+        ~menuitem @Purchases #purchasing_views parent='wholeherb_integration_purchasing' action='purchase_order_normal_action' groups='group_wholeherb_purchaser' sequence='30' 
 
         ~record #purchase_lot_normal_action model='ir.actions.act_window'
             @name: Purchased Lots
@@ -186,7 +186,7 @@
             @view_id ref='purchasing_preship_log_tree_view'
             @view_mode: list,form
 
-        ~menuitem name='Pre-ship Samples' #preship_views parent='wholeherb_integration_purchasing' action='purchasing_preship_sample_normal_action' groups='base.group_sale_salesman' sequence='50' 
+        ~menuitem name='Pre-ship Samples' #preship_views parent='wholeherb_integration_purchasing' action='purchasing_preship_sample_normal_action' groups='group_wholeherb_purchaser' sequence='50' 
 
         // Reports
 

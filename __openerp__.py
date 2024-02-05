@@ -20,6 +20,7 @@
     #        'security/ir.model.access.csv',
     #    ],
     'data': [
+	    'security/wholeherb_security.xaml',
             'res_config_view.xaml',
             'res_partner_view.xaml',
             'product_view.xaml',
