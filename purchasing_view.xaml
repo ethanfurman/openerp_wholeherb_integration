@@ -126,7 +126,7 @@
             @arch type='xml'
                 ~tree $Pre-Ship_Samples
                     @lot_no
-                    @product_name
+                    @product_id
                     @supplier_name
                     @date_recd
 
