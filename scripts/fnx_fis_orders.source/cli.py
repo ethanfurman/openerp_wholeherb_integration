@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/local/bin/suid-python --py3
 """
 Manage FIS order confirmations, open order invoices, and availability in OpenERP.
 """

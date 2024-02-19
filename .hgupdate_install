@@ -4,7 +4,7 @@ scripts/fis
 scripts/fnx_oe_import_pdfs $local --suid
 scripts/fnx_pull_SDS_Docs
 scripts/fis_update --suid
-scripts/fnx_fis_orders $local
+scripts/fnx_fis_orders $local --suid
 scripts/updates_fis_integration		fis_integration --suid openerp
 scripts/fis_oe_converters.py 		$fislib/fis_oe_converters.py
 scripts/fis_schema.py 			$fislib/schema.py
