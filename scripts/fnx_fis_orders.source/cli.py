@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Manage FIS order confirmations, open order invoices, and availability in OpenERP.
 """
@@ -8,7 +9,7 @@ Manage FIS order confirmations, open order invoices, and availability in OpenERP
 from __future__ import print_function
 from aenum import NamedTuple
 from antipathy import Path
-from dbf import Date
+from dbf import Date, DateTime
 from logging import INFO, getLogger, Formatter, handlers
 from re import match as re_match
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
@@ -25,6 +26,9 @@ from scription import *
 TA_RIGHT, antipathy, dbf, reportlab, scription
 
 version = "2022.1.12 [source: 2.243:/opt/openerp/openerp/wholeherb_integtration/scripts/fnx_fis_orders.source]"
+oe_order_confs = Path("/opt/openerp/var/openerp/fnxfs/res_partner/order_confs/")
+fis_order_pdfs = Path("/mnt/linuxworkstationmaster/pdfs")
+fis_order_confs = Path("/mnt/linuxworkstationmaster/confs")
 
 
 # API
@@ -283,6 +287,57 @@ def create_order_conf(order, source, dest, which):
     _logger.info('done')
 
 
+@Command(
+        )
+def status():
+    "Display current status of Order Processing system"
+    now = DateTime.now()
+    now
+    #
+    # is this script running from cron?  check /var/log/syslog
+    #
+    last_parent = last_entry = None
+    for line in open('/var/log/syslog'):
+        last_entry = SysLogLine(line)
+        if last_entry.source == 'CRON' and 'fnx_fis_orders' in line:
+            last_parent = last_entry
+    echo('LAST CRON ENTRIES\n==================')
+    echo(repr(last_parent))
+    echo('-------------------')
+    #
+    # what are the last orders created on 2.2?  check /mnt/linuxworkstationmaster/pdfs
+    # are they present in OpenERP?              check /opt/openerp/var/openerp/fnxfs/res_partner/order_confs
+    #
+    echo('\nlooking for latest order confirmations on 2.2')
+    order_list = Execute("ssh root@192.168.2.2 ls -st /mnt/linuxworkstationmaster/pdfs", pty=True)
+    orders = order_list.stdout.split('\n')[1:11]
+    echo('customer-order    status')
+    for order in orders:
+        o = SavedOrderConf(order.split()[-1])
+        echo('%8s-%s   %s' % (o.customer, o.order, ('missing','present')[o.on_disk()]))
+    echo('-------------------')
+    #
+    # are the order confirmations being processed on 2.2?
+    # check log at /var/log/export_order_confs.log
+    # check files at /mnt/linuxworkstationmaster/confs
+    #
+    echo('\nchecking order conf log file on 2.2')
+    fis_conf_log = Execute("ssh root@192.168.2.2 tail /var/log/export_order_confs.log", pty=True)
+    echo(fis_conf_log.stdout)
+    echo('-------------------')
+    echo('\nchecking order conf files (may hang if smb mount is disconnected)')
+    conf_list = Execute("ssh root@192.168.2.2 ls -st /mnt/linuxworkstationmaster/confs", pty=True)
+    conf_list = conf_list.stdout.split('\n')
+    count = 0
+    for conf in conf_list:
+        if conf.startswith('total') or '.' not in conf:
+            continue
+        echo(conf)
+        count += 1
+        if count >= 20:
+            break
+
+
 # reportlab
 
 class OrderConfTemplate(SimpleDocTemplate):
@@ -396,6 +451,75 @@ def rise(*fields):
     results = data + empty
     return results
 
+class CronEntry(str):
+    "minute  hour  day-of-month  month  day-of-week"
+
+    def __new__(cls, line):
+        if not line:
+            raise ValueError('no timing specified')
+        line = '  '.join((line.split() + ['*', '*', '*', '*', '*'])[:5])
+        ce = super(CronEntry, CronEntry).__new__(cls, line)
+        minute, hour, day_of_month, month, day_of_week = line.split()
+        ce.minute = ce._get_range(minute, range(60))
+        ce.hour = ce._get_range(hour, range(24))
+        ce.day_of_month = ce._get_range(day_of_month, range(1, 32))
+        ce.month = ce._get_range(month, range(1, 13))
+        ce.day_of_week = ce._get_range(day_of_week, range(7))
+        return ce
+
+    def __repr__(self):
+        return 'CronEntry(%s)' % super(CronEntry, self).__repr__()
+
+    def _get_range(self, value, valid_range):
+        #
+        # *
+        # */2
+        # 0-15
+        # 10,12,15
+        # 0-15/5
+        # 0-15/5,30-45/5
+        # */3,*/5
+        #
+        if value == '*':
+            return set(valid_range)
+        values = value.split(',')
+        final = []
+        for val in values:
+            if '/' in val:
+                val, step = val.split('/')
+                step = int(step)
+            else:
+                step = 1
+            if val == '*':
+                val = valid_range[::step]
+            elif '-' in val:
+                start, stop = val.split('-')
+                start = int(start)
+                stop = int(stop) + 1
+                val = range(start, stop, step)
+            else:
+                val = [int(val)]
+            final.extend(val)
+        return set(final)
+
+    def is_valid(self, timestamp):
+        # crontab has Sunday at 0, Monday at 1, but isoweekday has Sunday at 7, Monday at 1
+        weekday = (0, 1, 2, 3, 4, 5, 6, 0)[timestamp.isoweekday()]
+        return (
+                timestamp.minute in self.minute
+            and timestamp.hour in self.hour
+            and timestamp.day in self.day_of_month
+            and timestamp.month in self.month
+            and weekday in self.day_of_week
+            )
+
+    def next_occurance(self, timestamp):
+        timestamp = DateTime(timestamp).replace(second=0, delta_minute=+1)
+        while not self.is_valid(timestamp):
+            timestamp = timestamp.replace(delta_minute=+1)
+        return timestamp.datetime()
+
+
 class OrderConf(object):
     """
     bill-to, ship-to, and items on order confirmation
@@ -502,6 +626,66 @@ class OrderItem(NamedTuple):
         if notes:
             notes = 'Note: ' + notes
         return tuple.__new__(cls, (code, name, latin_name, qty, price, total, notes.strip()))
+
+
+class SavedOrderConf(object):
+    "represents an order confirmation file saved on 2.243"
+    #
+    def __init__(self, filename):
+        # 200221-123491.pdf
+        customer, order = filename.split('.')[0].split('-')
+        self.customer = customer
+        self.order = order
+        self.disk_name = oe_order_confs / customer / 'Conf_%s.pdf' % order
+    #
+    def on_disk(self):
+        return self.disk_name.exists()
+
+
+class SysLogLine(object):
+    #
+    lines = {}
+    #
+    def __init__(self, line):
+        # Feb 15 11:50:01 openerp CRON[32000]: (root) CMD (/usr/local/bin/cronaide watch --email ethan...
+        # Feb 15 11:50:01 openerp CRON[31999]: (root) CMD (touch /tmp/crontab-touch-test)
+        # Feb 15 11:50:01 openerp AIDE[32001]: [from 32000] start: /usr/local/bin/cronaide --email eth...
+        # Feb 15 11:50:02 openerp AIDE[32001]: [from 32000] succeeded
+        line = line.rstrip()
+        m, d, hms, h, sp, rest = line.split(' ', 5)
+        self.lead = ' '.join([m, d, hms, h, sp])
+        self.occurance = DateTime.strptime(' '.join([m, d, hms]), '%b %d %H:%M:%S')
+        self.host = h
+        src, pid = match(R'(\w*)(\[\d*\])?', sp).groups()
+        if pid is not None:
+            pid = pid[1:-1]
+        self.source = src
+        self.pid = pid
+        self.lines[self.pid] = self
+        self.message = rest
+        self.line = line
+        # if this was a cronaide line, link it up
+        self.history = []
+        self.parent = None
+        if src == 'AIDE':
+            if match(r'\[from (\d*)\]', rest):
+                from_pid ,= match.groups()
+                self.parent = from_pid
+                orig = self.lines.get(from_pid)
+                orig.history.append(self)
+    #
+    def __repr__(self):
+        lines = [self.line]
+        for h in self.history:
+            lines.append(h.line)
+        return '\n'.join(lines)
+    #
+    def __str__(self):
+        lines = [self.lead]
+        lines.append(self.message)
+        for h in self.history:
+            lines.append(h.message)
+        return '\n    '.join(lines)
 
 
 # reportlab config
