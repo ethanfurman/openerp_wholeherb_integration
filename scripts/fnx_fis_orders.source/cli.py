@@ -301,9 +301,9 @@ def status():
         last_entry = SysLogLine(line)
         if last_entry.source == 'CRON' and 'fnx_fis_orders' in line:
             last_parent = last_entry
-    echo('latest syslog entries:')
+    echo('\nlatest syslog entries:')
     echo(repr(last_parent))
-    echo('-------------------')
+    echo('\n-------------------')
     #
     # are the order confirmations being processed on 2.2?
     # check log at /var/log/export_order_confs.log
@@ -346,9 +346,9 @@ def status():
             break
     echo('\n-------------------\n')
     if first_order.order == first_conf and first_order.on_disk():
-        echo('post-FIS processing appears to be working')
+        echo('post-FIS processing appears to be working\n')
     else:
-        echo('post-FIS processing is failing')
+        echo('post-FIS processing is failing\n')
 
 
 
