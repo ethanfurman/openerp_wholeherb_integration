@@ -301,8 +301,16 @@ def status():
         last_entry = SysLogLine(line)
         if last_entry.source == 'CRON' and 'fnx_fis_orders' in line:
             last_parent = last_entry
-    echo('LAST CRON ENTRIES\n==================')
+    echo('latest syslog entries:')
     echo(repr(last_parent))
+    echo('-------------------')
+    #
+    # are the order confirmations being processed on 2.2?
+    # check log at /var/log/export_order_confs.log
+    #
+    echo('\nchecking order conf log file on 2.2')
+    fis_conf_log = Execute("ssh root@192.168.2.2 tail /var/log/export_order_confs.log", pty=True)
+    echo(fis_conf_log.stdout)
     echo('-------------------')
     #
     # what are the last orders created on 2.2?  check /mnt/linuxworkstationmaster/pdfs
@@ -311,31 +319,37 @@ def status():
     echo('\nlooking for latest order confirmations on 2.2')
     order_list = Execute("ssh root@192.168.2.2 ls -st /mnt/linuxworkstationmaster/pdfs", pty=True)
     orders = order_list.stdout.split('\n')[1:11]
-    echo('customer-order    status')
+    echo('customer-order    status in OpenERP')
+    first_order = None
     for order in orders:
         o = SavedOrderConf(order.split()[-1])
-        echo('%8s-%s   %s' % (o.customer, o.order, ('missing','present')[o.on_disk()]))
-    echo('-------------------')
+        if first_order is None:
+            first_order = o
+        echo('%8s-%s       %s' % (o.customer, o.order, ('missing','present')[o.on_disk()]))
+    echo('\n-------------------')
     #
-    # are the order confirmations being processed on 2.2?
-    # check log at /var/log/export_order_confs.log
     # check files at /mnt/linuxworkstationmaster/confs
     #
-    echo('\nchecking order conf log file on 2.2')
-    fis_conf_log = Execute("ssh root@192.168.2.2 tail /var/log/export_order_confs.log", pty=True)
-    echo(fis_conf_log.stdout)
-    echo('-------------------')
     echo('\nchecking order conf files (may hang if smb mount is disconnected)')
     conf_list = Execute("ssh root@192.168.2.2 ls -st /mnt/linuxworkstationmaster/confs", pty=True)
     conf_list = conf_list.stdout.split('\n')
     count = 0
+    first_conf = None
     for conf in conf_list:
         if conf.startswith('total') or '.' not in conf:
             continue
+        if first_conf is None:
+            first_conf = conf.split()[-1].split('.')[0]
         echo(conf)
         count += 1
         if count >= 20:
             break
+    echo('\n-------------------\n')
+    if first_order.order == first_conf and first_order.on_disk():
+        echo('post-FIS processing appears to be working')
+    else:
+        echo('post-FIS processing is failing')
+
 
 
 # reportlab
