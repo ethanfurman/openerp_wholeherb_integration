@@ -217,7 +217,7 @@
                         @message_ids widget='mail_thread'
 
         ~record #search_product_traffic model=view
-            @name: Product Traffic Searh
+            @name: Product Traffic Search
             @model: wholeherb_integration.product_traffic
             @arch type='xml'
                 ~search $Search_Traffic
@@ -281,6 +281,54 @@
             @key2: client_action_multi
 
         ~report model='wholeherb_integration.product_traffic' name='wholeherb_integration.product_traffic.selected_records' header='True' auto='True' multi='True' xml='wholeherb_integration/report/product-traffic.xml' xsl='wholeherb_integration/report/product-traffic.xsl' $Product_Traffic #report_wholeherb_integration_product_traffic
+
+        // product missed sales
+
+        ~record #wholeherb_integration_product_missed_sales_tree model=view
+            @name: wholeherb_integration_product_missed_sales_tree
+            @model: wholeherb_integration.product_missed_sales
+            @arch type='xml'
+                ~tree $Product_Missed_Sales
+                    @date
+                    @product_id
+                    @comment
+
+        ~record #wholeherb_integration_product_missed_sales_form model=view
+            @name: wholeherb_integration_product_missed_sales_form
+            @model: wholeherb_integration.product_missed_sales
+            @arch type='xml'
+                ~form $Product_Missed_Sales version='7.0'
+                    ~group
+                        ~group
+                            @product_id options="{'limit':15, 'create':False, 'create_edit':False}"
+                        ~group
+                            @date
+                        ~group
+                            @comment
+                    ~div .oe_chatter
+                        @message_follower_ids widget='mail_followers'
+                        @message_ids widget='mail_thread'
+
+        ~record #search_product_missed_sales model=view
+            @name: Product Missed Sales Search
+            @model: wholeherb_integration.product_missed_sales
+            @arch type='xml'
+                ~search $Search_Missed_Sales
+                    @product_id $Product
+                    @comment $Comment
+                    ~separator
+                    ~group expand='0' string='Group by...'
+                        ~filter $Product domain='[]' context="{'group_by': 'product_id'}"
+                        ~filter $Date domain='[]' context="{'group_by': 'date'}"
+
+        ~record #action_wholeherb_integration_product_missed_sales model=act_window
+            @name: Product Missed Sales
+            @res_model: wholeherb_integration.product_missed_sales
+            @view_type: form
+            @view_mode: tree,form
+            @limit eval='250'
+
+        ~menuitem name="Missed Sales" #wholeherb_integration_product_missed_sales parent='base.menu_product' action='action_wholeherb_integration_product_missed_sales' groups='base.group_user' sequence='100'
 
     ~data noupdate='1'
 

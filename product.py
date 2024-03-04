@@ -628,3 +628,20 @@ class product_traffic(osv.Model):
             return True
         return super(product_traffic, self).write(cr, uid, ids, values, context=context)
 
+
+class product_missed_sales(osv.Model):
+    _name = 'wholeherb_integration.product_missed_sales'
+    _description = 'missed sale due to insufficient product'
+    _order = 'date desc'
+    _inherit = ['mail.thread']
+
+    _columns = {
+        'date': fields.date('Date Created'),
+        'product_id': fields.many2one('product.product', 'Product', required=True),
+        'comment': fields.text('Comments'),
+        }
+
+    _defaults = {
+        'date': lambda s, c, u, ctx=None: fields.date.today(s, c),
+        }
+
