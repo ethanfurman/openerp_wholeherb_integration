@@ -11,16 +11,18 @@
             @model: product.product
             @inherit_id ref='product.product_product_tree_view'
             @arch type='xml'
+                ~xpath expr="//tree" position='attributes'
+                    ~attribute @colors eval=""
                 @virtual_available position='attributes'
                     ~attribute @invisible: True
                 @virtual_available position='after'
-                    @pl_100
+                    @pl_nlt
                 @lst_price position='replace'
                     @pl_1000
                 @state position='attributes'
                     ~attribute @invisible: True
                 @state position='after'
-                    @pl_nlt
+                    @pl_100
 
         // Add external_id and salesinq tab to product.product
         ~record #product_normal_form_view_xml_id model=view
