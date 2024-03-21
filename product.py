@@ -546,7 +546,28 @@ class product_traffic(osv.Model):
             self.write(cr, uid, cart, {'state': False}, context=context)
         return True
 
+    def _find_open_entries(self, cr, uid, ids, field_names, arg, context=None):
+        """
+        return duplicate open entries per item
+        """
+        res = {}
+        products = {}
+        current_records = self.read(cr, uid, ids, fields=['product_id'], context=context)
+        for rec in current_records:
+            products[rec['product_id'][0]] = []
+        for rec in self.read(
+                cr, uid,
+                [('product_id','in',products.keys()),('state','!=','done')],
+                fields=['product_id'],
+                context=context,
+            ):
+            products[rec['product_id'][0]].append(rec['id'])
+        for rec in current_records:
+            res[rec['id']] = [id for id in products[rec['product_id'][0]] if id != rec['id']]
+        return res
+
     _columns = {
+        'name': fields.related('product_id','name', string='Product name', type='text', readonly=True),
         'date': fields.date('Date Created'),
         'product_id': fields.many2one('product.product', 'Product', required=True),
         'sales_comment': fields.selection(
@@ -565,6 +586,13 @@ class product_traffic(osv.Model):
             'Purchasing comment available?',
             ),
         'purchase_comment_date': fields.date('Purchasing updated'),
+        'open_entry_ids': fields.function(
+            _find_open_entries,
+            help="currently open traffic entries",
+            relation='wholeherb_integration.product_traffic',
+            type='one2many',
+            string='EXISTING ENTRIES',
+            ), 
         }
 
     _defaults = {
@@ -573,7 +601,6 @@ class product_traffic(osv.Model):
         }
 
     _constraints = [
-        (lambda s, *a: s._check_already_open(*a), '\nOpen item already exists', ['product_id']),
         ]
 
     def create(self, cr, uid, values, context=None):
@@ -601,6 +628,15 @@ class product_traffic(osv.Model):
         for record in self.browse(cr, uid, ids, context=context):
             res.append((record.id, record.product_id.name))
         return res
+
+    def onchange_product(self, cr, uid, ids, product_id, context=None):
+        return {'value':
+                {'open_entry_ids': self.search(
+                        cr, uid,
+                        [('product_id','=',product_id),('id','not in',ids)],
+                        context=context,
+                        )}
+                }
 
     def write(self, cr, uid, ids, values, context=None):
         if isinstance(ids, (int, long)):

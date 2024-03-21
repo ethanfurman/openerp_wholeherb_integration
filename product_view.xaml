@@ -206,9 +206,11 @@
                         @state widget='statusbar'
                     ~group
                         ~group
-                            @product_id options="{'limit':15, 'create':False, 'create_edit':False}"
+                            @product_id options="{'limit':15, 'create':False, 'create_edit':False}" on_change="onchange_product(product_id)"
                         ~group
                             @date
+                        ~group colspan='4' attrs="{'invisible': [('open_entry_ids','=',[])]}"
+                            @open_entry_ids
                         ~group
                             @sales_comment
                             @purchase_comment
