@@ -11,3 +11,7 @@
             @category_id ref='module_wholeherb'
             @comment: User is able to work with vendors
 
+        ~record model='res.groups' #group_wholeherb_beta_tester
+            @name: Beta Tester
+            @category_id ref='module_wholeherb'
+            @comment: User is testing new modules.

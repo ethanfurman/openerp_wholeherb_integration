@@ -330,7 +330,7 @@
             @view_mode: tree,form
             @limit eval='250'
 
-        ~menuitem name="Missed Sales" #wholeherb_integration_product_missed_sales parent='base.menu_product' action='action_wholeherb_integration_product_missed_sales' groups='base.group_user' sequence='100'
+        ~menuitem name="Missed Sales" #wholeherb_integration_product_missed_sales parent='base.menu_product' action='action_wholeherb_integration_product_missed_sales' groups='group_wholeherb_beta_tester' sequence='100'
 
     ~data noupdate='1'
 
