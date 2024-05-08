@@ -1,0 +1,155 @@
+#!/usr/bin/env python
+"""
+initial import of blend lot log entries
+"""
+
+import os
+
+from antipathy import Path
+from datetime import date
+from openerplib import CSV, get_connection
+from scription import *
+
+# globals
+
+virtual_env = os.environ['VIRTUAL_ENV']
+config = '%s/config/fnx.ini' % virtual_env
+
+cfg = OrmFile(config, types={'_path':Path})
+oe = get_connection(
+        hostname=cfg.openerp.host,
+        database=cfg.openerp.db,
+        login=cfg.openerp.user,
+        password=cfg.openerp.pw,
+        )
+
+## API
+
+@Command(
+        file=Spec('name of file to import',),
+        )
+def import_blend_lot_log(file):
+    # record format:
+    # - lot #
+    # - item code
+    # - item desc
+    # - customer
+    # - rep
+    # - date entered
+    # - lbs to produce
+    # - comments
+    # - order #
+    # - comment, comment, comment, etc.
+    for rec in ViewProgress(CSV(file, strict=False, null='')):
+        comments = []
+        is_deleted = False
+        is_sample = False
+        lot_no = rec[0].strip('"')
+        if not lot_no.startswith('P'):
+            comments.append('lot#: %s' % (lot_no, ))
+            lot_no = False
+        item_code = rec[1].strip('"')
+        if item_code in ('VOID','DELETED'):
+            is_deleted = True
+            item_code = False
+        item_desc = rec[2].strip('"')
+        if 'CANCEL' in item_desc or 'DELETE' in item_desc:
+            is_deleted = True
+            item_desc = ''
+        customer = rec[3].strip('"')
+        if 'CANCEL' in customer:
+            is_deleted = True
+            customer = ''
+        if 'sample' in customer.lower():
+            is_sample = True
+        rep = rec[4].strip('"')
+        date_entered = rec[5]
+        try:
+            month, day, year = map(int, date_entered.split('/'))
+            if year < 1900:
+                raise ValueError('year must be 1900 or later')
+            date_entered = date(year, month, day)
+        except ValueError:
+            if date_entered.strip():
+                comments.append('date entered: %s' % (date_entered, ))
+            date_entered = False
+        lbs, comment = rec[6:8]
+        if comment.lower() in ('kg','kilos'):
+            lbs = '%s kg' % lbs
+            comment = ''
+        if not isinstance(lbs, (int, long, float)):
+            lbs = lbs.lower()
+            if 'void' in lbs:
+                lbs = '0'
+                is_deleted = True
+            if lbs.startswith('sample'):
+                is_sample = True
+                lbs = lbs[6:].strip()
+            if lbs.endswith('sample'):
+                is_sample = True
+                lbs = lbs[:-6].strip()
+            if lbs.endswith('lbs'):
+                lbs = lbs[:-3].strip()
+            if lbs.endswith('lb'):
+                lbs = lbs[:-2].strip()
+            if lbs.endswith('kg'):
+                # 2.20462
+                comments.append('lbs: %s' % (lbs, ))
+                lbs = round(int(lbs[:-2])*2.20462)
+            elif lbs.endswith('g'):
+                comments.append('lbs: %s' % (lbs, ))
+                lbs = round(int(lbs[:-2])*0.00220462)
+            try:
+                lbs = int(lbs or 0)
+            except ValueError:
+                comments.append('lbs: %s' % (lbs, ))
+                lbs = '0'
+        if 'cancel' in comment.lower() or 'delete' in comment.lower():
+            is_deleted = True
+        if comment:
+            comments.insert(0, comment)
+            comments.insert(1, '-' * 25)
+        order_no = rec[8]
+        for field in rec[9:]:
+            field = str(field)
+            if 'cancel' in field.lower() or 'delete' in field.lower():
+                is_deleted = True
+            comments.append(field)
+        comment = '\n'.join(c for c in comments if c.strip()).strip()
+        if not customer and is_sample:
+            customer = 'Sample'
+        product_id = products.get(item_code, False)
+        try:
+            values = {
+                    'lot_no': lot_no or False,
+                    'product_id': product_id or False,
+                    'product_code': item_code or False,
+                    'product_desc': item_desc or False,
+                    'customer_desc': customer or False,
+                    'salesrep_desc': rep or False,
+                    'date_entered': date_entered or False,
+                    'lbs': lbs or False,
+                    'order_no': order_no or False,
+                    'is_deleted': is_deleted,
+                    'is_sample': is_sample,
+                    'comment': comment or False,
+                    }
+            blend_lot.create(values)
+        except ValueError:
+            echo('failed on record\n%r' % values)
+            raise
+
+## helpers
+
+product = oe.get_model('product.product')
+blend_lot = oe.get_model('inhouse.blend.lot')
+
+echo('loading products from OpenERP')
+products = dict(
+        (p.xml_id, p.id)
+        for p
+        in product.read([('xml_id','!=',False)], fields=['id','xml_id'])
+        )
+echo('%d products loaded' % len(products))
+
+Main()

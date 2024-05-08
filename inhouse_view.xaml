@@ -246,6 +246,76 @@
         ~menuitem $Finished_Product #whc_inhouse_product_out_menu parent='inhouse_main_menu' action='action_inhouse_product_out'
 
 
+        // Blend Lot Logs
+
+        ~record model='ir.ui.view' #whc_inhouse_blend_lot_form
+            @name: Blend Lot Log
+            @model: inhouse.blend.lot
+            @type: form
+            @arch type='xml'
+                ~form version='7.0' string='Blend Lot Log'
+                    ~header
+                        ~h2 .oe_highlight .oe_text_center .oe_bold attrs="{'invisible': [('is_duplicate','=',False)]}": DUPLICATE LOT NUMBER
+                    ~group
+                        ~group
+                            @lot_no on_change="onchange_lot_no(lot_no)"
+                            @product_id
+                            @product_code
+                            @product_desc
+                        ~group
+                            @order_no
+                            @lbs
+                            @date_entered
+                    ~group
+                        ~group
+                            @customer_id
+                            @customer_desc
+                            @salesrep_id
+                            @salesrep_desc
+                        ~group
+                            @is_sample
+                            @is_deleted
+                            @is_duplicate invisible='1'
+                    ~label for='comment' string='Comments'
+                    @comment
+
+        ~record model='ir.ui.view' #whc_inhouse_blend_lot_tree
+            @name: Blend Lot Log
+            @model: inhouse.blend.lot
+            @type: tree
+            @arch type='xml'
+                ~tree string='Blend Lot Log'
+                    @lot_no
+                    @product
+                    @customer
+                    @order_no
+
+        ~record model='ir.ui.view' #whc_inhouse_blend_lot_search
+            @name: inhouse.blend.lot.search
+            @model: inhouse.blend.lot
+            @type: search
+            @arch type='xml'
+                ~search string='Blend Lots'
+                    @lot_no
+                    @product
+                    @customer
+                    @order_no
+                    ~separator
+                    ~filter $Samples @type_sample domain="[('is_sample','=',True)]" help="sample lots"
+                    ~filter $Deleted @type_deleted domain="[('is_deleted','=',True)]" help="deleted, voided, cancelled"
+                    ~separator
+                    ~filter $Duplicates @type_duplicate domain="[('is_duplicate','=',True)]" 
+
+        ~record model='ir.actions.act_window' #action_inhouse_blend_lot
+            @name: Blend Lot Logs
+            @res_model: inhouse.blend.lot
+            @view_type: form
+            @view_mode: tree,form
+            @view_id ref='whc_inhouse_blend_lot_tree'
+
+        ~menuitem $Blend_Lot_Logs #whc_inhouse_blend_lot_menu parent='inhouse_main_menu' action='action_inhouse_blend_lot'
+
+
         // links to Lots
 
         ~menuitem @Lots #inhouse_product_lot parent='inhouse_main_menu' action='action_wholeherb_integration_product_lot' groups='base.group_user'

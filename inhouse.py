@@ -106,6 +106,7 @@ Outside
 --|
 """
 
+from collections import defaultdict
 from osv import osv, fields
 from openerp.tools import self_ids
 import logging
@@ -541,7 +542,6 @@ class OutsideProcessor(osv.Model):
             'name': fields.char('Name', size=128),
             }
 
-
 class OutsideProcess(osv.Model):
     _name = 'outside.selection.process'
     _description = 'Outside process'
@@ -550,3 +550,120 @@ class OutsideProcess(osv.Model):
             'name': fields.char('Process', size=64),
             }
 
+class BlendingLotLog(osv.Model):
+    _name = 'inhouse.blend.lot'
+    _rec_name = 'lot_no'
+    _order = 'lot_no desc'
+
+    def _duplicate_check(self, cr, uid, ids, field_name, args, context=None):
+        res = {}.fromkeys(ids, False)
+        if not ids:
+            return res
+        # get lot numbers from ids
+        lots = [r['lot_no'] for r in self.read(cr, uid, ids, fields=['lot_no'], context=context)]
+        # get all records for matching lot numbers
+        lot_ids = [(r['id'], r['lot_no']) for r in self.read(cr, uid, [('lot_no','in',lots)], fields=['id','lot_no'], context=context)]
+        dupes = defaultdict(list)
+        for lot_id, lot_no in lot_ids:
+            dupes[lot_no].append(lot_id)
+        # find any duplicates
+        for lot_no, lot_ids in dupes.items():
+            if len(lot_ids) > 1:
+                for lot_id in lot_ids:
+                    if lot_id in ids:
+                        res[lot_id] = True
+        return res
+
+    def _duplicate_search(self, cr, uid, obj, name, args, context=None):
+        res = []
+        field, op, arg = args[0]
+        if (op, arg) in (('=', True),('!=',False)):
+            duplicate = True
+        elif (op, arg) in (('=',False),('!=',True)):
+            duplicate = False
+        else:
+            raise ValueError('unknown search term: %r' % (args, ))
+        # get all records
+        lot_ids = [(r['id'], r['lot_no']) for r in self.read(cr, uid, [(1,'=',1)], fields=['id','lot_no'], context=context)]
+        grouped = defaultdict(list)
+        for lot_id, lot_no in lot_ids:
+            grouped[lot_no].append(lot_id)
+        # find any duplicates
+        for lot_no, lot_ids in grouped.items():
+            if len(lot_ids) > 1 and duplicate:
+                res.extend(lot_ids)
+            elif len(lot_ids) == 1 and not duplicate:
+                res.extend(lot_ids)
+        return [('id','in',res)]
+
+    def _get_text(self, cr, uid, ids, field_name, args, context=None):
+        res = {}
+        if not ids:
+            return res
+        for rec in self.browse(cr, uid, ids, context=context):
+            res[rec.id] = {}
+            value = False
+            if rec.product_id:
+                value = ': '.join([rec.product_id.xml_id, rec.product_id.name])
+            elif rec.product_code or rec.product_desc:
+                value = ': '.join(f for f in [rec.product_code, rec.product_desc] if f)
+            res[rec.id]['product'] = value
+            value = False
+            if rec.customer_id:
+                value = ': '.join(f for f in [rec.customer_id.xml_id, rec.customer_id.name] if f)
+            elif rec.customer_desc:
+                value = rec.customer_desc
+            res[rec.id]['customer'] = value
+        return res
+
+
+    _columns = {
+			'lot_no': fields.char(string='Lot #', size=6),
+			'product_id': fields.many2one('product.product', string='Product'),
+            'product_code': fields.char(string='Item Code', size=6, help='use if product not in system'),
+			'product_desc': fields.char(string='Item Name/Description', size=60, help='use if product not in system'),
+            'product': fields.function(
+                    _get_text,
+                    type='char',
+                    size=60,
+                    string='Product',
+                    multi='tree_text',
+                    ),
+            'customer_id': fields.many2one('res.partner', string='Customer'),
+			'customer_desc': fields.char(string='Customer Description', size=60, help='use if customer not in system'),
+            'customer': fields.function(
+                    _get_text,
+                    type='char',
+                    size=60,
+                    string='Customer Name',
+                    multi='tree_text',
+                    ),
+            'salesrep_id': fields.many2one('res.users', string='Sales Rep'),
+			'salesrep_desc': fields.char(string='Rep', size=10, help='use if sales rep not in system'),
+			'date_entered': fields.date(string='Date Entered'),
+			'lbs': fields.float(string='Lbs to Produce'),
+			'comment': fields.text(string='Comments'),
+			'order_no': fields.char(string='Order #', size=6),
+            'is_duplicate': fields.function(
+                    _duplicate_check,
+                    fnct_search=_duplicate_search,
+                    type='boolean',
+                    string='Duplicate?',
+                    ),
+            'is_deleted': fields.boolean('Deleted?'),
+            'is_sample': fields.boolean('Sample?'),
+            }
+
+    def onchange_lot_no(self, cr, uid, ids, lot_no, context=None):
+        print('ids:', ids)
+        print('lot_no:', lot_no)
+        res = {'value': {}, 'domain': {}}
+        # get all records for matching lot numbers
+        lot_ids = [(r['id'], r['lot_no']) for r in self.read(cr, uid, [('lot_no','=',lot_no)], fields=['id','lot_no'], context=context)]
+        duplicate = False
+        for lot_id, lot_no in lot_ids:
+            if lot_id not in ids:
+                duplicate = True
+        res['value']['is_duplicate'] = duplicate
+        return res
+                

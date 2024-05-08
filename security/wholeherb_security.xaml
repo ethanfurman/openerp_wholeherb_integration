@@ -3,7 +3,7 @@
     ~data noupdate='0'
 
         ~record model='ir.module.category' #module_wholeherb
-            @name: Wholeherb Integration
+            @name: Whole Herb Integration
             @description: Mirror Wholeherb's FIS system
 
         ~record model='res.groups' #group_wholeherb_purchaser
