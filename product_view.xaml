@@ -31,8 +31,6 @@
                 @inherit_id ref='product.product_normal_form_view'
                 @priority eval='7'
                 @arch type='xml'
-                    ~xpath expr="//div[@name='buttons']" position='inside'
-                        ~button name='button_fis_refresh' $FIS_Refresh type='object'
                     ~xpath expr="//form/sheet/div/div" position='before'
                         ~h3
                             @fis_latin
@@ -43,20 +41,27 @@
                     ~page $Procurements position='replace'
                     ~page $Inventory position='replace'
                     ~xpath expr="//group[@string='Sale Conditions']" position='replace'
-                    ~xpath expr="//group[@name='sale']" position='replace'
-                        ~group
-                            ~group $Quantity_Pricing
+                    ~xpath expr="//group[@name='sale']" position='before'
+                        ~group col='6'
+                            ~group $Quantity_Pricing colspan='2'
                                 @pl_100
                                 @pl_1000
                                 @pl_nlt
                                 ~separator colspan='2'
                                 @pl_last_change
-                            ~group $Included_in_Price
+                            ~group $Included_in_Price colspan='2'
                                 @pi_metal
                                 @pi_treatment
                                 @pi_sifting
                                 @pi_milling
                                 @pi_none
+                            ~group $Availabilities colspan='2'
+                                @qty_available
+                                @incoming_qty
+                                @outgoing_qty
+                                ~separator colspan='2'
+                                @virtual_available
+                                @virtual_available_via_lots
                     ~page $Sales position='after'
                         ~page $Documents
                             ~separator $Certificates_of_Analysis attrs="{'invisible': [('c_of_a','=',False)]}"
