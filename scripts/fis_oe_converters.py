@@ -41,7 +41,7 @@ BUSINESS_HOURS = Time(6) <= Time.now() < Time(23)
 
 class CNVZc(Synchronize):
     """
-    product.category
+    product.category, 122
     """
 
     TN = 122
@@ -360,7 +360,7 @@ class CSMSS(SynchronizeAddress):
 
 class NVBA(Synchronize):
     """
-    product.lot
+    product.lot, 250
     """
 
     TN = 250
@@ -378,6 +378,8 @@ class NVBA(Synchronize):
     OE_FIELDS = 'id', 'product_id', 'lot_no', 'active', 'preship_lot', 'fis_record',
     FIS_SCHEMA = (
             F250.lot_no, F250.item_id, F250.warehouse_id,
+            F250.qty_on_hand, F250.qty_committed, F250.qty_on_order, F250.qty_produced,
+            F250.qty_on_hold,
             )
     #
     invalid_lot = re.compile('^new|po', re.I)
@@ -439,6 +441,11 @@ class NVBA(Synchronize):
         product_lot.product_id = NVTY.Product(fis_rec[F250.item_id])
         product_lot.active = True
         product_lot.preship_lot = False
+        product_lot.qty_on_hand = fis_rec[F250.qty_on_hand]
+        product_lot.qty_committed = fis_rec[F250.qty_committed]
+        product_lot.qty_on_order = fis_rec[F250.qty_on_order]
+        product_lot.qty_produced = fis_rec[F250.qty_produced]
+        product_lot.qty_on_hold = fis_rec[F250.qty_on_hold]
         return (XidRec.fromdict(product_lot, imd), )
 
 
@@ -482,12 +489,10 @@ class NVTY(Synchronize):
             return False
 
     def convert_fis_rec(self, fis_rec, use_ignore=False):
-        # some fields come from non-FIS locations or are only updated once per
-        # day -- those fields will not be evaluated here:
-        # - name -> get_product_descriptions()
-        # - fis_qty: _produced, _consumed, _purchased, _sold, _available
-        # - fis_10_day: _produced, _consumed, _purchased, _sold, _available
-        # - fis_21_day: _produced, _cosnumed, _purchased, _sold, _available
+        # 135:I7 -- Quantity Committed --> product that has been ordered by customer, but hasn't been pulled yet and is still being counted in Quantity on hand.
+        #
+        # 135:I8 -- Quantity on Order  --> product we have ordered that hasn't arrived yet, and isn't counted anywhere else.
+
         if use_ignore and self.fis_ignore_record(fis_rec):
             return ()
         key = fis_rec[F135.item_id]
