@@ -380,14 +380,36 @@ class product_traffic(osv.Model):
             res[rec['id']] = [id for id in products[rec['product_id'][0]] if id != rec['id']]
         return res
 
+    def _get_sales_tree_text(self, cr, uid, ids, field_names, arg, context=None):
+        res = {}
+        for rec in self.read(cr, uid, ids, fields=['sales_comment','sales_comment_text'], context=context):
+            if rec['sales_comment'] == 'other':
+                comment = rec['sales_comment_text']
+            else:
+                comment = rec['sales_comment']
+            if len(comment) > 20:
+                comment = comment[:17] + '...'
+            res[rec['id']] = comment
+        return res
+
     _columns = {
         'name': fields.related('product_id','name', string='Product name', type='text', readonly=True),
         'date': fields.date('Date Created'),
         'product_id': fields.many2one('product.product', 'Product', required=True),
         'sales_comment': fields.selection(
-            (('low', 'getting low'), ('out', 'sold out')),
+            (('low', 'getting low'), ('out', 'sold out'), ('other','other')),
             'Sales Comment',
             track_visibility='change_only',
+            ),
+        'sales_comment_text': fields.text('Other comment'),
+        'sales_tree_text': fields.function(
+            _get_sales_tree_text,
+            string='Sales list comment',
+            store=({
+                'wholeherb_integration.product_traffic': (self_ids, ['sales_comment'], 10),
+                }),
+            type='char',
+            size=20,
             ),
         'purchase_comment': fields.text('Purchase Comment', track_visibility='change_only'),
         'state': fields.selection(

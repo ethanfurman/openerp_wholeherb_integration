@@ -199,7 +199,7 @@
                 ~tree $Product_Traffic
                     @date
                     @product_id
-                    @sales_comment
+                    @sales_tree_text
                     @purchase_comment
 
         ~record #wholeherb_integration_product_traffic_form model=view
@@ -218,6 +218,8 @@
                             @open_entry_ids
                         ~group
                             @sales_comment
+                            @sales_comment_text attrs="{'invisible': [('sales_comment','!=','other')]}"
+                        ~group
                             @purchase_comment
                     ~div .oe_chatter
                         @message_follower_ids widget='mail_followers'
