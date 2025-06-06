@@ -604,7 +604,7 @@ class BlendingLotLog(osv.Model):
             res[rec.id] = {}
             value = False
             if rec.product_id:
-                value = ': '.join([rec.product_id.xml_id, rec.product_id.name])
+                value = ': '.join(f for f in [rec.product_id.xml_id, rec.product_id.name] if f)
             elif rec.product_code or rec.product_desc:
                 value = ': '.join(f for f in [rec.product_code, rec.product_desc] if f)
             res[rec.id]['product'] = value
