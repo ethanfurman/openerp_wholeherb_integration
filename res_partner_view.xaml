@@ -42,12 +42,16 @@
                     ~xpath expr="//notebook" position='after'
                         ~br
                         ~group
-                            ~group
-                                ~label for='order_confirmations' $Order_Confirmations colspan='2'
+                            ~group $Order_Confirmations
+                                ~label for='order_confirmations' $Current colspan='2'
                                 @order_confirmations nolabel=1 colspan='2' options="{'no_embed':True}"
-                            ~group
-                                ~label for='open_invoices' $Open_Invoices colspan='2'
+                                ~label for='past_confirmations' $Past colspan='2'
+                                @past_confirmations nolabel=1 colspan='2' options="{'no_embed':True}"
+                            ~group $Open_Invoices
+                                ~label for='open_invoices' $Current colspan='2'
                                 @open_invoices nolabel=1 colspan='2' options="{'no_embed':True}"
+                                ~label for='past_invoices' $Past colspan='2'
+                                @past_invoices nolabel=1 colspan='2' options="{'no_embed':True}"
                     ~xpath expr="//page[@string='Internal Notes']" position='inside'
                         ~group
                             ~group

@@ -78,7 +78,9 @@ class res_partner(xid.xmlid, osv.Model):
         'write_date': fields.datetime('Last changed', readonly=True),
         'write_uid': fields.many2one('res.users', string='Last changed by', readonly=True),
         'order_confirmations': files('order_confs', string='Order Confirmations', style='static_list', sort='alpha desc'),
+        'past_confirmations': files('past_order_confs', string='Past Order Confirmations', style='static_list', sort='alpha desc'),
         'open_invoices': files('invoices', string='Open Invoices', style='static_list', sort='alpha desc'),
+        'past_invoices': files('past_invoices', string='Past Invoices', style='static_list', sort='alpha desc'),
         'fis_record': fields.boolean('Record is in FIS'),
         }
 
