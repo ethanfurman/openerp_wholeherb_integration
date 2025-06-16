@@ -387,7 +387,7 @@ class product_traffic(osv.Model):
                 comment = rec['sales_comment_text']
             else:
                 comment = rec['sales_comment']
-            if len(comment) > 20:
+            if comment and len(comment) > 20:
                 comment = comment[:17] + '...'
             res[rec['id']] = comment
         return res
