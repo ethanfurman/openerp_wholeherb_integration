@@ -218,7 +218,8 @@
                             @open_entry_ids
                         ~group
                             @sales_comment
-                            @sales_comment_text attrs="{'invisible': [('sales_comment','!=','other')]}"
+                            ~separator
+                            @sales_comment_text nolabel='1' attrs="{'invisible': [('sales_comment','!=','other')]}"
                         ~group
                             @purchase_comment
                     ~div .oe_chatter

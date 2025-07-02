@@ -380,16 +380,17 @@ class product_traffic(osv.Model):
             res[rec['id']] = [id for id in products[rec['product_id'][0]] if id != rec['id']]
         return res
 
-    def _get_sales_tree_text(self, cr, uid, ids, field_names, arg, context=None):
+    def _get_sales_comment(self, cr, uid, ids, field_names, arg, context=None):
         res = {}
         for rec in self.read(cr, uid, ids, fields=['sales_comment','sales_comment_text'], context=context):
             if rec['sales_comment'] == 'other':
                 comment = rec['sales_comment_text']
             else:
                 comment = rec['sales_comment']
+            res[rec['id']] = {'sales_comment_tracked': comment}
             if comment and len(comment) > 20:
                 comment = comment[:17] + '...'
-            res[rec['id']] = comment
+            res[rec['id']]['sales_tree_text'] = comment
         return res
 
     _columns = {
@@ -399,17 +400,27 @@ class product_traffic(osv.Model):
         'sales_comment': fields.selection(
             (('low', 'getting low'), ('out', 'sold out'), ('other','other')),
             'Sales Comment',
-            track_visibility='change_only',
             ),
-        'sales_comment_text': fields.text('Other comment'),
+        'sales_comment_text': fields.text('Other Text'),
+        'sales_comment_tracked': fields.function(
+            _get_sales_comment,
+            string='Sales Comment',
+            store=({
+                'wholeherb_integration.product_traffic': (self_ids, ['sales_comment','sales_comment_text'], 10),
+                }),
+            type='text',
+            track_visibility='change_only',
+            multi='sales-comment',
+            ),
         'sales_tree_text': fields.function(
-            _get_sales_tree_text,
+            _get_sales_comment,
             string='Sales list comment',
             store=({
-                'wholeherb_integration.product_traffic': (self_ids, ['sales_comment'], 10),
+                'wholeherb_integration.product_traffic': (self_ids, ['sales_comment','sales_comment_text'], 10),
                 }),
             type='char',
             size=20,
+            multi='sales-comment',
             ),
         'purchase_comment': fields.text('Purchase Comment', track_visibility='change_only'),
         'state': fields.selection(
