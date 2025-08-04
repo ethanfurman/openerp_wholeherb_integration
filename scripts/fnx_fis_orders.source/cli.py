@@ -4,8 +4,6 @@ Manage FIS order confirmations, open order invoices, and availability in OpenERP
 """
 
 
-# imports & config
-
 from __future__ import print_function
 from aenum import NamedTuple
 from antipathy import Path
@@ -21,17 +19,19 @@ from time import ctime
 import antipathy, dbf, reportlab, scription
 
 from scription import *
+from scription import wrap_line
 
+## globals
 # keep pyflakes happy
 TA_RIGHT, antipathy, dbf, reportlab, scription
 
-version = "2022.1.12 [source: 2.243:/opt/openerp/openerp/wholeherb_integtration/scripts/fnx_fis_orders.source]"
+version = "2025.06.03 [source: 2.243:/opt/openerp/openerp/wholeherb_integtration/scripts/fnx_fis_orders.source]"
 oe_order_confs = Path("/opt/openerp/var/openerp/fnxfs/res_partner/order_confs/")
 fis_order_pdfs = Path("/mnt/linuxworkstationmaster/pdfs")
 fis_order_confs = Path("/mnt/linuxworkstationmaster/confs")
 
 
-# API
+## API
 
 @Script(
         log_file=Spec('log file', OPTION, force_default='/var/log/fnx_fis_orders.log'),
@@ -211,15 +211,15 @@ def create_order_conf(order, source, dest, which):
         order_conf = OrderConf(order_conf_test_data[which-1])
     else:
         src = source / order + '.dzz'
-        if not src.exists():
+        if not src.exists() or src.exists() and src.stat().st_size == 0:
             src = source / order + '.dat'
-            if not src.exists():
-                abort("unable to find file %s" % src, Exit.DataError)
+            if not src.exists() or src.exists() and src.stat().st_size == 0:
+                abort("unable to find file %s, or file is empty" % src, Exit.DataError)
         dst = dest / order + '.pdf'
         try:
             order_conf = OrderConf.from_file(src)
-        except ValueError:
-            abort("problem converting '%s'" % src, Exit.DataError)
+        except ValueError as exc:
+            abort("problem converting '%s'\n%s" % (src, exc), Exit.DataError)
     table_items = []
     for li in order_conf.line_items:
         # line1, line2 = line[1].split('\n')
@@ -301,37 +301,61 @@ def status():
         last_entry = SysLogLine(line)
         if last_entry.source == 'CRON' and 'fnx_fis_orders' in line:
             last_parent = last_entry
-    echo('\nlatest syslog entries:')
-    echo(repr(last_parent))
+    echo('\nlatest syslog entries:\n')
+    lines = [(last_parent or last_entry).line]
+    lines += [h.line for h in (last_parent or last_entry).history]
+    lines = ['\n'.join(wrap_line(l, 95, secondary=16)) for l in lines]
+    echo('\n\n'.join(lines))
     echo('\n-------------------')
     #
     # are the order confirmations being processed on 2.2?
     # check log at /var/log/export_order_confs.log
     #
     echo('\nchecking order conf log file on 2.2')
-    fis_conf_log = Execute("ssh root@192.168.2.2 tail /var/log/export_order_confs.log", pty=True)
-    echo(fis_conf_log.stdout)
+    with user_ids(0, 0):
+        fis_conf_log = Execute("ssh 192.168.2.2 tail -100 /var/log/export_order_confs.log", pty=True)
+    last_pass = 0
+    last_line = None
+    for line in fis_conf_log.stdout.split('\n'):
+        if 'lastpass' in line:
+            if not last_pass:
+                # no lines printed yet
+                echo(line)
+            last_pass += 1
+            if last_pass == 3:
+                echo('...')
+            last_line = line
+        else:
+            if last_pass > 1:
+                echo(last_line)
+            last_pass = 0
+            echo(line)
+    # echo(fis_conf_log.stdout)
     echo('-------------------')
     #
     # what are the last orders created on 2.2?  check /mnt/linuxworkstationmaster/pdfs
     # are they present in OpenERP?              check /opt/openerp/var/openerp/fnxfs/res_partner/order_confs
     #
     echo('\nlooking for latest order confirmations on 2.2')
-    order_list = Execute("ssh root@192.168.2.2 ls -st /mnt/linuxworkstationmaster/pdfs", pty=True)
-    orders = order_list.stdout.split('\n')[1:11]
+    with user_ids(0, 0):
+        order_list = Execute("ssh 192.168.2.2 ls -st /mnt/linuxworkstationmaster/pdfs", pty=True)
+    orders = order_list.stdout.split('\n')[1:15]
     echo('customer-order    status in OpenERP')
     first_order = None
     for order in orders:
-        o = SavedOrderConf(order.split()[-1])
-        if first_order is None:
-            first_order = o
-        echo('%8s-%s       %s' % (o.customer, o.order, ('missing','present')[o.on_disk()]))
+        order = order.split()[-1]
+        if match(order_conf, order):
+            o = SavedOrderConf(order)
+            if first_order is None:
+                first_order = o
+            echo('%8s-%s       %s' % (o.customer, o.order, o.status()))
     echo('\n-------------------')
     #
     # check files at /mnt/linuxworkstationmaster/confs
     #
     echo('\nchecking order conf files (may hang if smb mount is disconnected)')
-    conf_list = Execute("ssh root@192.168.2.2 ls -st /mnt/linuxworkstationmaster/confs", pty=True)
+    with user_ids(0, 0):
+        conf_list = Execute("ssh 192.168.2.2 ls -st /mnt/linuxworkstationmaster/confs", pty=True)
     conf_list = conf_list.stdout.split('\n')
     count = 0
     first_conf = None
@@ -342,23 +366,69 @@ def status():
             first_conf = conf.split()[-1].split('.')[0]
         echo(conf)
         count += 1
-        if count >= 20:
+        if count >= 30:
             break
     echo('\n-------------------\n')
-    if first_order.order == first_conf and first_order.on_disk():
+    if first_order is None:
+        echo('no recent orders found, unable to determine status')
+    elif first_order.order == first_conf and first_order.status() != 'missing':
         echo('post-FIS processing appears to be working\n')
     else:
         echo('post-FIS processing is failing\n')
 
 
+@Command(
+        )
+def reprocess():
+    "Reprocess orders that failed to go through the first time"
+    # find missing orders
+    conf_dir = Path('/mnt/linuxworkstationmaster/confs')
+    pdf_dir = Path('/mnt/linuxworkstationmaster/pdfs')
+    confs = [
+            fn.stem
+            for fn in conf_dir.listdir()
+            if match(order_conf_dat, fn)
+            ]
+    pdfs = [
+            fn.stem.split('-')[1]
+            for fn in pdf_dir.listdir()
+            if match(order_conf, fn)
+            ]
+    missing = [
+            fn
+            for fn in confs
+            if fn not in pdfs
+            ]
 
-# reportlab
+    echo('MISSING (%d)\n--------------' % len(missing))
+    for mo in missing:
+        cu = Execute('/bin/pro5/pro5/pro5 -q -p1024 -m4096 -c/bin/pro5/pro5/config.bbx /bin/pro5/pro5/get_cust_from_order - %s' % mo)
+        echo('%s -- %s' % (mo, (cu.stdout or cu.stderr)))
+        cu_num = cu.stdout.strip()
+        if cu_num.isdigit() and cu_num != '000000':
+            conf = Execute('/usr/local/bin/fnx_fis_orders create_order_conf %s -vv' % mo)
+            echo('STDOUT: %s\nSTDERR: %s' % (conf.stdout, conf.stderr))
+            (pdf_dir/mo+'.pdf').rename(pdf_dir/'%s-%s.pdf' % (cu_num, mo))
+            scp = Execute(
+                    'scp /mnt/linuxworkstationmaster/pdfs/%s-%s.pdf root@192.168.2.243://home/imports/order_confs/'
+                    % (cu_num, mo)
+                    )
+            echo('STDOUT: %s\nSTDERR: %s' % (scp.stdout, scp.stderr))
+
+    # /usr/local/bin/fnx_fis_orders create_order_conf $ORDERNUM
+    # getcust="/bin/pro5/pro5/pro5 -q -p1024 -m4096 -c/bin/pro5/pro5/config.bbx /bin/pro5/pro5/get_cust_from_order - $ORDERNUM"
+    # mv /mnt/linuxworkstationmaster/pdfs/$ORDERNUM\.pdf /mnt/linuxworkstationmaster/pdfs/$CUSTNUM-$ORDERNUM\.pdf
+    # echo "scp /mnt/linuxworkstationmaster/pdfs/$CUSTNUM-$ORDERNUM\.pdf root@192.168.2.243:/home/imports/order_confs/";
+    # scp /mnt/linuxworkstationmaster/pdfs/$CUSTNUM-$ORDERNUM\.pdf root@192.168.2.243://home/imports/order_confs/
+
+
+## reportlab
 
 class OrderConfTemplate(SimpleDocTemplate):
     #
     def __fixed_elements(self, c, doc):
         c.saveState()
-        c.drawImage(WholeHerbLogo, 3.0*inch, 9.5*inch, width=2.5*inch, height=1.25*inch, mask=None)
+        c.drawImage(WholeHerbLogo, 2.375*inch, 9.5*inch, width=3.5*inch, height=1.25*inch, mask='auto')
         c.setFont(FontSet['SubHdg'], 24)
         c.drawCentredString(4.25*inch, 9.125*inch, "Order Confirmation")
         c.setFont(FontSet['Ftr'], 10)  #  was 9 and below was .55 .40 .25
@@ -433,10 +503,11 @@ itemTableStyle = TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ])
 
-# helpers
+## helpers
 
 
 open_invoice = r'(\d{6})_(\d+)_(\d{8})_(PO.+)\.pdf$'
+order_conf_dat = r'(\d+)\.dzz$'
 order_conf = r'(\d+)-(\d+)\.pdf$'
 
 match = Var(lambda needle, haystack: re_match(needle, haystack))
@@ -651,9 +722,30 @@ class SavedOrderConf(object):
         self.customer = customer
         self.order = order
         self.disk_name = oe_order_confs / customer / 'Conf_%s.pdf' % order
+        self.transfer = Path('/home/imports/openerp_invoices') / filename
     #
-    def on_disk(self):
-        return self.disk_name.exists()
+    def status(self):
+        if self.disk_name.exists():
+            return 'present'
+        elif not self.transfer.exists():
+            return 'missing'
+        else:
+            # is it stuck, or just waiting for the next cron execution?
+            with open('/etc/crontab') as ct:
+                for line in ct.readlines():
+                    if (
+                            '/usr/local/bin/fnx_fis_orders import_order_confs' in line
+                            and line.strip()[0] != '#'
+                        ):
+                        break
+                else:
+                    return 'stalled'
+            ce = CronEntry(line)
+            ts = DateTime.fromtimestamp(self.transfer.stat().st_mtime).replace(seconds=59)
+            if ce.next_occurance(ts) > DateTime.now():
+                return 'waiting'
+            else:
+                return 'stalled'
 
 
 class SysLogLine(object):
@@ -666,7 +758,7 @@ class SysLogLine(object):
         # Feb 15 11:50:01 openerp AIDE[32001]: [from 32000] start: /usr/local/bin/cronaide --email eth...
         # Feb 15 11:50:02 openerp AIDE[32001]: [from 32000] succeeded
         line = line.rstrip()
-        m, d, hms, h, sp, rest = line.split(' ', 5)
+        m, d, hms, h, sp, rest = line.split(None, 5)
         self.lead = ' '.join([m, d, hms, h, sp])
         self.occurance = DateTime.strptime(' '.join([m, d, hms]), '%b %d %H:%M:%S')
         self.host = h
@@ -686,7 +778,9 @@ class SysLogLine(object):
                 from_pid ,= match.groups()
                 self.parent = from_pid
                 orig = self.lines.get(from_pid)
-                orig.history.append(self)
+                if orig is not None:
+                    # TODO make a fake orig line to attach to instead of throwing away the line
+                    orig.history.append(self)
     #
     def __repr__(self):
         lines = [self.line]

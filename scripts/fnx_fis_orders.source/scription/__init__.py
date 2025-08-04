@@ -33,7 +33,7 @@ intelligently parses command lines
 from __future__ import print_function
 
 # version
-version = 0, 86, 14, 1
+version = 0, 86, 26
 
 # imports
 import sys
@@ -46,6 +46,7 @@ PY33 = (3, 3)
 PY34 = (3, 4)
 PY35 = (3, 5)
 PY36 = (3, 6)
+ModuleType = type(sys)
 
 is_win = sys.platform.startswith('win')
 if is_win:
@@ -80,7 +81,6 @@ import codecs
 import datetime
 import email
 import errno
-import inspect
 import locale
 import logging
 import os
@@ -92,7 +92,7 @@ import textwrap
 import threading
 import time
 import traceback
-from aenum import Enum, IntEnum, Flag, export, version as aenum_version
+from aenum import Enum, IntEnum, Flag, export
 from collections import OrderedDict
 from math import floor
 from sys import stdin, stdout, stderr
@@ -122,6 +122,17 @@ if PY2:
         def raise_with_traceback(exc, tb):
             raise exc, None, tb
             '''))
+    exec(textwrap.dedent('''\
+        def raise_exc(exc, tb=True, cause=True, context=True):
+            if cause is not True:
+                exc.__cause__ = cause
+            if context is not True:
+                exc.__context__ = context
+            if tb is not True:
+                raise exc, None, tb
+            else:
+                raise exc
+            '''))
 else:
     import builtins
     b = bytes
@@ -140,6 +151,20 @@ else:
         def raise_with_traceback(exc, tb):
             raise exc.with_traceback(tb)
             '''))
+    exec(textwrap.dedent('''\
+        def raise_exc(exc, tb=True, cause=True, context=True):
+            if cause is not True:
+                exc.__cause__ = cause
+            if context is not True:
+                exc.__context__ = context
+            if tb is not True:
+                raise exc.with_traceback(tb)
+            else:
+                raise exc
+            '''))
+
+    # keep pyflakes happy
+builtins
 
 def _input(*args, **kwds):
     from warnings import warn
@@ -151,7 +176,7 @@ def _input(*args, **kwds):
 __all__ = (
     'Alias', 'Command', 'Script', 'Main', 'Run', 'Spec',
     'Bool','InputFile', 'OutputFile', 'IniError', 'IniFile', 'OrmError', 'OrmFile', 'NameSpace', 'OrmSection',
-    'FLAG', 'KEYWORD', 'OPTION', 'MULTI', 'MULTIREQ', 'REQUIRED', 'RADIO',
+    'FLAG', 'OPTION', 'MULTI', 'MULTIREQ', 'REQUIRED',
     'ScriptionError', 'ExecuteError', 'FailedPassword', 'TimeoutError', 'Execute', 'Job', 'ProgressView', 'ViewProgress',
     'abort', 'echo', 'error', 'get_response', 'help', 'input', 'raw_input', 'mail', 'user_ids', 'print', 'box', 'table_display',
     'stdout', 'stderr', 'wait_and_check', 'b', 'bytes', 'str', 'u', 'unicode', 'ColorTemplate', 'Color',
@@ -376,8 +401,6 @@ class SpecKind(DocEnum):
     MULTI = "multiple values per name (list form, no whitespace)"
     MULTIREQ = "multiple values per name (list form, no whitespace, required)"
     FLAG = "boolean/trivalent value per name"
-    KEYWORD = "unknown options"
-    RADIO = "mutually exclusive flags/options"
 
 
 # exceptions
@@ -428,35 +451,50 @@ def _add_annotations(func, annotations, script=False):
     errors = []
     default_order = 128
     # add global, order, and radio attributes
-    for name, spec in annotations.items():
-        scription_debug('  processing %r with %r' % (name, spec), verbose=2)
-        annote = annotations[name]
+    for name, annote in annotations.items():
+        scription_debug('  processing %r with %r' % (name, annote), verbose=2)
         if name in params:
             annote._global = False
             annote._order = params.index(name)
-        elif spec._target in params:
+        elif annote._target in params:
             # sort it out in the next loop
             pass
         elif not script:
             errors.append(name)
+            continue
         else:
             annote._global = True
             annote._order = default_order
             default_order += 1
-        if spec._radio:
-            radio.setdefault(spec._radio, []).append(name)
+        if annote._radio:
+            radio.setdefault(annote._radio, set()).add(name)
     if errors:
         raise ScriptionError("name(s) %r not in %s's signature" % (errors, func.__name__))
     # assign correct targets
-    for name, spec in annotations.items():
-        if spec._target is not empty:
-            target = annotations.get(spec._target)
+    for name, annote in list(annotations.items()):
+        if annote._target is not empty:
+            target = annotations.get(annote._target)
             if target is None:
-                errors.append(target)
-            spec._order = target._order
-            spec._global = target._global
+                errors.append(annote._target)
+                continue
+            annote._order = target._order
+            annote._global = target._global
+            if annote.usage != name.upper():
+                # this annotation is not in the function header, and should be activated
+                # by the "usage" argument
+                annotations.pop(name)
+                annotations[annote.usage] = annote
+                name = annote.usage
+            _radio = target._radio or '#%s-radio' % target.__name__
+            target._radio = _radio  # just in case it wasn't already set
+            annote._radio = _radio  # ditto
+            if annote._radio and annote._radio != _radio:
+                errors.append(annote.__name__)
+                continue
+            radio.setdefault(_radio, set()).add(name)
+            radio[_radio].add(target.__name__)
     if errors:
-        raise ScriptionError("target name(s) %r not in %s's annotations" % (errors, func.__name__))
+        raise ScriptionError("target name(s) %r not in %s's annotations or have invalid radio settings" % (errors, func.__name__))
     func.__scription__ = annotations
     func.names = sorted(annotations.keys())
     func.radio = radio
@@ -496,26 +534,35 @@ def _func_globals(func):
         return func.__globals__
 
 def _get_version(from_module, _try_other=True):
+    scription_debug('getting version')
+    version = ''
     for ver in _version_strings:
+        scription_debug('  checking %r' % ver, verbose=2)
         if from_module.get(ver):
             version = from_module.get(ver)
             if not isinstance(version, basestring):
                 version = '.'.join([str(x) for x in version])
+            scription_debug('  found', version)
             break
     else:
         # try to find package name
         try:
+            scription_debug('  looking for package name')
             package = os.path.split(os.path.split(sys.modules['__main__'].__file__)[0])[1]
+            scription_debug('  found', package)
         except IndexError:
             version = 'unknown'
+            scription_debug('  unknown')
         else:
             if package in sys.modules and any(hasattr(sys.modules[package], v) for v in _version_strings):
                 for ver in _version_strings:
+                    scription_debug('  checking %r' % ver, verbose=2)
                     version = getattr(sys.modules[package], ver, '')
                     if version:
                         break
                 if not isinstance(version, basestring):
                     version = '.'.join([str(x) for x in version])
+                scription_debug('  found', version)
             elif _try_other:
                 version = ' / '.join(_get_all_versions(from_module, _try_other=False))
             if not version.strip():
@@ -523,17 +570,24 @@ def _get_version(from_module, _try_other=True):
     return version
 
 def _get_all_versions(from_module, _try_other=True):
+    scription_debug('getting all versions', verbose=1)
     versions = ['%s=%s' % (from_module['module']['script_name'], _get_version(from_module, _try_other=False))]
-    for name, module in sys.modules.items():
-        fm_obj = from_module.get(name)
-        if fm_obj is module:
-            for ver in _version_strings:
-                if hasattr(module, ver):
-                    version = getattr(module, ver)
-                    if not isinstance(version, basestring):
-                        version = '.'.join(['%s' % x for x in version])
-                    versions.append('%s=%s' % (name, version))
-                    break
+    for name, obj in from_module:
+        scription_debug('checking', name, verbose=3)
+        if name.startswith('_') or not isinstance(obj, ModuleType):
+            scription_debug(' skipping', verbose=3)
+            continue
+        for ver in _version_strings:
+            scription_debug('  checking %r' % ver, verbose=3)
+            if hasattr(obj, ver):
+                version = getattr(obj, ver)
+                if not isinstance(version, basestring):
+                    version = '.'.join(['%s' % x for x in version])
+                versions.append('%s=%s' % (name, version))
+                scription_debug('  found', name, version)
+                break
+        else:
+            versions.append('%s=unknown' % (name, ))
     versions.append('python=%s' % '.'.join([str(i) for i in sys.version_info]))
     return versions
 
@@ -547,32 +601,38 @@ def _help(func, script=False):
     params = func.params = list(params)
     vararg = func.vararg = [vararg] if vararg else []
     keywordarg = func.keywordarg = [keywordarg] if keywordarg else []
+    header_args = params + vararg + keywordarg
     annotations = func.__scription__
-    pos = None
     max_pos = 0
+    pos_args_allowed = True
     if not script:
         script_obj = script_module['script_main']
         script_func = getattr(script_obj, 'command', None)
         max_pos = getattr(script_func, 'max_pos', max_pos)
-    for i, name in enumerate(params + vararg + keywordarg, start=max_pos):
-        scription_debug('processing', name, verbose=3)
+    pos = max_pos
+    for name in header_args:
+        scription_debug('processing', name, 'pos_args_allowed:', pos_args_allowed, verbose=3)
         if name[0] == '_':
             # ignore private params
             continue
         spec = annotations.get(name, None)
-        pos = None
+        # pos = None
         if spec is None:
             raise ScriptionError('%s not annotated' % name)
-        help, kind, abbrev, arg_type, choices, usage_name, remove, default, envvar, target = spec
+        help, kind, abbrev, arg_type, choices, usage_name, remove, default, envvar, target, nargs = spec
         if name in vararg:
             spec._type_default = tuple()
             if kind is empty:
-                kind = 'multi'
+                kind = 'multireq'
+            if nargs is empty:
+                nargs = '+'
         elif name in keywordarg:
             spec._type_default = dict()
             if kind is empty:
                 kind = 'option'
-        elif kind == 'required':
+            if nargs is empty:
+                nargs = 1
+        elif kind == 'required' or kind is empty:
             pos = max_pos
             max_pos += 1
         elif kind == 'multireq':
@@ -598,7 +658,12 @@ def _help(func, script=False):
                 elif not isinstance(default, tuple):
                     default = (default, )
         else:
-            raise ValueError('unknown kind: %r' % kind)
+            raise ValueError('unknown kind for %r: %r' % (name, kind))
+        if kind in ('required', 'multireq') and [name] != vararg:
+            if not pos_args_allowed:
+                raise ScriptionError('positional parameters in %r must be listed first [%r]' % (func.__name__, name))
+        else:
+            pos_args_allowed = False
         for ab in abbrev or ():
             if ab in annotations:
                 raise ScriptionError('duplicate abbreviations: %r' % abbrev)
@@ -619,11 +684,13 @@ def _help(func, script=False):
             else:
                 arg_type = type_of(default)
         spec.kind = kind
+        spec._nargs = nargs
         spec.abbrev = abbrev
         spec.type = arg_type
         spec.usage = usage_name
         if pos != max_pos:
-            annotations[i] = spec
+            annotations[pos] = spec
+            pos = max_pos
         annotations[name] = spec
         for ab in abbrev or ():
             annotations[ab] = spec
@@ -664,10 +731,10 @@ def _help(func, script=False):
                         new_dflt.append(annote.type(d))
                     annote._script_default = tuple(new_dflt)
     # also prepare help for global options
-    global_params = [n for n in func.names if n not in func.all_params]
+    targeted_params = [n for n in func.names if n not in func.all_params]
     print_params = []
     in_required = True
-    for param in global_params + params:
+    for param in params + targeted_params:
         if param[0] == '_':
             # ignore private params
             continue
@@ -699,17 +766,12 @@ def _help(func, script=False):
             usage.append('    ' + line)
         usage.append('')
     name_order = []
-    in_params = False
-    for name in global_params + ['start'] + params:
+    for name in params + targeted_params:
         if name[0] == '_':
             # ignore private params
             continue
-        if name == 'start':
-            in_params = True
-            continue
         annote = annotations[name]
-        if in_params and annote.kind != 'required':
-            in_params = False
+        if annote.kind != 'required':
             if vararg and func._var_arg.kind == 'multireq':
                 name_order.append(vararg[0])
         name_order.append(name)
@@ -885,7 +947,7 @@ def _usage(func, param_line_args):
     radio = set()
     pos = 0
     max_pos = func.max_pos
-    scription_debug('max_pos:', max_pos, verbose=2)
+    scription_debug('pos: %d   max_pos: %d' % (pos, max_pos), verbose=2)
     print_help = print_version = print_all_versions = False
     value = None
     annotations = {}
@@ -896,6 +958,7 @@ def _usage(func, param_line_args):
         scription_debug('kwd_arg_spec', kwd_arg_spec, verbose=3)
         annotations.update(Script.command.__scription__)
     annotations.update(func.__scription__)
+    scription_debug('annotations: %r' % annotations, verbose=2)
     if func._var_arg:
         var_arg_spec = func._var_arg
     if func._kwd_arg:
@@ -904,65 +967,79 @@ def _usage(func, param_line_args):
         kwd_arg_spec._cli_value = {}
     to_be_removed = []
     all_to_varargs = False
+    nargs = 0
     annote = last_item = None
+    #
+    def _handle_lone_value(value):
+        if item is None or item.startswith('-') or '=' in item:
+            scription_debug('new flag/option, checking for previous flag/option default', verbose=2)
+            # check for default
+            if annote._script_default:
+                scription_debug('found: %r' % (annote._script_default, ))
+                annote._cli_value = annote._script_default
+                if annote._cli_value and annote._radio:
+                    if annote._radio in radio:
+                        raise ScriptionError('only one of %s may be specified'
+                                    % _and_list(func.radio[annote._radio]))
+                    radio.add(annote._radio)
+            else:
+                raise ScriptionError('%s has no value' % last_item, use_help=True)
+            return False
+        else:
+            if annote.remove:
+                # only remove if not using the annotation default
+                to_be_removed.append(offset)
+            value = item
+            if annote.kind == 'option':
+                scription_debug('processing as option', verbose=2)
+                scription_debug('checking choice membership: %r in %r?' % (value, annote.choices), verbose=2)
+                if annote.choices and value not in annote.choices:
+                    raise ScriptionError('%s: %r not in [ %s ]' % (annote.usage, value, ' | '.join(annote.choices)), use_help=True)
+                annote._cli_value = annote.type(value)
+                if annote._cli_value and annote._radio:
+                    if annote._radio in radio:
+                        raise ScriptionError('only one of %s may be specified'
+                                    % _and_list(func.radio[annote._radio]))
+                    radio.add(annote._radio)
+            elif annote.kind in ('multi', 'multireq'):
+                scription_debug('processing as multi for', annote.usage, verbose=2)
+                scription_debug('checking choice membership: %r in %r?' % (item, annote.choices), verbose=2)
+                values = _split_on_comma(value)
+                if annote.choices:
+                    for v in values:
+                        if v not in annote.choices:
+                            raise ScriptionError(
+                                    '%s: %r not in [ %s ]'
+                                        % (annote.usage, v, ' | '.join(annote.choices)),
+                                    use_help=True,
+                                    )
+                values = [annote.type(v) for v in values]
+                annote._cli_value += tuple(values)
+                if annote._cli_value and annote._radio:
+                    if annote._radio in radio:
+                        raise ScriptionError('only one of %s may be specified'
+                                    % _and_list(func.radio[annote._radio]))
+                    radio.add(annote._radio)
+            else:
+                raise ScriptionError("Error: %s's kind %r not in (OPTION, MULTI, MULTIREQ)" % (last_item, annote.kind))
+            return True
+    #
     for offset, item in enumerate(param_line_args + [None]):
         scription_debug('%r: %r' % (offset, item), verbose=2)
         original_item = item
         if value is not None:
             scription_debug('None branch', verbose=2)
-            if item is None or item.startswith('-') or '=' in item:
-                scription_debug('new flag/option, checking for previous flag/option default', verbose=2)
-                # check for default
-                if annote._script_default:
-                    scription_debug('found: %r' % (annote._script_default, ))
-                    annote._cli_value = annote._script_default
-                    if annote._cli_value and annote._radio:
-                        if annote._radio in radio:
-                            raise ScriptionError('only one of %s may be specified'
-                                        % _and_list(func.radio[annote._radio]))
-                        radio.add(annote._radio)
-                else:
-                    raise ScriptionError('%s has no value' % last_item, use_help=True)
-                value = None
-            else:
-                if annote.remove:
-                    # only remove if not using the annotation default
-                    to_be_removed.append(offset)
-                value = item
-                if annote.kind == 'option':
-                    scription_debug('processing as option', verbose=2)
-                    scription_debug('checking choice membership: %r in %r?' % (item, annote.choices), verbose=2)
-                    if annote.choices and value not in annote.choices:
-                        raise ScriptionError('%s: %r not in [ %s ]' % (annote.usage, value, ' | '.join(annote.choices)), use_help=True)
-                    annote._cli_value = annote.type(value)
-                    if annote._cli_value and annote._radio:
-                        if annote._radio in radio:
-                            raise ScriptionError('only one of %s may be specified'
-                                        % _and_list(func.radio[annote._radio]))
-                        radio.add(annote._radio)
-                elif annote.kind in ('multi', 'multireq'):
-                    scription_debug('processing as multi', verbose=2)
-                    scription_debug('checking choice membership: %r in %r?' % (item, annote.choices), verbose=2)
-                    values = _split_on_comma(value)
-                    if annote.choices:
-                        for v in values:
-                            if v not in annote.choices:
-                                raise ScriptionError(
-                                        '%s: %r not in [ %s ]'
-                                            % (annote.usage, v, ' | '.join(annote.choices)),
-                                        use_help=True,
-                                        )
-                    values = [annote.type(v) for v in values]
-                    annote._cli_value += tuple(values)
-                    if annote._cli_value and annote._radio:
-                        if annote._radio in radio:
-                            raise ScriptionError('only one of %s may be specified'
-                                        % _and_list(func.radio[annote._radio]))
-                        radio.add(annote._radio)
-                else:
-                    raise ScriptionError("Error: %s's kind %r not in (option, multi, multireq)" % (last_item, annote.kind))
-                value = None
+            handled = _handle_lone_value(value)
+            value = None
+            if handled:
+                if isinstance(nargs, int):
+                    nargs -= 1
+                elif nargs == '?':
+                    nargs = 0
                 continue
+            else:
+                annote = None
+                nargs = 0
         last_item = item
         if item is None:
             scription_debug('done with loop', verbose=2)
@@ -976,7 +1053,20 @@ def _usage(func, param_line_args):
                 raise ScriptionError("don't know what to do with %r" % item, use_help=True)
             var_arg_spec._cli_value += (var_arg_spec.type(item), )
             continue
-        if item.startswith('-'):
+        if nargs and not item.startswith('-'):
+            scription_debug('nargs: %r' % nargs, verbose=2)
+            handled = _handle_lone_value(value)
+            value = None
+            if handled:
+                if isinstance(nargs, int):
+                    nargs -= 1
+                elif nargs == '?':
+                    nargs = 0
+                continue
+            else:
+                annote = None
+                nargs = 0
+        if item.startswith('-') or nargs:
             scription_debug('option or flag', verbose=2)
             # (multi)option or flag
             if item.lower() == '--help' or item == '-h' and 'h' not in annotations:
@@ -1005,7 +1095,7 @@ def _usage(func, param_line_args):
                 scription_debug('name & value', verbose=2)
                 item, value = item.split('=', 1)
             item = item.replace('-','_')
-            if item.lower() == 'verbose':
+            if item.lower() == 'verbose' and 'verbose' not in annotations:
                 scription_debug('verbosity option', verbose=2)
                 try:
                     VERBOSITY = int(value)
@@ -1026,6 +1116,7 @@ def _usage(func, param_line_args):
                 continue
             else:
                 raise ScriptionError('%s not valid' % original_item, use_help=True)
+            nargs = annote._nargs
             if annote.remove:
                 scription_debug('removed setting', verbose=2)
                 to_be_removed.append(offset)
@@ -1040,12 +1131,14 @@ def _usage(func, param_line_args):
                     value = annote.type(value)
                     annote._cli_value = value
                 # check for other radio set
-                scription_debug('checking radio settings for flag %s' % (item, ), verbose=2)
-                if value and annote._radio:
+                scription_debug('checking radio setting %r for flag %r in %r' % (annote._radio, item, radio), verbose=2)
+                scription_debug('value: %r' % (value, ), verbose=2)
+                if annote._radio:
                     if annote._radio in radio:
                         raise ScriptionError('only one of %s may be specified'
                                 % _and_list(func.radio[annote._radio]))
                     radio.add(annote._radio)
+                    scription_debug('radio settings: %r' % radio, verbose=2)
                 value = None
             elif annote.kind in ('multi', 'option'):
                 scription_debug('(multi)option' , verbose=2)
@@ -1056,20 +1149,23 @@ def _usage(func, param_line_args):
                     # if value is False, the name was disable with a leading --no-
                     annote._cli_value = annote._type_default
                     value = None
+                    nargs = 0
                     continue
                 scription_debug('value is %r' % (value, ), verbose=2)
                 if annote.kind == 'option':
                     scription_debug('processing as option', verbose=2)
-                    scription_debug('checking choice membership: %r in %r?' % (item, annote.choices), verbose=2)
+                    scription_debug('checking choice membership: %r in %r?' % (value, annote.choices), verbose=2)
                     if annote.choices and value not in annote.choices:
                         raise ScriptionError('%s: %r not in [ %s ]' % (annote.usage, value, ' | '.join(annote.choices)), use_help=True)
                     annote._cli_value = annote.type(value)
-                    scription_debug('checking radio settings for option %s' % (item, ), verbose=2)
+                    scription_debug('checking radio setting %r for option %r in %r' % (annote._radio, item, radio), verbose=2)
+                    scription_debug('value: %r' % (value, ), verbose=2)
                     if annote._radio:
                         if annote._radio in radio:
                             raise ScriptionError('only one of %s may be specified'
                                     % _and_list(func.radio[annote._radio]))
                         radio.add(annote._radio)
+                        scription_debug('radio settings: %r' % radio, verbose=2)
                 else:
                     scription_debug('processing as multi-option', verbose=2)
                     # value could be a list of comma-separated values
@@ -1087,13 +1183,19 @@ def _usage(func, param_line_args):
                     values = [annote.type(v) for v in values]
                     annote._cli_value += tuple(values)
                     scription_debug('_usage:multi ->', annote._cli_value, verbose=2)
-                    scription_debug('checking radio settings for multioption %s' % (item, ), verbose=2)
+                    scription_debug('checking radio settings for multioption %r' % (item, ), verbose=2)
                     if annote._radio:
                         if annote._radio in radio:
                             raise ScriptionError('only one of %s may be specified'
                                     % _and_list(func.radio[annote._radio]))
                         radio.add(annote._radio)
                 value = None
+                if isinstance(nargs, int):
+                    nargs -= 1
+                elif nargs == '?':
+                    nargs = 0
+                if nargs == 0:
+                    annote = None
             else:
                 raise ScriptionError('%s argument %s should not be introduced with --' % (annote.kind, item), use_help=True)
         elif pos >= max_pos and '=' in item:
@@ -1111,11 +1213,20 @@ def _usage(func, param_line_args):
             kwd_arg_spec._cli_value[item] = value
             value = None
         else:
-            scription_debug('positional?', verbose=2)
+            scription_debug('positional?  pos=%d' % pos, verbose=2)
             # positional (required?) argument
-            scription_debug('positional argument:', item)
+            scription_debug('prior annotation:', annote, verbose=2)
+            scription_debug('nargs:', nargs, verbose=2)
+            if annote and nargs == '+' or isinstance(nargs, int) and nargs > 0:
+                scription_debug('decrementing pos')
+                pos -= 1
             if pos < max_pos:
-                annote = annotations[pos]
+                scription_debug('positional argument:', item)
+                if annote is not annotations[pos]:
+                    annote = annotations[pos]
+                    nargs = annote._nargs
+                    if isinstance(nargs, int):
+                        nargs -= 1
                 scription_debug('  with Spec:', annote)
                 if annote.remove:
                     to_be_removed.append(offset)
@@ -1140,7 +1251,10 @@ def _usage(func, param_line_args):
                     item = annote.type(item)
                     annote._cli_value = item
                 pos += 1
+                if nargs == 0:
+                    annote = None
             else:
+                scription_debug('vararg', verbose=2)
                 if var_arg_spec is None:
                     raise ScriptionError("don't know what to do with %r" % item, use_help=True)
                 var_arg_spec._cli_value += (var_arg_spec.type(item), )
@@ -1155,7 +1269,7 @@ def _usage(func, param_line_args):
         _print(_get_version(script_module['module']))
         sys.exit(Exit.Success)
     elif print_all_versions:
-        _print('\n'.join(_get_all_versions(script_module)))
+        _print('\n'.join(_get_all_versions(script_module['module'])))
         sys.exit(Exit.Success)
     for setting in set(func.__scription__.values()):
         if setting.kind == 'required':
@@ -1230,8 +1344,9 @@ class Alias(object):
             _init_script_module(func)
         canonical = self.canonical
         if canonical:
-            func_name = func.__name__.replace('_', '-').lower()
+            func_name = func.__name__.replace('_', '-').lower().lstrip('-')
             try:
+                script_module['script_aliases'][func_name] = func
                 del script_module['script_commands'][func_name]
             except KeyError:
                 raise ScriptionError('canonical Alias %r must run after (be placed before) its Command' % self.aliases[0])
@@ -1268,17 +1383,13 @@ class Command(object):
         if func.__doc__ is not None:
             func.__doc__ = textwrap.dedent(func.__doc__).strip()
         _add_annotations(func, self.annotations)
-        func_name = func.__name__.replace('_', '-').lower()
-        if func_name.startswith('-'):
-            # internal name, possibly shadowing a keyword or data type -- an alias will be needed
-            # to access this command
-            pass
-        else:
-            if func_name in script_module['script_commands']:
-                raise ScriptionError('command name %r already defined' % (func_name, ))
-            elif func_name in script_module['script_aliases']:
-                raise ScriptionError('command name %r already defined as an alias' % (func_name, ))
-            script_module['script_commands'][func_name] = func
+        # a leading underscore is used so functions can be called by keywords or data types
+        func_name = func.__name__.replace('_', '-').lower().lstrip('-')
+        if func_name in script_module['script_commands']:
+            raise ScriptionError('command name %r already defined' % (func_name, ))
+        elif func_name in script_module['script_aliases']:
+            raise ScriptionError('command name %r already defined as an alias' % (func_name, ))
+        script_module['script_commands'][func_name] = func
         _help(func)
         return func
 
@@ -1322,7 +1433,7 @@ class Script(object):
             _init_script_module(func)
         if script_module['script_commands']:
             raise ScriptionError('Script must be defined before any Command')
-        func_name = func.__name__.replace('_', '-').lower()
+        func_name = func.__name__.replace('_', '-').lower().lstrip('-')
         if func_name in script_module['script_commands']:
             raise ScriptionError('%r cannot be both Command and Script' % func_name)
         if func.__doc__ is not None:
@@ -1349,7 +1460,8 @@ class Spec(object):
     def __init__(self,
             help=empty, kind=empty, abbrev=empty, type=empty,
             choices=empty, usage=empty, remove=False, default=empty,
-            envvar=empty, force_default=empty, radio=empty, target=empty
+            envvar=empty, force_default=empty, radio=empty, target=empty,
+            nargs=empty,
             ):
         if isinstance(help, Spec):
             self.__dict__.update(help.__dict__)
@@ -1359,8 +1471,20 @@ class Spec(object):
             help, kind, abbrev, type, choices, usage, remove, default, envvar, force_default = args
         if not help:
             help = ''
-        if not kind:
-            kind = 'required'
+        scription_debug('kind: %r   nargs: %r   help: %r' % (kind, nargs, help), verbose=3)
+        if kind is empty and nargs is not empty:
+            # fix kind to match nargs
+            if nargs == 0:
+                kind = 'flag'
+            elif nargs == '?':
+                kind = 'option'
+            elif nargs == '*':
+                kind = 'multi'
+            elif nargs == '+' or isinstance(nargs, int) and nargs > 0:
+                kind = 'multireq'
+            else:
+                raise ScriptionError('unknown nargs: %r  [no quotes needed for integers]' % nargs)
+        scription_debug('kind: %r   nargs: %r' % (kind, nargs), verbose=3)
         if not type:
             type = _identity
         if not choices:
@@ -1380,9 +1504,19 @@ class Spec(object):
             # otherwise force_default is the always used default itself
             default = force_default
             use_default = True
-        if kind not in ('required', 'multireq', 'option', 'multi', 'flag'):
+        if kind is not empty and kind not in ('required', 'multireq', 'option', 'multi', 'flag'):
             raise ScriptionError('unknown parameter kind: %r' % kind)
+        if kind == 'required':
+            if isinstance(nargs, int) and nargs != 1:
+                kind = 'multireq'
+            elif nargs is empty:
+                nargs = 1
+        elif kind == 'option':
+            if isinstance(nargs, int) and nargs > 1:
+                kind = 'multi'
         if kind == 'flag':
+            if nargs is empty:
+                nargs = 0
             if type is Trivalent:
                 arg_type_default = Unknown
             else:
@@ -1390,11 +1524,22 @@ class Spec(object):
                 if type is _identity:
                     type = Bool
         elif kind == 'option':
+            if nargs is empty:
+                if use_default:
+                    nargs = '?'
+                else:
+                    nargs = 1
             arg_type_default = None
-        elif kind in ('multi', 'multireq'):
+        elif kind == 'multi':
+            if nargs is empty:
+                nargs = '*'
+            arg_type_default = tuple()
+        elif kind == 'multireq':
+            if nargs is empty:
+                nargs = '+'
             arg_type_default = tuple()
         elif default is not empty:
-            arg_type_default = type_of(default)
+            arg_type_default = type(default)
         if abbrev not in(empty, None) and not isinstance(abbrev, tuple):
             abbrev = (abbrev, )
         if usage is not empty:
@@ -1413,6 +1558,7 @@ class Spec(object):
         self._script_default = default
         self._type_default = arg_type_default
         self._use_default = use_default
+        self._nargs = nargs
         self._global = False
         self._envvar = envvar
         if radio is empty:
@@ -1426,11 +1572,11 @@ class Spec(object):
         self._target = target
 
     def __iter__(self):
-        return iter((self.help, self.kind, self.abbrev, self.type, self.choices, self.usage, self.remove, self._script_default, self._envvar, self._target))
+        return iter((self.help, self.kind, self.abbrev, self.type, self.choices, self.usage, self.remove, self._script_default, self._envvar, self._target, self._nargs))
 
     def __repr__(self):
-        return "Spec(help=%r, kind=%r, abbrev=%r, type=%r, choices=%r, usage=%r, remove=%r, default=%r, envvar=%r, target=%r)" % (
-                self.help, self.kind, self.abbrev, self.type, self.choices, self.usage, self.remove, self._script_default, self._envvar, self._target)
+        return "Spec(help=%r, kind=%r, abbrev=%r, type=%r, choices=%r, usage=%r, remove=%r, default=%r, envvar=%r, target=%r, nargs=%r)" % (
+                self.help, self.kind, self.abbrev, self.type, self.choices, self.usage, self.remove, self._script_default, self._envvar, self._target, self._nargs)
 
     @property
     def value(self):
@@ -1460,7 +1606,7 @@ class Spec(object):
                 else:
                     value = self.type(value)
             scription_debug('     final --> %r' % (value, ), verbose=2)
-        elif self._type_default is not empty:
+        elif self._type_default is not empty and self.kind != 'multireq':
             value = self._type_default
             scription_debug('   type default --> %r' % (value, ), verbose=2)
         else:
@@ -1518,7 +1664,7 @@ def Run():
                 _print(_get_version(script_module['module']))
                 sys.exit(Exit.Success)
             elif func_name in ('--all-versions', '--all_versions'):
-                _print('\n'.join(_get_all_versions(script_module)))
+                _print('\n'.join(_get_all_versions(script_module['module'])))
                 sys.exit(Exit.Success)
             else:
                 func_name = func_name.replace('_', '-')
@@ -1934,12 +2080,16 @@ class Job(object):
                             break
                 else:
                     # wait a moment for any passwords to be sent
-                    scription_debug('[echo: %s] sleeping at least 5 seconds so passwords can be sent and response read' % (self.get_echo(), ))
+                    scription_debug('[echo: %s] sleeping at most 5 seconds so passwords can be sent and response read' % (self.get_echo(), ))
                     waiting_time = 5.0
                     while waiting_time > 0.05:
+                        if self.get_echo():
+                            scription_debug('[echo: %s] password entry finished' % (self.get_echo(), ))
+                            break
                         scription_debug('[echo: %s]      quick sleep (%s remaning)' % (self.get_echo(), waiting_time))
                         waiting_time -= 0.1
                         time.sleep(0.1)
+                    else:
                         if not self.get_echo():
                             # host still wants a password -- not good
                             if not self.process:
@@ -1950,14 +2100,12 @@ class Job(object):
                                     e = self._set_exc(FailedPassword)
                                     self.kill()
                                     raise e
-                    else:
-                        scription_debug('[echo: %s] password entry finished' % (self.get_echo(), ))
             if input is not None:
                 scription_debug('writing input: %r' % input, verbose=2)
                 time.sleep(input_delay)
                 for line in input:
-                    self.write(line)
-                    time.sleep(0.1)
+                    self.write(line, block=False)
+                    time.sleep(0.01)
             scription_debug('joining process thread...')
             while not self.abort:
                 process_thread.join(1)
@@ -1976,17 +2124,20 @@ class Job(object):
             scription_debug('closing job')
             self.close()
 
-    def close(self, force=True):
-        'parent method'
+    def close(self, timeout=0):
+        'parent method - timeout=0 means terminate immediately'
         if not self.closed:
             try:
-                if self.is_alive() and not self.abort:
-                    self.terminate()
-                    time.sleep(0.1)
-                    if force and self.is_alive():
-                        self.kill(error='ignore')
+                if not self.abort:
+                    while self.is_alive() and timeout > 0:
+                        timeout -= 0.1
                         time.sleep(0.1)
-                        self.is_alive()
+                    if self.is_alive():
+                        self.terminate()
+                        time.sleep(0.1)
+                        if self.is_alive():
+                            self.kill(error='ignore')
+                            time.sleep(0.1)
                 # shutdown stdin thread
                 self._all_input.put(None)
                 # close handles and pipes
@@ -2090,27 +2241,26 @@ class Job(object):
                 scription_debug('checking job for life')
                 if not self.is_alive():
                     scription_debug('dead, exiting')
-                    break
+                    return
             except Exception:
                 cls, exc, tb = sys.exc_info()
                 scription_debug('received', exc)
                 if cls in (IOError, OSError) and exc.errno in (errno.ESRCH, errno.ECHILD):
                     # child already died
-                    break
+                    return
+        # unable to kill job
+        self.abort = True
+        scription_debug('abort switch set')
+        if exc is None:
+            try:
+                raise UnableToKillJob('Signals %s failed' % ', '.join(self.kill_signals))
+            except Exception:
+                cls, exc, tb = sys.exc_info()
+                e = self._set_exc(UnableToKillJob, None, traceback=tb)
         else:
-            # unable to kill job
-            self.abort = True
-            scription_debug('abort switch set')
-            if exc is None:
-                try:
-                    raise UnableToKillJob('Signals %s failed' % ', '.join(self.kill_signals))
-                except Exception:
-                    cls, exc, tb = sys.exc_info()
-                    e = self._set_exc(UnableToKillJob, None, traceback=tb)
-            else:
-                e = self._set_exc(UnableToKillJob, '%s: %s' % (exc.__class__.__name__, exc), traceback=tb)
-            if error == 'raise':
-                raise e
+            e = self._set_exc(UnableToKillJob, '%s: %s' % (exc.__class__.__name__, exc), traceback=tb)
+        if error == 'raise':
+            raise e
 
     def poll(self):
         scription_debug('polling')
@@ -2201,8 +2351,9 @@ class Job(object):
         scription_debug('terminating')
         if self.is_alive() and self.kill_signals:
             sig = self.kill_signals[0]
-            os.kill(self.pid, sig)
-            time.sleep(0.1)
+            self.send_signal(sig)
+            if self.is_alive:
+                self.abort = True
 
     def write(self, data, block=True):
         'parent method'
@@ -3132,12 +3283,23 @@ def info(*args, **kwds):
         kwds.setdefault('verbose', 1)
         print(*args, **kwds)
 
-def split_text(text, max):
-    # return a list of strings where each string is <= max, and words are whole
+def wrap_line(text, max, indent=0, primary=0, secondary=0):
+    # return a list of strings where each string is <= max, and words are whole;
     # newlines are honorod
+    if indent < 0:
+        raise ValueError('`indent` must be zero or positive')
+    if secondary < 0:
+        raise ValueError('`secondary` must be zero or positive')
+    if primary < 0:
+        secondary += -primary
+        primary = 0
+    if indent:
+        secondary += indent
     lines = []
     text = text.split('\n')
     for line in text:
+        if indent or primary:
+            line = ' '*(indent+primary) + line
         while line:
             if len(line) <= max:
                 lines.append(line.rstrip())
@@ -3152,7 +3314,10 @@ def split_text(text, max):
                 # no whitespace, just take a chunk
                 lines.append(line[:max].rstrip())
                 line = line[max:]
+            if secondary and line.strip():
+                line = ' '*secondary + line
     return lines
+split_text = wrap_line
 
 def box(message, *style, **kwds):
     """ draws box around text using style -> ([border,] [char [, char [ ...]]])
@@ -3314,7 +3479,7 @@ def table_display(rows, widths=None, types=None, header=True, display_none=None,
             if len(row) == 1:
                 # make a line using the row character
                 row = row * single_cell_width
-            for line in split_text(row, single_cell_width):
+            for line in wrap_line(row, single_cell_width):
                 yield(sides % ('%-*s' % (single_cell_width, line)))
         else:
             for row in zip_values(row, widths, types):
@@ -3515,7 +3680,7 @@ def zip_values(row, widths, types):
     expanded_row = []
     for i, cell in enumerate(row):
         if isinstance(cell, basestring):
-            expanded_row.append(tuple(split_text(cell, widths[i])))
+            expanded_row.append(tuple(wrap_line(cell, widths[i])))
         else:
             expanded_row.append((cell, ))
     for row in zip_longest(*expanded_row, fillvalue=empty):
