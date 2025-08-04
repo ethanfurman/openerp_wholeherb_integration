@@ -375,7 +375,9 @@ class NVBA(Synchronize):
     FIS_KEY = F250.lot_no
     OE_KEY = 'lot_no'
     OE_KEY_MODULE = FN
-    OE_FIELDS = 'id', 'product_id', 'lot_no', 'active', 'preship_lot', 'fis_record',
+    OE_FIELDS = ('id', 'product_id', 'lot_no', 'active', 'preship_lot', 'fis_record',
+                 'qty_on_hand', 'qty_committed', 'qty_on_order', 'qty_produced', 'qty_on_hold',
+                 )
     FIS_SCHEMA = (
             F250.lot_no, F250.item_id, F250.warehouse_id,
             F250.qty_on_hand, F250.qty_committed, F250.qty_on_order, F250.qty_produced,
@@ -467,10 +469,12 @@ class NVTY(Synchronize):
     OE_KEY_MODULE = FN
     OE_FIELDS = (
             'id', FIS_MODULE, FIS_ID, 'name', 'categ_id', 'active', 'fis_record', 'default_code',
+            'qty_available', 'incoming_qty', 'outgoing_qty',
             )
     FIS_SCHEMA = (
             F135.item_id, F135.desc, F135.selling_units, F135.available,
             F135.prod_category, F135.warehouse_no,
+            F135.qty_on_hand, F135.qty_committed, F135.qty_on_order,
             )
     FIELDS_CHECK_IGNORE = ('name', )
     #
@@ -514,6 +518,9 @@ class NVTY(Synchronize):
              or CNVZc.ProductCategory(INVALID_CATEGORY_XML_ID)
                 )
         item.fis_record = True
+        item.qty_available = fis_rec[F135.qty_on_hand]
+        item.outgoing_qty = fis_rec[F135.qty_committed]
+        item.incoming_qty = fis_rec[F135.qty_on_order]
         #
         return (XidRec.fromdict(item, imd), )
 
