@@ -1,4 +1,4 @@
-from tools import FISenum
+from .tools import FISenum
 
 
 class F27(FISenum):
