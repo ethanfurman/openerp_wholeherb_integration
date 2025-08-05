@@ -1,6 +1,6 @@
 scripts/oe-export
 scripts/oe-repair
-scripts/fis
+scripts/fis $local
 scripts/fnx_oe_import_pdfs $local --suid
 scripts/fnx_pull_SDS_Docs
 scripts/fis_update --suid
